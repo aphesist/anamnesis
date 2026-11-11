@@ -694,13 +694,17 @@ function scheduleServerSave() {
       await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...current, theme, motion: resolvedMotion() }),
+        // only the keys this module owns; `theme` is sent whole, merged over what the
+        // server holds so fields written elsewhere are kept
+        body: JSON.stringify({ theme: { ...(isPlainObject(current.theme) ? current.theme : {}), ...theme }, motion: resolvedMotion() }),
       });
     } catch {
       serverOk = false;
     }
   }, 600);
 }
+
+const isPlainObject = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
 
 function sanitizeRemote(t) {
   const out = {};
