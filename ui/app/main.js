@@ -88,9 +88,10 @@ const ctx = {
     else { ctx.go('notes'); emit('open-item', id); }
   },
   openInNotes(id) { ctx.go('notes'); emit('open-item', id); },
-  go(page) {
-    if (!['brain', 'notes', 'write', 'today'].includes(page)) page = 'brain';
-    if (location.hash !== '#/' + page) history.replaceState(null, '', location.pathname + location.search + '#/' + page);
+  go(page, { replace = false } = {}) {
+    if (!PAGES.includes(page)) page = 'brain';
+    // each page change is a history entry, so back and forward walk between pages
+    if (routeOf(location.hash) !== page || !location.hash) history[replace ? 'replaceState' : 'pushState'](null, '', location.pathname + location.search + '#' + page);
     showPage(page);
   },
   ask(text) { layout.open('chat'); emit('chat-ask', text); },
@@ -101,6 +102,13 @@ const ctx = {
 window.anamnesis = { ctx, store, brain, theme: themeApi };
 
 // ---------- pages ----------
+// routes: #brain, #notes, #write, #today (the older #/notes form is still read). Other hashes
+// (the skip links' #brain-list) are anchors, not routes.
+const PAGES = ['brain', 'notes', 'write', 'today'];
+function routeOf(hash) {
+  const m = String(hash || '').match(/^#\/?(\w+)$/);
+  return m && PAGES.includes(m[1]) ? m[1] : null;
+}
 const pageMounted = new Set();
 function showPage(page) {
   store.view.page = page;
@@ -112,7 +120,13 @@ function showPage(page) {
   if (page === 'brain') brain.dirty = true;
   emit('page', page);
 }
-window.addEventListener('hashchange', () => showPage((location.hash.match(/^#\/(\w+)/) || [])[1] || 'brain'));
+function onRoute() {
+  const page = routeOf(location.hash);
+  if (page && page !== store.view.page) showPage(page);
+  else if (!location.hash && store.view.page !== 'brain') showPage('brain');
+}
+window.addEventListener('hashchange', onRoute);
+window.addEventListener('popstate', onRoute);
 
 // ---------- stage: tooltip, alt views ----------
 const tooltip = document.getElementById('tooltip');
@@ -205,7 +219,7 @@ try {
   console.error(e);
   document.getElementById('caption').textContent = 'the brain could not be reached. try ?mock=1 to see a demo.';
 }
-showPage((location.hash.match(/^#\/(\w+)/) || [])[1] || 'brain');
+showPage(routeOf(location.hash) || 'brain');
 renderAlt();
 
 // ---------- the demo brain (GET/POST /api/demo) ----------
