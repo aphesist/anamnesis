@@ -1,0 +1,60 @@
+{
+  "benchmark": "retrieval",
+  "dataset": "nfcorpus",
+  "date": "2026-11-11",
+  "subset": false,
+  "rows": [
+    {
+      "dataset": "nfcorpus",
+      "model": "hash",
+      "docs": 3633,
+      "queries": 323,
+      "ndcg@10": 0.1251689693761734,
+      "ndcg@10_ci95": [
+        0.10273368819564595,
+        0.1524436127361006
+      ],
+      "recall@100": 0.1475741946472963,
+      "recall@100_ci95": [
+        0.12560544094847406,
+        0.17202043380371074
+      ],
+      "seconds": 2.8
+    },
+    {
+      "dataset": "nfcorpus",
+      "model": "bm25",
+      "docs": 3633,
+      "queries": 323,
+      "ndcg@10": 0.3051241034842157,
+      "ndcg@10_ci95": [
+        0.26948386659019646,
+        0.3438836263866426
+      ],
+      "recall@100": 0.23935849416543062,
+      "recall@100_ci95": [
+        0.21058772554096566,
+        0.2694530208160921
+      ],
+      "seconds": 0.4
+    },
+    {
+      "dataset": "nfcorpus",
+      "model": "e5-small",
+      "docs": 3633,
+      "queries": 323,
+      "ndcg@10": 0.30635304611674297,
+      "ndcg@10_ci95": [
+        0.27036914415105456,
+        0.34209263910390864
+      ],
+      "recall@100": 0.2756474688659079,
+      "recall@100_ci95": [
+        0.24475659189611804,
+        0.3026559660316003
+      ],
+      "seconds": 526.4
+    }
+  ],
+  "note": "BEIR test split; nDCG@10 with graded qrels; 95% bootstrap intervals over queries"
+}
