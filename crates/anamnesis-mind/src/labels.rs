@@ -9,6 +9,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::linalg::{Rows, dot};
 
+/// Version of the deterministic labelling (keywords and [`fallback_label`]).
+/// Bump it when the algorithm changes: surviving regions whose stored label is
+/// still the deterministic one are then relabelled once, so existing brains
+/// benefit (model-given labels are kept).
+pub const LABEL_VERSION: u32 = 2;
+
 /// English + Portuguese stopwords (lowercase). Not exhaustive; enough to keep
 /// function words, filler and speech verbs out of region keywords.
 const STOPWORDS: &[&str] = &[
@@ -462,15 +468,391 @@ const STOPWORDS: &[&str] = &[
     "muitas",
 ];
 
-/// Lowercase word tokens of length ≥ 3, minus stopwords and pure numbers.
+/// Words that survive tokenising but name no topic: units of measure and
+/// anatomical words the journals use for describing leaves and birds
+/// ("lobe", "inches"), scholarly apparatus and page furniture ("ibid",
+/// "apud", "footnote"), weekdays and month abbreviations from dated entries,
+/// and ordinals ("third", "twentieth") from "the third of may".
+const NOISE: &[&str] = &[
+    // measures and anatomy
+    "inch",
+    "inches",
+    "foot",
+    "feet",
+    "yard",
+    "yards",
+    "rod",
+    "rods",
+    "lobe",
+    "lobes",
+    "lobed",
+    "ell",
+    "ells",
+    "ounce",
+    "ounces",
+    "pound",
+    "pounds",
+    "dozen",
+    // apparatus, page furniture
+    "page",
+    "pages",
+    "vol",
+    "vols",
+    "volume",
+    "chap",
+    "chapter",
+    "footnote",
+    "footnotes",
+    "ibid",
+    "idem",
+    "apud",
+    "viz",
+    "etc",
+    "sic",
+    "cit",
+    "op",
+    "ms",
+    "mss",
+    "edition",
+    "ed",
+    "eds",
+    "editor",
+    "transcribed",
+    "illustration",
+    "illustrations",
+    "plate",
+    "fig",
+    "copyright",
+    "gutenberg",
+    "ebook",
+    // calendar words
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "sept",
+    "oct",
+    "nov",
+    "dec",
+    // ordinals
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "ninth",
+    "tenth",
+    "eleventh",
+    "twelfth",
+    "thirteenth",
+    "fourteenth",
+    "fifteenth",
+    "sixteenth",
+    "seventeenth",
+    "eighteenth",
+    "nineteenth",
+    "twentieth",
+    "thirtieth",
+    // portuguese
+    "página",
+    "páginas",
+    "capítulo",
+    "nota",
+    "notas",
+    "segunda",
+    "terça",
+    "quarta",
+    "quinta",
+    "sexta",
+    "sábado",
+    "domingo",
+    "terceiro",
+    "terceira",
+    "quarto",
+];
+
+/// Closed-class words that slip past the stoplist (pronouns, determiners,
+/// conjunctions, auxiliaries) and very common adjectives that describe
+/// rather than name.
+const CLOSED_CLASS: &[&str] = &[
+    "another",
+    "since",
+    "before",
+    "during",
+    "whatever",
+    "whenever",
+    "wherever",
+    "himself",
+    "herself",
+    "yourselves",
+    "anyone",
+    "someone",
+    "everyone",
+    "nobody",
+    "somebody",
+    "none",
+    "neither",
+    "either",
+    "else",
+    "therein",
+    "thereof",
+    "whereby",
+    "whither",
+    "thither",
+    "hither",
+    "wherefore",
+    "nay",
+    "aye",
+    "oft",
+    "ere",
+    "amid",
+    "amidst",
+    "whilst",
+    "unless",
+    "least",
+    "less",
+    "lest",
+    "otherwise",
+    "beneath",
+    "near",
+    "nearly",
+    "later",
+    "soon",
+    "often",
+    "shalt",
+    "wilt",
+    "canst",
+    "dost",
+    "didst",
+    "hast",
+    "art",
+    "wert",
+    "becomes",
+    "became",
+    "become",
+    "being",
+    "seeming",
+    "having",
+    "makes",
+    "making",
+    "takes",
+    "taking",
+    "comes",
+    "coming",
+    "gets",
+    "getting",
+];
+
+/// Common adjectives: weak as names, so they rank below nouns.
+const COMMON_ADJECTIVES: &[&str] = &[
+    "white",
+    "black",
+    "high",
+    "low",
+    "large",
+    "small",
+    "young",
+    "true",
+    "fine",
+    "full",
+    "open",
+    "clear",
+    "dark",
+    "long",
+    "short",
+    "deep",
+    "broad",
+    "thick",
+    "thin",
+    "wide",
+    "pretty",
+    "certain",
+    "common",
+    "real",
+    "whole",
+    "general",
+    "particular",
+    "different",
+    "various",
+    "strange",
+    "simple",
+    "beautiful",
+    "best",
+    "better",
+    "least",
+    "greater",
+    "greatest",
+];
+
+/// Common first names: in a region label they say less than the surname or
+/// the topic next to them ("william · robert").
+const FIRST_NAMES: &[&str] = &[
+    "william",
+    "robert",
+    "john",
+    "james",
+    "george",
+    "charles",
+    "thomas",
+    "henry",
+    "samuel",
+    "edward",
+    "richard",
+    "joseph",
+    "david",
+    "mary",
+    "elizabeth",
+    "sarah",
+    "margaret",
+    "anne",
+    "ann",
+];
+
+/// A valid lowercase roman numeral ("xiv", "lxxx"); "mix" is the one common
+/// english word that also parses, and it is kept.
+fn is_roman_numeral(w: &str) -> bool {
+    if w.is_empty() || w == "mix" || !w.chars().all(|c| "ivxlcdm".contains(c)) {
+        return false;
+    }
+    // canonical form: thousands, hundreds, tens, units
+    let mut rest = w;
+    let take = |rest: &mut &str, opts: &[&str]| {
+        for o in opts {
+            if !o.is_empty()
+                && let Some(r) = rest.strip_prefix(o)
+            {
+                *rest = r;
+                return;
+            }
+        }
+    };
+    while let Some(r) = rest.strip_prefix('m') {
+        rest = r;
+    }
+    take(
+        &mut rest,
+        &["cm", "cd", "dccc", "dcc", "dc", "d", "ccc", "cc", "c"],
+    );
+    take(
+        &mut rest,
+        &["xc", "xl", "lxxx", "lxx", "lx", "l", "xxx", "xx", "x"],
+    );
+    take(
+        &mut rest,
+        &["ix", "iv", "viii", "vii", "vi", "v", "iii", "ii", "i"],
+    );
+    rest.is_empty()
+}
+
+/// Is this token noise rather than a topic word?
+fn is_noise(w: &str) -> bool {
+    use std::sync::OnceLock;
+    static SET: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    let set = SET.get_or_init(|| NOISE.iter().chain(CLOSED_CLASS).copied().collect());
+    set.contains(w)
+        || is_roman_numeral(w)
+        // "3d", "21st", "1850s": dates and numbers with letters attached
+        || w.chars().any(|c| c.is_ascii_digit())
+}
+
+/// Lowercase word tokens of length ≥ 3, minus stopwords, closed-class words,
+/// noise (units, page furniture, roman numerals, ordinals, weekdays) and
+/// anything with a digit in it.
 pub fn tokenize(text: &str) -> Vec<String> {
     let stop: &HashSet<&'static str> = stopset();
     text.split(|c: char| !(c.is_alphanumeric() || c == '\''))
         .map(|w| w.trim_matches('\'').to_lowercase())
+        .map(|w| w.strip_suffix("'s").map(str::to_string).unwrap_or(w))
         .filter(|w| w.chars().count() >= 3)
-        .filter(|w| !w.chars().all(|c| c.is_ascii_digit()))
-        .filter(|w| !stop.contains(w.as_str()))
+        .filter(|w| !stop.contains(w.as_str()) && !is_noise(w))
         .collect()
+}
+
+/// A crude lemma, used to count inflected forms as one word: plural "-s",
+/// "-es", "-ies", and (for longer words) "-ing" / "-ed", with a doubled final
+/// consonant undone and a final "e" dropped, so "walks",
+/// "walking" and "walked" share a key, as do "make" and "making". The key is
+/// internal: labels show the commonest surface form.
+pub fn lemma(w: &str) -> String {
+    const ING_NOUNS: &[&str] = &[
+        "morning",
+        "evening",
+        "spring",
+        "string",
+        "building",
+        "painting",
+        "writing",
+        "wedding",
+        "ceiling",
+        "clothing",
+        "nothing",
+        "something",
+        "everything",
+        "thing",
+        "king",
+        "wing",
+        "ring",
+        "sing",
+        "swing",
+        "sling",
+        "offspring",
+        "lightning",
+        "pudding",
+        "stocking",
+        "feeling",
+        "meeting",
+        "beginning",
+        "being",
+        "blessing",
+        "ending",
+    ];
+    const ED_KEEP: &[&str] = &["hundred", "sacred", "kindred", "naked", "wicked", "rugged"];
+    let w = w.strip_suffix("'s").unwrap_or(w);
+    let n = w.chars().count();
+    let mut base = stem(w);
+    if ["ches", "shes", "xes", "sses", "zes"]
+        .iter()
+        .any(|s| w.ends_with(s))
+    {
+        base = w[..w.len() - 2].to_string();
+    }
+    let undouble = |b: &str| -> String {
+        let cs: Vec<char> = b.chars().collect();
+        let k = cs.len();
+        if k >= 3 && cs[k - 1] == cs[k - 2] && !"aeioulsfz".contains(cs[k - 1]) {
+            cs[..k - 1].iter().collect()
+        } else {
+            b.to_string()
+        }
+    };
+    if n >= 6 && !ING_NOUNS.contains(&w) {
+        if let Some(b) = w.strip_suffix("ing") {
+            base = undouble(b);
+        } else if let Some(b) = w.strip_suffix("ed").filter(|_| !w.ends_with("eed"))
+            && !ED_KEEP.contains(&w)
+        {
+            base = undouble(b);
+        }
+    }
+    if base.chars().count() >= 4
+        && let Some(b) = base.strip_suffix('e')
+    {
+        base = b.to_string();
+    }
+    base
 }
 
 fn stopset() -> &'static HashSet<&'static str> {
@@ -486,17 +868,26 @@ fn stopset() -> &'static HashSet<&'static str> {
 /// occurs in, so words spread over every region don't name one.
 /// `classes[c]` lists the texts of class `c`. Returns the top `top` terms per
 /// class with their weights.
+///
+/// Terms are counted by [`lemma`] ("walks", "walking" and "walked" are one
+/// term) and shown in their commonest surface form within the class.
 pub fn c_tf_idf(classes: &[Vec<&str>], top: usize) -> Vec<Vec<(String, f32)>> {
     let mut counts: Vec<HashMap<String, u32>> = Vec::with_capacity(classes.len());
+    // class → lemma → surface form → count
+    let mut surfaces: Vec<HashMap<String, HashMap<String, u32>>> =
+        Vec::with_capacity(classes.len());
     let mut global: HashMap<String, u32> = HashMap::new();
     // number of classes a term occurs in
     let mut spread: HashMap<String, u32> = HashMap::new();
     let mut total_words = 0usize;
     for texts in classes {
         let mut m: HashMap<String, u32> = HashMap::new();
+        let mut sf: HashMap<String, HashMap<String, u32>> = HashMap::new();
         for t in texts {
             for w in tokenize(t) {
-                *m.entry(w).or_default() += 1;
+                let key = lemma(&w);
+                *m.entry(key.clone()).or_default() += 1;
+                *sf.entry(key).or_default().entry(w).or_default() += 1;
                 total_words += 1;
             }
         }
@@ -505,26 +896,45 @@ pub fn c_tf_idf(classes: &[Vec<&str>], top: usize) -> Vec<Vec<(String, f32)>> {
             *spread.entry(w.clone()).or_default() += 1;
         }
         counts.push(m);
+        surfaces.push(sf);
     }
+    // the commonest surface form of a lemma in a class (ties: the shorter, then
+    // alphabetical)
+    let surface = |c: usize, key: &str| -> String {
+        surfaces[c]
+            .get(key)
+            .and_then(|m| {
+                m.iter()
+                    .max_by(|a, b| {
+                        a.1.cmp(b.1)
+                            .then_with(|| b.0.len().cmp(&a.0.len()))
+                            .then_with(|| b.0.cmp(a.0))
+                    })
+                    .map(|(w, _)| w.clone())
+            })
+            .unwrap_or_else(|| key.to_string())
+    };
     let nclasses = classes.iter().filter(|c| !c.is_empty()).count().max(1) as f32;
     let a = total_words as f32 / classes.len().max(1) as f32;
     let mut ranked: Vec<Vec<(String, f32)>> = counts
         .iter()
-        .map(|m| {
+        .enumerate()
+        .map(|(ci, m)| {
             let len: u32 = m.values().sum();
             let mut v: Vec<(String, f32)> = m
                 .iter()
-                .filter(|(w, _)| !common_adverb(w, spread[*w] as f32 / nclasses))
-                .map(|(w, &c)| {
-                    let f = global[w] as f32;
+                .map(|(k, &c)| (k, c, surface(ci, k)))
+                .filter(|(k, _, w)| !common_adverb(w, spread[*k] as f32 / nclasses))
+                .map(|(k, c, w)| {
+                    let f = global[k] as f32;
                     // words that occur in most classes ("said", "men") say little
                     // about any one of them
-                    let class_idf = (1.0 + nclasses / spread[w] as f32).ln();
+                    let class_idf = (1.0 + nclasses / spread[k] as f32).ln();
                     let weight = c as f32 / len.max(1) as f32
                         * (1.0 + a / f).ln()
                         * class_idf
-                        * part_of_speech_weight(w);
-                    (w.clone(), weight)
+                        * part_of_speech_weight(&w);
+                    (w, weight)
                 })
                 .collect();
             v.sort_by(|x, y| y.1.total_cmp(&x.1).then_with(|| x.0.cmp(&y.0)));
@@ -614,19 +1024,44 @@ fn common_adverb(w: &str, spread_share: f32) -> bool {
 }
 
 /// Names are mostly nouns: without a tagger, lean away from words that look
-/// like verb forms ("walked", "looking"); long words only, so "seed", "bed"
-/// and "king" are untouched, and a few common nouns are exempt.
+/// like verb forms ("walked", "looking") or adjectives ("beautiful",
+/// "famous", "white"), and towards noun suffixes ("friendship", "darkness",
+/// "government"). Suffix rules apply to long words only, so "seed", "bed" and
+/// "king" are untouched, and a few common nouns are exempt. First names rank
+/// low too.
 fn part_of_speech_weight(w: &str) -> f32 {
     const NOUNS: &[&str] = &[
         "morning", "evening", "spring", "string", "building", "painting", "writing", "wedding",
         "ceiling", "clothing", "hundred", "sacred",
     ];
     let n = w.chars().count();
-    if n >= 6 && (w.ends_with("ed") || w.ends_with("ing")) && !NOUNS.contains(&w) {
-        0.7
-    } else {
-        1.0
+    if FIRST_NAMES.contains(&w) {
+        return 0.5;
     }
+    if COMMON_ADJECTIVES.contains(&w) {
+        return 0.6;
+    }
+    if n >= 6 && (w.ends_with("ed") || w.ends_with("ing")) && !NOUNS.contains(&w) {
+        return 0.7;
+    }
+    if n >= 6
+        && ["ful", "ous", "ive", "able", "ible", "less", "ish"]
+            .iter()
+            .any(|s| w.ends_with(s))
+    {
+        return 0.8;
+    }
+    if n >= 7
+        && [
+            "tion", "sion", "ness", "ment", "ity", "ism", "ship", "hood", "ance", "ence", "dom",
+            "ção", "ções", "dade", "mento",
+        ]
+        .iter()
+        .any(|s| w.ends_with(s))
+    {
+        return 1.1;
+    }
+    1.0
 }
 
 /// Deterministic lowercase label from keywords: the top three joined by " · ".
@@ -909,5 +1344,90 @@ mod tests {
             &|_| Some("a note".into()),
         );
         assert!(p.user.contains("a note"));
+    }
+
+    #[test]
+    fn noise_words_are_not_keywords() {
+        let t = tokenize(
+            "The lobe of the leaf, three inches long; see p. 214, vol. xiv, ibid. \
+             Monday the twentieth, 3d Oct. A civil mill by the river. Pages 12-14.",
+        );
+        for w in [
+            "lobe",
+            "inches",
+            "vol",
+            "xiv",
+            "ibid",
+            "monday",
+            "twentieth",
+            "3d",
+            "oct",
+            "pages",
+        ] {
+            assert!(!t.contains(&w.to_string()), "{w} in {t:?}");
+        }
+        for w in ["leaf", "civil", "mill", "river"] {
+            assert!(t.contains(&w.to_string()), "{w} missing from {t:?}");
+        }
+        assert!(is_roman_numeral("xiv") && is_roman_numeral("lxxx") && is_roman_numeral("mdcc"));
+        assert!(
+            !is_roman_numeral("civil") && !is_roman_numeral("mill") && !is_roman_numeral("mix")
+        );
+        assert!(!is_roman_numeral("dim") && !is_roman_numeral("lid"));
+    }
+
+    #[test]
+    fn inflected_forms_count_as_one_word() {
+        assert_eq!(lemma("walks"), lemma("walking"));
+        assert_eq!(lemma("walked"), lemma("walk"));
+        assert_eq!(lemma("making"), lemma("make"));
+        assert_eq!(lemma("running"), lemma("run"));
+        assert_eq!(lemma("branches"), lemma("branch"));
+        assert_eq!(lemma("berries"), lemma("berry"));
+        assert_eq!(lemma("morning"), "morning");
+        assert_ne!(lemma("hundred"), lemma("hundr"));
+        // "skating", "skates" and "skate" are one keyword, shown in its commonest form
+        let classes: Vec<Vec<&str>> = vec![
+            vec![
+                "skating on the pond",
+                "skates and skating",
+                "skate ice pond",
+            ],
+            vec!["ice and snow", "snow drifts", "snow ice cold"],
+        ];
+        let kw = c_tf_idf(&classes, 5);
+        let words: Vec<&str> = kw[0].iter().map(|(w, _)| w.as_str()).collect();
+        assert!(words.contains(&"skating"), "{words:?}");
+        assert!(
+            !words.contains(&"skates") && !words.contains(&"skate"),
+            "{words:?}"
+        );
+    }
+
+    #[test]
+    fn short_form_is_the_two_most_distinctive_words() {
+        let classes: Vec<Vec<&str>> = vec![
+            vec![
+                "warbler warbler warbler nest nest grove",
+                "warbler nest grove",
+                "warbler nest",
+            ],
+            vec!["granite ledge", "granite boulder ledge", "granite"],
+        ];
+        let kw = c_tf_idf(&classes, 5);
+        let words: Vec<String> = kw[0].iter().map(|(w, _)| w.clone()).collect();
+        let label = fallback_label(&words);
+        let short: Vec<&str> = label.split(" · ").take(2).collect();
+        assert_eq!(short, vec!["warbler", "nest"], "{label}");
+        // weights are in descending order among the label words
+        assert!(kw[0][0].1 >= kw[0][1].1 && kw[0][1].1 >= kw[0][2].1);
+    }
+
+    #[test]
+    fn nouns_outrank_adjectives_and_first_names() {
+        assert!(part_of_speech_weight("white") < part_of_speech_weight("sparrow"));
+        assert!(part_of_speech_weight("william") < part_of_speech_weight("shakespeare"));
+        assert!(part_of_speech_weight("beautiful") < 1.0);
+        assert!(part_of_speech_weight("friendship") > 1.0);
     }
 }
