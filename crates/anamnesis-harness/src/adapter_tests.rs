@@ -428,3 +428,55 @@ async fn detect_all_builds_and_checks_backends() {
     let json = serde_json::to_value(&routing).unwrap();
     assert_eq!(json["label"], "ollama");
 }
+
+#[test]
+fn openai_compatible_local_and_leaving() {
+    let lan = |base: &str, local: Option<bool>| {
+        let mut cfg = OpenAiCompatibleConfig::ollama("llama3");
+        cfg.base_url = base.into();
+        cfg.local = local;
+        OpenAiCompatible::new(cfg, fast_policy())
+    };
+    let loopback = lan("http://127.0.0.1:11434/v1", None);
+    assert!(loopback.is_local() && !loopback.leaves_machine());
+    // the user's own lan server, marked local: no egress gate, but it does leave
+    let box_ = lan("http://192.168.1.20:11434/v1", Some(true));
+    assert!(box_.is_local() && box_.leaves_machine());
+    // a loopback proxy marked remote is treated as forwarding elsewhere
+    let proxy = lan("http://127.0.0.1:4000/v1", Some(false));
+    assert!(!proxy.is_local() && proxy.leaves_machine());
+    let remote = lan("https://openrouter.ai/api/v1", None);
+    assert!(!remote.is_local() && remote.leaves_machine());
+}
+
+#[test]
+fn backend_kinds_serialise_as_documented() {
+    use crate::types::BackendKind::*;
+    let names: Vec<String> = [OpenaiCompatible, Anthropic, Gemini, Chatgpt, ClaudeCli]
+        .iter()
+        .map(|k| {
+            serde_json::to_value(k)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string()
+        })
+        .collect();
+    assert_eq!(
+        names,
+        [
+            "openai_compatible",
+            "anthropic",
+            "gemini",
+            "chatgpt",
+            "claude_cli"
+        ]
+    );
+    let contracts = include_str!("../../../docs/contracts.md");
+    for n in &names {
+        assert!(
+            contracts.contains(&format!("`{n}`")),
+            "{n} not in contracts.md"
+        );
+    }
+}

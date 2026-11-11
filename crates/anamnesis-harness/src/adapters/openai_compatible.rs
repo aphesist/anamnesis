@@ -221,6 +221,10 @@ impl Backend for OpenAiCompatible {
     fn is_local(&self) -> bool {
         self.cfg.is_local()
     }
+    fn leaves_machine(&self) -> bool {
+        // marked remote: assume it forwards elsewhere even on a loopback address
+        !self.cfg.is_local() || !is_local_url(&self.cfg.base_url)
+    }
     async fn available(&self) -> Availability {
         match self.list_models().await {
             Ok(models) => Availability {

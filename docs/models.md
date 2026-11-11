@@ -22,7 +22,7 @@ and in the other direction, any mcp client (claude code, claude desktop, codex, 
 
 backends are configured through settings (`PUT /api/settings`, key `harness`) and keys through the keychain endpoints; see [contracts.md](contracts.md). the settings panel in the ui covers appearance today; model configuration is done through the api (examples below) until it has its own panel.
 
-`PUT /api/settings` replaces each top-level key it is given, so **send the whole `harness` object every time** (all the backends you want), not just the part you are changing. `GET /api/settings` shows the current one.
+`PUT /api/settings` deep-merges what you send into what is stored: objects merge key by key, `null` removes a key, and anything else (strings, numbers, lists) replaces. so `{"harness":{"claude_cli":{"enabled":true}}}` leaves the rest of `harness` alone, but a list such as `harness.openai_compatible` is replaced whole: send every entry you want to keep. `GET /api/settings` shows the current one.
 
 ### local models
 
@@ -40,14 +40,14 @@ a base url on a loopback host counts as local; set `"local": true` for your own 
 
 ### api keys
 
-keys go to the os keychain (service `anamnesis`, account = backend id), never into settings, never into the event log or an export:
+keys go to the os keychain (service `anamnesis`, account = backend id), or, when there is no usable keychain, to `secrets.json` in the data dir (mode 0600); never into settings, never into the event log or an export. `GET /api/backends` shows where each key was found as `key_storage`: `keychain`, `file` or `env`. set `ANAMNESIS_KEY_STORAGE=file` to skip the keychain:
 
 ```sh
 curl -X PUT http://127.0.0.1:7368/api/backends/anthropic/key -H 'content-type: application/json' -d '{"key":"…"}'
 curl -X PUT http://127.0.0.1:7368/api/settings -H 'content-type: application/json' -d '{"harness":{"anthropic":{}}}'
 ```
 
-the same works for `gemini` (`"gemini": {}`) and for an openai-compatible entry with a remote `base_url` (the key's account is the entry's `id`). if the keychain has no key, or your system has no keychain service (some minimal linux installs and containers; the key endpoint then answers with an error), anamnesis falls back to the usual environment variables, read when `anamnesis serve` starts: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `GOOGLE_API_KEY`, `OPENAI_API_KEY` for `"provider": "openai"`, `OPENROUTER_API_KEY` for `"provider": "openrouter"`. models are configurable per backend (`chat_model` and `label_model` for anthropic, `model` and `label_model` for gemini, `model` for openai-compatible).
+the same works for `gemini` (`"gemini": {}`) and for an openai-compatible entry with a remote `base_url` (the key's account is the entry's `id`). if neither the keychain nor the file has a key, anamnesis falls back to the usual environment variables, read when `anamnesis serve` starts: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `GOOGLE_API_KEY`, `OPENAI_API_KEY` for `"provider": "openai"`, `OPENROUTER_API_KEY` for `"provider": "openrouter"`. models are configurable per backend (`chat_model` and `label_model` for anthropic, `model` and `label_model` for gemini, `model` for openai-compatible).
 
 ### Continue with ChatGPT
 
@@ -63,7 +63,7 @@ you can cap anamnesis's weekly usage in chatgpt settings → usage. signing out 
 
 if you have anthropic's `claude` cli installed and signed in, anamnesis can send your chat messages through it. it is **off by default**; turn it on only after reading the notice, which the provider list shows next to it:
 
-> uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this; it could change. anamnesis never reads your credentials.
+> uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this and could restrict it at any time; the safest routes are the mcp server and an api key. anamnesis never reads your credentials.
 
 ```sh
 curl -X PUT http://127.0.0.1:7368/api/settings -H 'content-type: application/json' -d '{"harness":{"claude_cli":{"enabled":true}}}'
@@ -91,18 +91,18 @@ each task goes to one backend:
 |---|---|---|
 | `chat` | interactive, you asked | the chat panel |
 | `label` | background | naming new regions (a few representative snippets per region) |
-| `extract` | background | reserved: threads are found by rules today |
+| `extract` | background | finding decisions, open questions, plans and rejections in your own new or changed notes (a small batch per pass); without a model the rule-based extractor does it |
 | `summarise` | background | reserved |
 
 rules, enforced in the router and tested:
 
 1. **background work never runs on a subscription** (`chatgpt`, `claude_cli`): not by default, not if you name one in `routing`, not as a fallback.
-2. **defaults:** a local backend first. with none, the cheapest metered api backend (by the editable price table). plan backends are used only when you pick them for chat. set `"background_to_api_by_default": false` in `routing` to keep background work off api keys unless you name one.
+2. **defaults:** a local backend first. with none, chat goes to the cheapest metered api backend (by the editable price table); **background work (labels, extraction) stays local only** and falls back to deterministic labels and rule-based threads, so an api key is never spent on work you did not ask for. to let background work use the cheapest api key when no local model runs, opt in with `"background_to_api_by_default": true` in `routing`, or name a backend for the task (`"label": "anthropic"`). plan backends are used only when you pick them for chat.
 3. **no silent fallback:** if the chosen backend is unavailable, cooling down or rate limited, only the fallbacks you listed in `routing.fallbacks` are tried, in order.
 4. the chat box can pick a backend for one message (`backend` in `POST /api/chat`); `"retrieval"` uses no model.
 
 ```json
-{ "routing": { "chat": "anthropic", "label": "ollama", "fallbacks": { "chat": ["ollama"] }, "background_to_api_by_default": false } }
+{ "routing": { "chat": "anthropic", "label": "ollama", "fallbacks": { "chat": ["ollama"] }, "background_to_api_by_default": true } }
 ```
 
 ## usage and limits
@@ -172,5 +172,5 @@ free-tier api keys may come with different data-use terms than paid ones; read g
 - **copy tokens.** the only token it holds is its own, from openai's sign-in for open-source apps.
 - **rotate accounts** or fail over from one plan to another.
 - **relabel traffic.** it never sets or overrides attribution or entrypoint variables, and never presents itself as another client.
-- **run background jobs on a subscription.** labelling, extraction and anything scheduled run locally or on an api key you configured, never on a chatgpt or claude plan.
+- **run background jobs on a subscription.** labelling, extraction and anything scheduled run locally (or on an api key only if you opted in or named it), never on a chatgpt or claude plan.
 - **fall back silently** to a paid backend.

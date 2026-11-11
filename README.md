@@ -74,7 +74,7 @@ anamnesis never ships or resells a model. it routes each task to a backend you c
 
 the installed-cli route is off until you turn it on, and shows this notice wherever it appears:
 
-> uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this; it could change. anamnesis never reads your credentials.
+> uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this and could restrict it at any time; the safest routes are the mcp server and an api key. anamnesis never reads your credentials.
 
 ### what anamnesis will not do
 
