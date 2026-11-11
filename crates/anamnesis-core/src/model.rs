@@ -331,11 +331,22 @@ pub enum EventKind {
     SuggestionDismissed {
         suggestion_id: Id,
     },
+    /// Suggestions were actually put in front of the user (the ui fetched them for an
+    /// open item). `SuggestionMade { shown: true }` only says a suggestion was eligible to
+    /// be shown; evaluation of exposure (acceptance, the shown arm) counts only these.
+    /// Recorded once per suggestion.
+    SuggestionDisplayed {
+        suggestion_ids: Vec<Id>,
+    },
     ThreadAdded {
         thread: Thread,
     },
     ThreadUpdated {
         thread: Thread,
+    },
+    /// A thread was withdrawn, e.g. an extractor no longer finds it in the item's text.
+    ThreadRemoved {
+        thread_id: Id,
     },
     RegionsRecomputed {
         run_id: Id,

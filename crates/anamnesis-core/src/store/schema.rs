@@ -202,6 +202,10 @@ CREATE TABLE settings (
     value  TEXT NOT NULL
 );
 "#,
+    // v2: when a suggestion was first put in front of the user (`SuggestionDisplayed`)
+    r#"
+ALTER TABLE suggestions ADD COLUMN displayed_at TEXT;
+"#,
 ];
 
 /// Latest schema version this build knows.

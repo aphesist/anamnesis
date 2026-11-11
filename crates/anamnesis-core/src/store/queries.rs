@@ -316,6 +316,31 @@ impl Store {
         Ok(thread)
     }
 
+    /// Withdraw threads (`ThreadRemoved`, one per id that exists), atomically. Returns how
+    /// many were removed.
+    pub fn remove_threads(&self, ids: &[Id], actor: Actor) -> Result<usize> {
+        let mut existing = Vec::new();
+        for id in ids {
+            if self.get_thread(id)?.is_some() {
+                existing.push(id.clone());
+            }
+        }
+        if existing.is_empty() {
+            return Ok(0);
+        }
+        self.write(|w| {
+            for id in &existing {
+                w.append(
+                    &actor,
+                    EventKind::ThreadRemoved {
+                        thread_id: id.clone(),
+                    },
+                )?;
+            }
+            Ok(existing.len())
+        })
+    }
+
     /// Change a thread's status (`POST /api/threads/:id`).
     pub fn set_thread_status(
         &self,
@@ -568,6 +593,34 @@ impl Store {
             "WHERE from_id = ?1 AND shown = 1 AND status = 'pending' ORDER BY rank, score DESC",
             params![from.0],
         )
+    }
+
+    /// Record that suggestions were put in front of the user (`SuggestionDisplayed`). Only
+    /// shown-arm suggestions not displayed before are recorded (held-out ones never are);
+    /// returns how many were new. No event is written when none are.
+    pub fn mark_suggestions_displayed(&self, ids: &[Id], actor: Actor) -> Result<usize> {
+        let mut fresh = Vec::new();
+        {
+            let mut stmt = self.conn.prepare_cached(
+                "SELECT 1 FROM suggestions WHERE id = ?1 AND shown = 1 AND displayed_at IS NULL",
+            )?;
+            for id in ids {
+                if stmt.exists(params![id.0])? && !fresh.contains(id) {
+                    fresh.push(id.clone());
+                }
+            }
+        }
+        if fresh.is_empty() {
+            return Ok(0);
+        }
+        let n = fresh.len();
+        self.append(
+            actor,
+            EventKind::SuggestionDisplayed {
+                suggestion_ids: fresh,
+            },
+        )?;
+        Ok(n)
     }
 
     /// Every suggestion (both arms, all statuses), oldest first.

@@ -98,6 +98,17 @@ pub(crate) fn apply(conn: &Connection, ev: &Event) -> Result<()> {
                 params![suggestion_id.0, at],
             )?;
         }
+        EventKind::SuggestionDisplayed { suggestion_ids } => {
+            let mut stmt = conn.prepare_cached(
+                "UPDATE suggestions SET displayed_at = ?2 WHERE id = ?1 AND displayed_at IS NULL",
+            )?;
+            for id in suggestion_ids {
+                stmt.execute(params![id.0, at])?;
+            }
+        }
+        EventKind::ThreadRemoved { thread_id } => {
+            conn.execute("DELETE FROM threads WHERE id = ?1", params![thread_id.0])?;
+        }
         EventKind::ThreadAdded { thread } | EventKind::ThreadUpdated { thread } => {
             conn.execute(
                 "INSERT INTO threads (id, kind, status, item_id, created_at, json) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
