@@ -1,5 +1,9 @@
 //! anamnesis-mind: the growing brain.
+pub mod anatomy;
 pub mod hdbscan;
 pub mod knn;
+pub mod labels;
 pub mod linalg;
+pub mod regions;
 pub mod rng;
+pub mod space;
