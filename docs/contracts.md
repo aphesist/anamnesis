@@ -100,7 +100,7 @@ all json. times are rfc3339 utc. ids are ulid strings. the ui must work against 
 
 ### settings
 
-`GET /api/settings` → the settings object. `PUT /api/settings` merges a json object into it (a key set to `null` is removed) and returns the result. every change is a `SettingSet` event. these keys are typed and validated before anything is stored (400 on error):
+`GET /api/settings` → the settings object. `PUT /api/settings` takes a json object and sets each of its top-level keys (replacing that key's whole value; keys not sent are kept; a key set to `null` is removed), then returns all settings. every change is a `SettingSet` event. these keys are typed and validated before anything is stored (400 on error):
 
 | key | type |
 |---|---|

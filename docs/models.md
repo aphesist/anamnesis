@@ -22,6 +22,8 @@ and in the other direction, any mcp client (claude code, claude desktop, codex, 
 
 backends are configured through settings (`PUT /api/settings`, key `harness`) and keys through the keychain endpoints; see [contracts.md](contracts.md). the settings panel in the ui covers appearance today; model configuration is done through the api (examples below) until it has its own panel.
 
+`PUT /api/settings` replaces each top-level key it is given, so **send the whole `harness` object every time** (all the backends you want), not just the part you are changing. `GET /api/settings` shows the current one.
+
 ### local models
 
 nothing to do for the usual servers: at startup anamnesis probes `127.0.0.1:11434` (ollama), `:8080` (llama.cpp) and `:1234` (lm studio) and adds any that answer. local backends are the default for every task. to configure one by hand:
@@ -45,11 +47,11 @@ curl -X PUT http://127.0.0.1:7368/api/backends/anthropic/key -H 'content-type: a
 curl -X PUT http://127.0.0.1:7368/api/settings -H 'content-type: application/json' -d '{"harness":{"anthropic":{}}}'
 ```
 
-the same works for `gemini` (`"gemini": {}`) and for an openai-compatible entry with a remote `base_url` (the key's account is the entry's `id`). if the keychain has no key, anamnesis falls back to the usual environment variables: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `GOOGLE_API_KEY`, `OPENAI_API_KEY` for `"provider": "openai"`, `OPENROUTER_API_KEY` for `"provider": "openrouter"`. models are configurable per backend (`chat_model` and `label_model` for anthropic, `model` and `label_model` for gemini, `model` for openai-compatible).
+the same works for `gemini` (`"gemini": {}`) and for an openai-compatible entry with a remote `base_url` (the key's account is the entry's `id`). if the keychain has no key, or your system has no keychain service (some minimal linux installs and containers; the key endpoint then answers with an error), anamnesis falls back to the usual environment variables, read when `anamnesis serve` starts: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `GOOGLE_API_KEY`, `OPENAI_API_KEY` for `"provider": "openai"`, `OPENROUTER_API_KEY` for `"provider": "openrouter"`. models are configurable per backend (`chat_model` and `label_model` for anthropic, `model` and `label_model` for gemini, `model` for openai-compatible).
 
 ### Continue with ChatGPT
 
-openai lets open-source, locally run apps use a person's chatgpt plan through its own sign-in, with the person's consent and a per-app cap. anamnesis uses that programme and nothing else:
+openai lets open-source, locally run apps use a person's chatgpt plan through its own sign-in, with the person's consent and a per-app cap. anamnesis uses that sign-in and nothing else:
 
 1. `POST /api/backends/chatgpt/sign-in` returns an `authorize_url`; the ui opens it in your browser, labelled **Continue with ChatGPT** (openai's required wording, the one exception to the lowercase voice).
 2. you sign in and consent on openai's site. a listener on `127.0.0.1` receives the callback; the app's *own* token is stored in the keychain (or a 0600 file if no keychain is available).
