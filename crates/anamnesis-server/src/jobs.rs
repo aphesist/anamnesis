@@ -658,19 +658,27 @@ pub async fn run_threads(brain: &Arc<Brain>) -> Result<usize> {
                 } else {
                     Vec::new()
                 };
-                for e in existing.iter().filter(|e| is_rule_extractor(&e.extractor)) {
+                let mut kept: Vec<&anamnesis_core::Thread> = Vec::new();
+                for e in &existing {
+                    if !is_rule_extractor(&e.extractor) {
+                        kept.push(e);
+                        continue;
+                    }
                     let found = fresh.iter().any(|t| t.quote == e.quote && t.kind == e.kind);
                     if found && e.extractor != RULE_EXTRACTOR {
                         let mut up = e.clone();
                         up.extractor = RULE_EXTRACTOR.to_string();
                         s.upsert_thread(up, actor.clone())?;
-                    } else if !found && untouched(e) {
+                    }
+                    if !found && untouched(e) {
                         stale.push(e.id.clone());
+                    } else {
+                        kept.push(e);
                     }
                 }
                 for t in fresh {
                     // the same span may already be a thread (kept above, or from a model)
-                    if existing.iter().any(|e| e.quote == t.quote) {
+                    if kept.iter().any(|e| e.quote == t.quote) {
                         continue;
                     }
                     s.upsert_thread(t, actor.clone())?;
