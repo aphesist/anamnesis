@@ -493,6 +493,27 @@ const NOISE: &[&str] = &[
     "pound",
     "pounds",
     "dozen",
+    "mile",
+    "miles",
+    "sternum",
+    "tarsus",
+    "tail",
+    "tails",
+    "toe",
+    "toes",
+    "mandible",
+    "head",
+    "heads",
+    "side",
+    "sides",
+    // name particles
+    "von",
+    "van",
+    "der",
+    "den",
+    "des",
+    "del",
+    "della",
     // apparatus, page furniture
     "page",
     "pages",
@@ -695,6 +716,13 @@ const COMMON_ADJECTIVES: &[&str] = &[
     "least",
     "greater",
     "greatest",
+];
+
+/// Common verbs that slip through as keywords ("shakspeare · read · poetry").
+const COMMON_VERBS: &[&str] = &[
+    "read", "write", "wrote", "written", "speak", "spoke", "spoken", "began", "begin", "stand",
+    "stood", "sit", "sat", "lay", "lie", "call", "called", "bring", "brought", "carry", "carried",
+    "turn", "turned", "hold", "held",
 ];
 
 /// Common first names: in a region label they say less than the surname or
@@ -1038,7 +1066,7 @@ fn part_of_speech_weight(w: &str) -> f32 {
     if FIRST_NAMES.contains(&w) {
         return 0.5;
     }
-    if COMMON_ADJECTIVES.contains(&w) {
+    if COMMON_ADJECTIVES.contains(&w) || COMMON_VERBS.contains(&w) {
         return 0.6;
     }
     if n >= 6 && (w.ends_with("ed") || w.ends_with("ing")) && !NOUNS.contains(&w) {
