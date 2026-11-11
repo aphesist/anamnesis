@@ -371,6 +371,26 @@ mod tests {
     const NOTE: &str = "---\ntitle: On Recollection\naliases: [anamnesis, \"meno note\"]\ntags:\n  - philosophy\n  - '#plato'\ncreated: 2024-03-05\n---\n# Heading ignored for title\n\nLearning is [[Recollection|remembering]] per [[Meno#The slave boy]].\nSee ![[diagram.png]] and [[folder/Other Note]]. #idea #2024 #nested/tag\n\n```\n#notatag [[notalink]]\n```\n\nAlso `#nottag` and [site](https://example.com/a) and https://plato.stanford.edu/entries/plato.\n";
 
     #[test]
+    fn crlf_notes_parse_like_lf_notes() {
+        // files written on windows (or checked out with autocrlf) use \r\n
+        let lf = parse(NOTE);
+        let crlf = parse(&NOTE.replace('\n', "\r\n"));
+        assert_eq!(crlf.frontmatter, lf.frontmatter);
+        assert!(crlf.frontmatter_error.is_none());
+        assert_eq!(crlf.title, lf.title);
+        assert_eq!(crlf.aliases, lf.aliases);
+        assert_eq!(crlf.tags, lf.tags);
+        assert_eq!(crlf.created, lf.created);
+        assert_eq!(crlf.wikilinks, lf.wikilinks);
+        assert_eq!(crlf.links, lf.links);
+        assert_eq!(crlf.body.replace("\r\n", "\n"), lf.body);
+        // a title from the first heading carries no stray \r either
+        let h = parse("# Heading only\r\n\r\ntext #tag\r\n");
+        assert_eq!(h.title.as_deref(), Some("Heading only"));
+        assert_eq!(h.tags, vec!["tag"]);
+    }
+
+    #[test]
     fn parses_obsidian_note() {
         let p = parse(NOTE);
         assert_eq!(p.title.as_deref(), Some("On Recollection"));

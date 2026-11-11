@@ -94,6 +94,46 @@ enum Response {
     },
 }
 
+/// The program and leading arguments that start a plugin's `entry`.
+///
+/// Unix runs the file itself (its shebang picks the interpreter; it needs the executable
+/// bit). Windows has no shebangs, so a script goes to its usual interpreter on PATH:
+/// `.ps1` to powershell, `.py` to python, `.js`/`.mjs`/`.cjs` to node and `.sh` to `sh`
+/// (git for windows). Executables and `.cmd`/`.bat` files run directly; std quotes the
+/// command line for batch files, and no arguments are passed anyway (the request goes on
+/// stdin).
+fn launcher(entry: &Path, windows: bool) -> (std::ffi::OsString, Vec<std::ffi::OsString>) {
+    let me = || entry.as_os_str().to_owned();
+    if !windows {
+        return (me(), Vec::new());
+    }
+    let ext = entry
+        .extension()
+        .map(|e| e.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    let via = |prog: &str, pre: &[&str]| {
+        let mut args: Vec<std::ffi::OsString> = pre.iter().map(|a| (*a).into()).collect();
+        args.push(me());
+        (prog.into(), args)
+    };
+    match ext.as_str() {
+        "ps1" => via(
+            "powershell.exe",
+            &[
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+            ],
+        ),
+        "py" => via("python", &[]),
+        "js" | "mjs" | "cjs" => via("node", &[]),
+        "sh" => via("sh", &[]),
+        _ => (me(), Vec::new()),
+    }
+}
+
 pub struct ExecConnector {
     manifest: Manifest,
     program: PathBuf,
@@ -160,7 +200,9 @@ impl ExecConnector {
             cursor,
         })
         .expect("request serialises");
-        let mut child = Command::new(&self.program)
+        let (program, lead) = launcher(&self.program, cfg!(windows));
+        let mut child = Command::new(&program)
+            .args(&lead)
             .current_dir(&self.dir)
             .env("ANAMNESIS_CONNECTOR_API", API_VERSION.to_string())
             .env("ANAMNESIS_CONNECTOR_ID", &self.manifest.id)
@@ -352,5 +394,37 @@ impl Connector for ExecConnector {
             }
         }
         Ok(b)
+    }
+}
+
+#[cfg(test)]
+mod launcher_tests {
+    use super::launcher;
+    use std::path::Path;
+
+    #[test]
+    fn unix_runs_the_entry_itself() {
+        let (p, a) = launcher(Path::new("/plugins/x/plugin.py"), false);
+        assert_eq!(p, "/plugins/x/plugin.py");
+        assert!(a.is_empty());
+    }
+
+    #[test]
+    fn windows_scripts_go_to_their_interpreter() {
+        let entry = Path::new(r"C:\plugins\x\plugin.py");
+        let (p, a) = launcher(entry, true);
+        assert_eq!(p, "python");
+        assert_eq!(a, vec![entry.as_os_str().to_owned()]);
+        let (p, a) = launcher(Path::new(r"C:\p\run.PS1"), true);
+        assert_eq!(p, "powershell.exe");
+        assert_eq!(a.last().unwrap(), r"C:\p\run.PS1");
+        assert!(a.iter().any(|x| x == "-File"));
+        assert_eq!(launcher(Path::new("a.mjs"), true).0, "node");
+        assert_eq!(launcher(Path::new("a.sh"), true).0, "sh");
+        for direct in ["plugin.exe", "plugin.cmd", "plugin.bat", "plugin"] {
+            let (p, a) = launcher(Path::new(direct), true);
+            assert_eq!(p, direct);
+            assert!(a.is_empty());
+        }
     }
 }

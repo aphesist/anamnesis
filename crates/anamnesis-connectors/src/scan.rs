@@ -153,7 +153,8 @@ fn mtime_ns(m: &std::fs::Metadata) -> i64 {
         .unwrap_or(0)
 }
 
-fn rel_string(root: &Path, p: &Path) -> Option<String> {
+/// `p` relative to `root`, joined with `/` on every os (the form used for external ids).
+pub(crate) fn rel_string(root: &Path, p: &Path) -> Option<String> {
     let rel = p.strip_prefix(root).ok()?;
     let parts: Vec<String> = rel
         .components()
