@@ -8,12 +8,13 @@
 //! hand link with probability `p_latent_same_topic` whether or not it is shown, and
 //! showing adds `p_exposure_link` on top (so the shown arm is inflated, as in life).
 //!
-//! Hashes are sha256(prev_hash ‖ json of the event without `hash`), genesis
-//! prev_hash = 64 zeros. Core owns the canonical chain format; synthetic logs are
-//! for display and evaluation, not for chain verification.
+//! Hashes use core's canonical chain format ([`anamnesis_core::canon::event_hash`],
+//! genesis [`GENESIS_HASH`]), so a synthetic log passes `Store::verify_chain` and can
+//! be imported as a bundle.
 
 use std::collections::HashMap;
 
+use anamnesis_core::canon::{GENESIS_HASH, event_hash};
 use anamnesis_core::{
     Actor, Event, EventKind, Id, Item, ItemKind, Link, LinkKind, Origin, Privacy, Region,
     RegionTransition, Source, Timestamp,
@@ -111,15 +112,13 @@ const ANATOMY: [&str; 10] = [
 pub fn chain(mut raw: Vec<(Timestamp, Actor, EventKind)>) -> Vec<Event> {
     // stable sort keeps causal order for equal timestamps
     raw.sort_by_key(|r| r.0);
-    let mut prev = "0".repeat(64);
+    let mut prev = GENESIS_HASH.to_string();
     let mut out = Vec::with_capacity(raw.len());
     for (i, (at, actor, kind)) in raw.into_iter().enumerate() {
         let seq = i as u64 + 1;
-        let body = serde_json::json!({ "seq": seq, "at": at, "actor": actor, "kind": kind, "prev_hash": prev });
-        let mut h = Sha256::new();
-        h.update(prev.as_bytes());
-        h.update(serde_json::to_vec(&body).unwrap_or_default());
-        let hash = hex::encode(h.finalize());
+        // Every event kind serialises to JSON; a failure here would be a model bug.
+        let hash =
+            event_hash(&prev, seq, &at, &actor, &kind).expect("synthetic events serialise to json");
         out.push(Event {
             seq,
             at,
