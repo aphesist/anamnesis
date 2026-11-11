@@ -237,10 +237,8 @@ pub fn parse(text: &str) -> Parsed {
                 if piped && !text.trim().is_empty() {
                     link.alias = Some(text.trim().to_string());
                 }
-                if !link.target.is_empty() || link.heading.is_some() {
-                    if !p.wikilinks.contains(&link) {
-                        p.wikilinks.push(link);
-                    }
+                if (!link.target.is_empty() || link.heading.is_some()) && !p.wikilinks.contains(&link) {
+                    p.wikilinks.push(link);
                 }
             }
             Event::Start(Tag::Link { dest_url, link_type, .. }) | Event::Start(Tag::Image { dest_url, link_type, .. }) => {
