@@ -44,11 +44,11 @@ all json. times are rfc3339 utc. ids are ulid strings. the ui must work against 
 | `PUT /api/items/:id` | body `{ title?, body?, tags?, privacy? }` → `item`. `privacy` (`local_only` \| `cloud_ok` \| `ask`) sets the item's flag by hand: it is recorded as `item.meta.privacy_explicit = true` and nothing re-flags it afterwards (syncs, source changes). `"privacy": null` clears the hand-set flag and returns the item to its document's flag (frontmatter) or its source's default. an `ItemUpdated` event either way; a privacy-only change leaves `modified_at` alone. |
 | `GET /api/search?q=&k=` | `{ hits: [hit] }` (hybrid fts + vector; `k` defaults to 20, max 200) |
 | `GET /api/timeline` | `{ days: [{date, count}], months: [ym], by_region: [{region_id, counts: [n per month]}], by_speaker: {you: [n], assistants: [n], other: [n]}, threads_by_month: {decision: [n], open_question: [n], plan: [n], rejection: [n]} }` |
-| `GET /api/threads?kind=&status=` | `{ threads: [thread] }` |
+| `GET /api/threads?kind=&status=` | `{ threads: [thread] }`. rule-extracted threads carry `extractor: "rule:v2"`; when the extractor version changes, items are re-read once and threads the rules no longer find are withdrawn with `ThreadRemoved { thread_id }` (unless the user changed them) |
 | `POST /api/threads/:id` | body `{ status, resolved_by? }` → `thread` |
 | `GET /api/review` | `{ items: [{ resurface_id, item, reason, arm }] }` — today's review, drawn on first request of the day if the job loop has not yet. `arm` is `"algorithm"` or `"random"`. |
 | `POST /api/review/:resurface_id` | body `{ useful: bool }` → `{ ok: true }` |
-| `GET /api/suggestions?item=` | `{ suggestions: [{ suggestion_id, to: item_summary, score }] }` — the shown arm only; held-out suggestions are never returned |
+| `GET /api/suggestions?item=` | `{ suggestions: [{ suggestion_id, to: item_summary, score }] }` — the shown arm only; held-out suggestions are never returned. returning a suggestion for the first time appends `SuggestionDisplayed { suggestion_ids }`: only displayed suggestions count towards acceptance and the shown-arm estimates (suggestions handed out over mcp are not counted) |
 | `POST /api/suggestions/:id` | body `{ accept: bool }` → suggestion. held-out suggestions answer 404. |
 | `POST /api/links` | body `{ from, to }` (manual link) → `link` |
 | `GET /api/lineage` | `{ runs: [{ run_id, at, regions: [region], transitions: [transition] }] }` |
