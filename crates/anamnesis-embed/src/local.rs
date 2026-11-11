@@ -14,6 +14,9 @@
 //!   small vectors to store;
 //! - MIT licence, so an Apache-2.0 app can fetch it without extra terms.
 //!
+//! Measured on a shared 4-core cloud CPU: ~465 MB download, ~24 texts/s
+//! for paragraph-sized inputs (~160 tokens) at batch size 16.
+//!
 //! Alternatives in [`CATALOGUE`]:
 //!
 //! - `embeddinggemma-300m-q` — clearly stronger multilingual retrieval
@@ -190,10 +193,11 @@ pub const CATALOGUE: &[LocalModel] = &[
 /// Hugging Face source id.
 pub fn find_model(name: &str) -> Option<&'static LocalModel> {
     let n = name.trim().to_ascii_lowercase();
-    CATALOGUE
-        .iter()
-        .find(|m| m.name == n)
-        .or_else(|| CATALOGUE.iter().find(|m| m.source.to_ascii_lowercase() == n))
+    CATALOGUE.iter().find(|m| m.name == n).or_else(|| {
+        CATALOGUE
+            .iter()
+            .find(|m| m.source.to_ascii_lowercase() == n)
+    })
 }
 
 /// Options for [`LocalEmbedder`].
@@ -212,7 +216,13 @@ pub struct LocalOptions {
 
 impl Default for LocalOptions {
     fn default() -> Self {
-        Self { batch_size: 16, max_tokens: 0, threads: None, prompts: None, show_download_progress: false }
+        Self {
+            batch_size: 16,
+            max_tokens: 0,
+            threads: None,
+            prompts: None,
+            show_download_progress: false,
+        }
     }
 }
 
@@ -231,7 +241,10 @@ impl LocalEmbedder {
     pub fn new(name: &str, cache_dir: &Path, opts: LocalOptions) -> Result<Self> {
         let info = find_model(name).ok_or_else(|| {
             let names: Vec<_> = CATALOGUE.iter().map(|m| m.name).collect();
-            anyhow!("unknown local embedding model {name:?}; known: {}", names.join(", "))
+            anyhow!(
+                "unknown local embedding model {name:?}; known: {}",
+                names.join(", ")
+            )
         })?;
         std::fs::create_dir_all(cache_dir)
             .with_context(|| format!("creating model cache dir {}", cache_dir.display()))?;
@@ -250,7 +263,9 @@ impl LocalEmbedder {
             .with_context(|| format!("loading local embedding model {}", info.name))?;
         Ok(Self {
             model: Mutex::new(model),
-            prompts: opts.prompts.unwrap_or_else(|| Prompts::for_model(info.source)),
+            prompts: opts
+                .prompts
+                .unwrap_or_else(|| Prompts::for_model(info.source)),
             batch_size: opts.batch_size.max(1),
             max_tokens,
             id: format!("local:{}@{}", info.name, info.dim),
@@ -269,12 +284,20 @@ impl LocalEmbedder {
         // The tokenizer truncates at max_length too; truncating here first
         // keeps tokenisation cheap for very long documents.
         let prepared = prepare(texts, prefix, self.max_tokens * 2);
-        let mut model = self.model.lock().map_err(|_| anyhow!("local embedder poisoned"))?;
+        let mut model = self
+            .model
+            .lock()
+            .map_err(|_| anyhow!("local embedder poisoned"))?;
         let mut out = model
             .embed(&prepared, Some(self.batch_size))
             .with_context(|| format!("local embedding with {}", self.info.name))?;
         drop(model);
-        anyhow::ensure!(out.len() == texts.len(), "model returned {} vectors for {} texts", out.len(), texts.len());
+        anyhow::ensure!(
+            out.len() == texts.len(),
+            "model returned {} vectors for {} texts",
+            out.len(),
+            texts.len()
+        );
         for v in &mut out {
             l2_normalize(v);
         }
@@ -308,7 +331,10 @@ mod tests {
     fn catalogue_lookup() {
         assert_eq!(CATALOGUE[0].name, DEFAULT_MODEL);
         assert_eq!(find_model("Multilingual-E5-Small").unwrap().dim, 384);
-        assert_eq!(find_model("intfloat/multilingual-e5-small").unwrap().name, DEFAULT_MODEL);
+        assert_eq!(
+            find_model("intfloat/multilingual-e5-small").unwrap().name,
+            DEFAULT_MODEL
+        );
         assert!(find_model("nope").is_none());
         // Every curated entry agrees with fastembed on the output dimension.
         for m in CATALOGUE {
@@ -321,7 +347,10 @@ mod tests {
     #[test]
     fn e5_prompts_applied() {
         let p = Prompts::for_model(find_model(DEFAULT_MODEL).unwrap().source);
-        assert_eq!((p.query.as_str(), p.document.as_str()), ("query: ", "passage: "));
+        assert_eq!(
+            (p.query.as_str(), p.document.as_str()),
+            ("query: ", "passage: ")
+        );
         let g = Prompts::for_model(find_model("embeddinggemma-300m-q").unwrap().source);
         assert!(g.query.starts_with("task: search result"));
     }
@@ -334,10 +363,18 @@ mod tests {
         let cache = std::env::var_os("ANAMNESIS_EMBED_TEST_CACHE")
             .map(std::path::PathBuf::from)
             .unwrap_or_else(|| std::env::temp_dir().join("anamnesis-embed-models"));
-        let name = std::env::var("ANAMNESIS_EMBED_TEST_MODEL").unwrap_or_else(|_| DEFAULT_MODEL.into());
+        let name =
+            std::env::var("ANAMNESIS_EMBED_TEST_MODEL").unwrap_or_else(|_| DEFAULT_MODEL.into());
         let t0 = std::time::Instant::now();
-        let e = LocalEmbedder::new(&name, &cache, LocalOptions { show_download_progress: true, ..Default::default() })
-            .expect("load model");
+        let e = LocalEmbedder::new(
+            &name,
+            &cache,
+            LocalOptions {
+                show_download_progress: true,
+                ..Default::default()
+            },
+        )
+        .expect("load model");
         eprintln!("loaded {} in {:.1}s", e.id(), t0.elapsed().as_secs_f32());
 
         let docs: Vec<String> = [
@@ -355,8 +392,16 @@ mod tests {
             assert!((crate::dot(x, x) - 1.0).abs() < 1e-4);
         }
         let s = |a: usize, b: usize| crate::dot(&v[a], &v[b]);
-        eprintln!("pt~en {:.3}  pt~bread {:.3}  pt~train {:.3}", s(0, 1), s(0, 2), s(0, 3));
-        assert!(s(0, 1) > s(0, 2) && s(0, 1) > s(0, 3), "cross-lingual paraphrase should be closest");
+        eprintln!(
+            "pt~en {:.3}  pt~bread {:.3}  pt~train {:.3}",
+            s(0, 1),
+            s(0, 2),
+            s(0, 3)
+        );
+        assert!(
+            s(0, 1) > s(0, 2) && s(0, 1) > s(0, 3),
+            "cross-lingual paraphrase should be closest"
+        );
 
         let q = e.embed_query(&["o que é lembrar?".into()]).unwrap();
         let qs: Vec<f32> = v.iter().map(|d| crate::dot(&q[0], d)).collect();

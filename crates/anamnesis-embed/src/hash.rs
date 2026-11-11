@@ -32,7 +32,10 @@ impl HashEmbedder {
     /// `dim` must be at least 8; smaller values are raised to 8.
     pub fn new(dim: usize) -> Self {
         let dim = dim.max(8);
-        Self { dim, id: format!("hash@{dim}") }
+        Self {
+            dim,
+            id: format!("hash@{dim}"),
+        }
     }
 
     /// Embed one text (never fails).
@@ -40,7 +43,10 @@ impl HashEmbedder {
         let mut counts: HashMap<u64, f32> = HashMap::new();
         let folded = fold(text);
         let mut any = false;
-        for word in folded.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()) {
+        for word in folded
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|w| !w.is_empty())
+        {
             any = true;
             *counts.entry(fnv1a(b'w', word.as_bytes())).or_default() += WORD_WEIGHT;
             let padded: Vec<char> = std::iter::once('^')
@@ -53,14 +59,18 @@ impl HashEmbedder {
                 }
                 for g in padded.windows(n) {
                     let s: String = g.iter().collect();
-                    *counts.entry(fnv1a(b'0' + n as u8, s.as_bytes())).or_default() += GRAM_WEIGHT;
+                    *counts
+                        .entry(fnv1a(b'0' + n as u8, s.as_bytes()))
+                        .or_default() += GRAM_WEIGHT;
                 }
             }
         }
         if !any {
             // Empty or symbol-only text: hash the raw trimmed string so the
             // result is still a deterministic unit vector.
-            *counts.entry(fnv1a(b'e', text.trim().as_bytes())).or_default() += 1.0;
+            *counts
+                .entry(fnv1a(b'e', text.trim().as_bytes()))
+                .or_default() += 1.0;
         }
         let mut v = vec![0.0f32; self.dim];
         for (h, tf) in counts {
@@ -146,7 +156,15 @@ mod tests {
 
     #[test]
     fn unit_length_and_dimension() {
-        for t in ["", "   ", "!!!", "a", "hello world", &"long text ".repeat(500), "記憶は再構成"] {
+        for t in [
+            "",
+            "   ",
+            "!!!",
+            "a",
+            "hello world",
+            &"long text ".repeat(500),
+            "記憶は再構成",
+        ] {
             let v = e(t);
             assert_eq!(v.len(), DEFAULT_DIM);
             assert!((dot(&v, &v) - 1.0).abs() < 1e-5, "{t:?}");
@@ -161,7 +179,11 @@ mod tests {
         // Pin a few values so a change to the hashing scheme is noticed:
         // vectors stored under the old scheme would silently stop matching.
         // If you change the scheme on purpose, change the id too.
-        for (i, x) in [(2usize, -0.131_590_35f32), (3, 0.131_590_35), (5, 0.131_590_35)] {
+        for (i, x) in [
+            (2usize, -0.131_590_35f32),
+            (3, 0.131_590_35),
+            (5, 0.131_590_35),
+        ] {
             assert!((a[i] - x).abs() < 1e-6, "component {i}: {}", a[i]);
         }
     }

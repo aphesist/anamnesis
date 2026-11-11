@@ -89,13 +89,19 @@ impl Default for EmbedderSpec {
     /// The local default model when built with the `local` feature,
     /// otherwise the hashing embedder.
     fn default() -> Self {
-        if cfg!(feature = "local") { Self::local(default_local_model()) } else { Self::hash() }
+        if cfg!(feature = "local") {
+            Self::local(default_local_model())
+        } else {
+            Self::hash()
+        }
     }
 }
 
 impl EmbedderSpec {
     pub fn hash() -> Self {
-        Self::Hash { dim: default_hash_dim() }
+        Self::Hash {
+            dim: default_hash_dim(),
+        }
     }
 
     pub fn local(model: impl Into<String>) -> Self {
@@ -136,9 +142,11 @@ impl EmbedderSpec {
     pub fn is_local(&self) -> bool {
         match self {
             Self::Hash { .. } | Self::Local { .. } => true,
-            Self::Ollama { base_url, .. } => {
-                is_loopback_url(base_url.as_deref().unwrap_or(crate::ollama::DEFAULT_BASE_URL))
-            }
+            Self::Ollama { base_url, .. } => is_loopback_url(
+                base_url
+                    .as_deref()
+                    .unwrap_or(crate::ollama::DEFAULT_BASE_URL),
+            ),
             Self::OpenaiCompatible { base_url, .. } => is_loopback_url(base_url),
         }
     }
@@ -178,14 +186,49 @@ pub fn build_with_secret(
 ) -> Result<Box<dyn Embedder>> {
     let (inner, truncate_dim): (Box<dyn Embedder>, Option<usize>) = match spec {
         EmbedderSpec::Hash { dim } => (Box::new(HashEmbedder::new(*dim)), None),
-        EmbedderSpec::Local { model, batch_size, max_tokens, threads, prompts, truncate_dim } => {
-            (build_local(model, *batch_size, *max_tokens, *threads, prompts.clone(), cache_dir)?, *truncate_dim)
-        }
-        EmbedderSpec::Ollama { base_url, model, prompts, dimensions, truncate_dim, http } => (
-            Box::new(OllamaEmbedder::new(base_url.as_deref(), model, prompts.clone(), *dimensions, http.clone())),
+        EmbedderSpec::Local {
+            model,
+            batch_size,
+            max_tokens,
+            threads,
+            prompts,
+            truncate_dim,
+        } => (
+            build_local(
+                model,
+                *batch_size,
+                *max_tokens,
+                *threads,
+                prompts.clone(),
+                cache_dir,
+            )?,
             *truncate_dim,
         ),
-        EmbedderSpec::OpenaiCompatible { base_url, model, prompts, dimensions, truncate_dim, http } => (
+        EmbedderSpec::Ollama {
+            base_url,
+            model,
+            prompts,
+            dimensions,
+            truncate_dim,
+            http,
+        } => (
+            Box::new(OllamaEmbedder::new(
+                base_url.as_deref(),
+                model,
+                prompts.clone(),
+                *dimensions,
+                http.clone(),
+            )),
+            *truncate_dim,
+        ),
+        EmbedderSpec::OpenaiCompatible {
+            base_url,
+            model,
+            prompts,
+            dimensions,
+            truncate_dim,
+            http,
+        } => (
             Box::new(OpenAiCompatibleEmbedder::new(
                 base_url,
                 model,
@@ -212,7 +255,13 @@ fn build_local(
     prompts: Option<Prompts>,
     cache_dir: &Path,
 ) -> Result<Box<dyn Embedder>> {
-    let opts = crate::local::LocalOptions { batch_size, max_tokens, threads, prompts, show_download_progress: false };
+    let opts = crate::local::LocalOptions {
+        batch_size,
+        max_tokens,
+        threads,
+        prompts,
+        show_download_progress: false,
+    };
     Ok(Box::new(crate::LocalEmbedder::new(model, cache_dir, opts)?))
 }
 
@@ -225,7 +274,9 @@ fn build_local(
     _prompts: Option<Prompts>,
     _cache_dir: &Path,
 ) -> Result<Box<dyn Embedder>> {
-    anyhow::bail!("local embedding model {model:?} needs anamnesis-embed built with the `local` feature")
+    anyhow::bail!(
+        "local embedding model {model:?} needs anamnesis-embed built with the `local` feature"
+    )
 }
 
 #[cfg(test)]
@@ -248,7 +299,10 @@ mod tests {
             batch_size: 8,
             max_tokens: 1024,
             threads: Some(2),
-            prompts: Some(Prompts { query: "q: ".into(), document: "d: ".into() }),
+            prompts: Some(Prompts {
+                query: "q: ".into(),
+                document: "d: ".into(),
+            }),
             truncate_dim: Some(256),
         });
         roundtrip(&EmbedderSpec::ollama("qwen3-embedding:0.6b"));
@@ -262,15 +316,23 @@ mod tests {
                 batch_size: 4,
                 max_input_tokens: 2000,
                 timeout_secs: 5,
-                retry: RetryPolicy { max_retries: 1, base_delay_ms: 10, max_delay_ms: 20 },
+                retry: RetryPolicy {
+                    max_retries: 1,
+                    base_delay_ms: 10,
+                    max_delay_ms: 20,
+                },
             },
         });
-        roundtrip(&EmbedderSpec::openai_compatible("https://api.openai.com/v1", "text-embedding-3-small"));
+        roundtrip(&EmbedderSpec::openai_compatible(
+            "https://api.openai.com/v1",
+            "text-embedding-3-small",
+        ));
     }
 
     #[test]
     fn json_shape_and_defaults() {
-        let s: EmbedderSpec = serde_json::from_str(r#"{"backend":"ollama","model":"bge-m3"}"#).unwrap();
+        let s: EmbedderSpec =
+            serde_json::from_str(r#"{"backend":"ollama","model":"bge-m3"}"#).unwrap();
         assert_eq!(s, EmbedderSpec::ollama("bge-m3"));
         let s: EmbedderSpec = serde_json::from_str(r#"{"backend":"local"}"#).unwrap();
         assert_eq!(s, EmbedderSpec::local("multilingual-e5-small"));
@@ -307,7 +369,10 @@ mod tests {
         )
         .unwrap();
         assert!(!r.is_local());
-        assert_eq!(r.id(), "openai-compatible:api.openai.com:text-embedding-3-small");
+        assert_eq!(
+            r.id(),
+            "openai-compatible:api.openai.com:text-embedding-3-small"
+        );
         let m = build(&EmbedderSpec::Hash { dim: 128 }, &dir).unwrap();
         assert_eq!(m.dim(), 128);
     }
@@ -330,6 +395,12 @@ mod tests {
     #[cfg(not(feature = "local"))]
     #[test]
     fn local_without_feature_errors() {
-        assert!(build(&EmbedderSpec::local("multilingual-e5-small"), &std::env::temp_dir()).is_err());
+        assert!(
+            build(
+                &EmbedderSpec::local("multilingual-e5-small"),
+                &std::env::temp_dir()
+            )
+            .is_err()
+        );
     }
 }

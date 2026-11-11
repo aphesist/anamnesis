@@ -5,8 +5,8 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 
 use anamnesis_embed::{
-    Embedder, EmbedderSpec, HttpOptions, OllamaEmbedder, OpenAiCompatibleEmbedder, Prompts, RetryPolicy, build,
-    build_with_secret, dot,
+    Embedder, EmbedderSpec, HttpOptions, OllamaEmbedder, OpenAiCompatibleEmbedder, Prompts,
+    RetryPolicy, build, build_with_secret, dot,
 };
 use serde_json::{Value, json};
 
@@ -19,10 +19,18 @@ struct Recorded {
 
 impl Recorded {
     fn header(&self, name: &str) -> Option<&str> {
-        self.headers.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
+        self.headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case(name))
+            .map(|(_, v)| v.as_str())
     }
     fn inputs(&self) -> Vec<String> {
-        self.body["input"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect()
+        self.body["input"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_owned())
+            .collect()
     }
 }
 
@@ -68,7 +76,11 @@ impl Mock {
                     .unwrap_or(0);
                 let mut body = vec![0u8; len];
                 reader.read_exact(&mut body).unwrap();
-                let rec = Recorded { path, headers, body: serde_json::from_slice(&body).unwrap_or(Value::Null) };
+                let rec = Recorded {
+                    path,
+                    headers,
+                    body: serde_json::from_slice(&body).unwrap_or(Value::Null),
+                };
                 let n = {
                     let mut l = log2.lock().unwrap();
                     l.push(rec.clone());
@@ -95,7 +107,11 @@ impl Mock {
 /// normalised so the client's normalisation is exercised.
 fn fake_vec(text: &str) -> Vec<f32> {
     let len = text.chars().count() as f32;
-    let q = if text.contains("Query:") || text.starts_with("query: ") { 5.0 } else { 0.0 };
+    let q = if text.contains("Query:") || text.starts_with("query: ") {
+        5.0
+    } else {
+        0.0
+    };
     vec![len, 2.0, q, 1.0]
 }
 
@@ -104,14 +120,21 @@ fn fast_opts() -> HttpOptions {
         batch_size: 2,
         max_input_tokens: 0,
         timeout_secs: 5,
-        retry: RetryPolicy { max_retries: 2, base_delay_ms: 5, max_delay_ms: 20 },
+        retry: RetryPolicy {
+            max_retries: 2,
+            base_delay_ms: 5,
+            max_delay_ms: 20,
+        },
     }
 }
 
 fn ollama_handler(_: usize, r: &Recorded) -> (u16, String) {
     assert_eq!(r.path, "/api/embed");
     let embs: Vec<Vec<f32>> = r.inputs().iter().map(|t| fake_vec(t)).collect();
-    (200, json!({ "model": r.body["model"], "embeddings": embs }).to_string())
+    (
+        200,
+        json!({ "model": r.body["model"], "embeddings": embs }).to_string(),
+    )
 }
 
 fn texts(v: &[&str]) -> Vec<String> {
@@ -121,7 +144,13 @@ fn texts(v: &[&str]) -> Vec<String> {
 #[test]
 fn ollama_batches_normalises_and_prefixes() {
     let mock = Mock::start(ollama_handler);
-    let e = OllamaEmbedder::new(Some(&mock.url), "qwen3-embedding:0.6b", None, Some(4), fast_opts());
+    let e = OllamaEmbedder::new(
+        Some(&mock.url),
+        "qwen3-embedding:0.6b",
+        None,
+        Some(4),
+        fast_opts(),
+    );
     assert!(e.is_local());
     assert_eq!(e.id(), "ollama:qwen3-embedding:0.6b@4");
 
@@ -169,14 +198,25 @@ fn ollama_learns_dim_and_probes() {
 #[test]
 fn unreachable_server_dim_is_zero_and_embed_errors() {
     // Bind then drop to get a port nobody listens on.
-    let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
     let url = format!("http://127.0.0.1:{port}");
     let mut opts = fast_opts();
-    opts.retry = RetryPolicy { max_retries: 1, base_delay_ms: 1, max_delay_ms: 2 };
+    opts.retry = RetryPolicy {
+        max_retries: 1,
+        base_delay_ms: 1,
+        max_delay_ms: 2,
+    };
     let e = OllamaEmbedder::new(Some(&url), "m", None, None, opts);
     assert_eq!(e.dim(), 0);
     let err = e.embed(&texts(&["x"])).unwrap_err();
-    assert!(format!("{err:#}").contains("gave up after 2 attempts"), "{err:#}");
+    assert!(
+        format!("{err:#}").contains("gave up after 2 attempts"),
+        "{err:#}"
+    );
 }
 
 fn openai_handler(_: usize, r: &Recorded) -> (u16, String) {
@@ -189,7 +229,10 @@ fn openai_handler(_: usize, r: &Recorded) -> (u16, String) {
         .map(|(i, t)| json!({ "object": "embedding", "index": i, "embedding": fake_vec(t) }))
         .collect();
     data.reverse();
-    (200, json!({ "object": "list", "data": data, "model": r.body["model"] }).to_string())
+    (
+        200,
+        json!({ "object": "list", "data": data, "model": r.body["model"] }).to_string(),
+    )
 }
 
 #[test]
@@ -221,7 +264,10 @@ fn openai_compatible_auth_order_and_prompts() {
     assert_eq!(reqs[0].inputs(), texts(&["passage: um", "passage: dois"]));
 
     e.embed_query(&texts(&["onde?"])).unwrap();
-    assert_eq!(mock.requests().pop().unwrap().inputs(), texts(&["query: onde?"]));
+    assert_eq!(
+        mock.requests().pop().unwrap().inputs(),
+        texts(&["query: onde?"])
+    );
     assert_eq!(e.dim(), 4);
 }
 
@@ -232,7 +278,10 @@ fn openai_no_key_sends_no_auth_and_custom_prompts() {
         &format!("{}/v1", mock.url),
         "m",
         None,
-        Some(Prompts { query: "Q> ".into(), document: "D> ".into() }),
+        Some(Prompts {
+            query: "Q> ".into(),
+            document: "D> ".into(),
+        }),
         Some(4),
         fast_opts(),
     );
@@ -246,9 +295,20 @@ fn openai_no_key_sends_no_auth_and_custom_prompts() {
 #[test]
 fn retries_transient_errors_then_succeeds() {
     let mock = Mock::start(|n, r| {
-        if n < 2 { (503, r#"{"error":"loading model"}"#.into()) } else { openai_handler(n, r) }
+        if n < 2 {
+            (503, r#"{"error":"loading model"}"#.into())
+        } else {
+            openai_handler(n, r)
+        }
     });
-    let e = OpenAiCompatibleEmbedder::new(&format!("{}/v1", mock.url), "m", None, None, None, fast_opts());
+    let e = OpenAiCompatibleEmbedder::new(
+        &format!("{}/v1", mock.url),
+        "m",
+        None,
+        None,
+        None,
+        fast_opts(),
+    );
     let out = e.embed(&texts(&["hello"])).unwrap();
     assert_eq!(out.len(), 1);
     assert_eq!(mock.requests().len(), 3);
@@ -257,9 +317,19 @@ fn retries_transient_errors_then_succeeds() {
 #[test]
 fn gives_up_after_max_retries() {
     let mock = Mock::start(|_, _| (429, r#"{"error":"rate limited"}"#.into()));
-    let e = OpenAiCompatibleEmbedder::new(&format!("{}/v1", mock.url), "m", None, None, None, fast_opts());
+    let e = OpenAiCompatibleEmbedder::new(
+        &format!("{}/v1", mock.url),
+        "m",
+        None,
+        None,
+        None,
+        fast_opts(),
+    );
     let err = format!("{:#}", e.embed(&texts(&["hello"])).unwrap_err());
-    assert!(err.contains("429") && err.contains("gave up after 3 attempts"), "{err}");
+    assert!(
+        err.contains("429") && err.contains("gave up after 3 attempts"),
+        "{err}"
+    );
     assert_eq!(mock.requests().len(), 3);
 }
 
@@ -282,11 +352,28 @@ fn client_errors_are_not_retried_and_key_never_leaks() {
 
 #[test]
 fn wrong_count_or_dimension_is_an_error() {
-    let mock = Mock::start(|_, _| (200, json!({ "data": [{ "index": 0, "embedding": [1.0, 0.0] }] }).to_string()));
-    let e = OpenAiCompatibleEmbedder::new(&format!("{}/v1", mock.url), "m", None, None, None, fast_opts());
+    let mock = Mock::start(|_, _| {
+        (
+            200,
+            json!({ "data": [{ "index": 0, "embedding": [1.0, 0.0] }] }).to_string(),
+        )
+    });
+    let e = OpenAiCompatibleEmbedder::new(
+        &format!("{}/v1", mock.url),
+        "m",
+        None,
+        None,
+        None,
+        fast_opts(),
+    );
     assert!(e.embed(&texts(&["a", "b"])).is_err());
 
-    let mock = Mock::start(|_, _| (200, json!({ "embeddings": [[1.0, 0.0], [1.0]] }).to_string()));
+    let mock = Mock::start(|_, _| {
+        (
+            200,
+            json!({ "embeddings": [[1.0, 0.0], [1.0]] }).to_string(),
+        )
+    });
     let e = OllamaEmbedder::new(Some(&mock.url), "m", None, None, fast_opts());
     assert!(e.embed(&texts(&["a", "b"])).is_err());
 
@@ -302,7 +389,7 @@ fn long_inputs_are_truncated_before_sending() {
     opts.max_input_tokens = 50;
     let e = OllamaEmbedder::new(Some(&mock.url), "nomic-embed-text", None, None, opts);
     let long = "palavra ".repeat(5_000);
-    e.embed(&[long.clone()]).unwrap();
+    e.embed(std::slice::from_ref(&long)).unwrap();
     let sent = &mock.requests()[0].inputs()[0];
     assert!(sent.starts_with("search_document: palavra"));
     assert!(sent.len() < 400, "sent {} bytes", sent.len());
@@ -326,18 +413,24 @@ fn build_from_spec_talks_to_server() {
     assert_eq!(e.dim(), 2);
     let v = e.embed(&texts(&["a", "b", "c"])).unwrap();
     assert_eq!(v.len(), 3);
-    assert!(v.iter().all(|x| x.len() == 2 && (dot(x, x) - 1.0).abs() < 1e-5));
+    assert!(
+        v.iter()
+            .all(|x| x.len() == 2 && (dot(x, x) - 1.0).abs() < 1e-5)
+    );
     assert_eq!(mock.requests().len(), 1);
     assert_eq!(mock.requests()[0].header("authorization"), Some("Bearer k"));
 
-    let o = build(&EmbedderSpec::Ollama {
-        base_url: Some(mock.url.clone()),
-        model: "m".into(),
-        prompts: None,
-        dimensions: None,
-        truncate_dim: None,
-        http: HttpOptions::default(),
-    }, &std::env::temp_dir())
+    let o = build(
+        &EmbedderSpec::Ollama {
+            base_url: Some(mock.url.clone()),
+            model: "m".into(),
+            prompts: None,
+            dimensions: None,
+            truncate_dim: None,
+            http: HttpOptions::default(),
+        },
+        &std::env::temp_dir(),
+    )
     .unwrap();
     assert!(o.is_local());
 }

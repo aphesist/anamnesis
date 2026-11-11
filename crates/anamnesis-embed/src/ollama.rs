@@ -10,9 +10,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::Embedder;
 use crate::http::{HttpClient, HttpOptions, finish, is_loopback_url, join};
 use crate::text::{Prompts, prepare};
-use crate::Embedder;
 
 pub const DEFAULT_BASE_URL: &str = "http://127.0.0.1:11434";
 
@@ -53,7 +53,10 @@ impl OllamaEmbedder {
         dimensions: Option<usize>,
         opts: HttpOptions,
     ) -> Self {
-        let base_url = base_url.unwrap_or(DEFAULT_BASE_URL).trim_end_matches('/').to_owned();
+        let base_url = base_url
+            .unwrap_or(DEFAULT_BASE_URL)
+            .trim_end_matches('/')
+            .to_owned();
         let client = HttpClient::new(&base_url, &opts);
         let id = match dimensions {
             Some(d) => format!("ollama:{model}@{d}"),
@@ -81,17 +84,22 @@ impl OllamaEmbedder {
         let prepared = prepare(texts, prefix, self.opts.max_input_tokens);
         let mut out = Vec::with_capacity(texts.len());
         for chunk in prepared.chunks(self.opts.batch_size.max(1)) {
-            let req = Req { model: &self.model, input: chunk, truncate: true, dimensions: self.dimensions };
+            let req = Req {
+                model: &self.model,
+                input: chunk,
+                truncate: true,
+                dimensions: self.dimensions,
+            };
             let resp: Resp = self
                 .client
                 .post_json(&url, &req, None)
                 .with_context(|| format!("ollama embed with model {}", self.model))?;
             let known = self.dim.load(Ordering::Relaxed);
             let vecs = finish(resp.embeddings, chunk.len(), (known > 0).then_some(known))?;
-            if known == 0 {
-                if let Some(v) = vecs.first() {
-                    self.dim.store(v.len(), Ordering::Relaxed);
-                }
+            if known == 0
+                && let Some(v) = vecs.first()
+            {
+                self.dim.store(v.len(), Ordering::Relaxed);
             }
             out.extend(vecs);
         }

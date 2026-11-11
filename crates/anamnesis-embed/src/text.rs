@@ -95,7 +95,10 @@ impl Prompts {
     /// Qwen3-Embedding format: `Instruct: <task>\nQuery:<query>`; documents
     /// are embedded without a prefix.
     pub fn qwen3(instruction: &str) -> Self {
-        Self { query: format!("Instruct: {instruction}\nQuery:"), document: String::new() }
+        Self {
+            query: format!("Instruct: {instruction}\nQuery:"),
+            document: String::new(),
+        }
     }
 
     /// Infer the conventional prompts from a model name (Ollama tag, Hugging
@@ -105,21 +108,24 @@ impl Prompts {
         if m.contains("qwen3-embedding") || m.contains("qwen3_embedding") {
             Self::qwen3(QWEN3_QUERY_INSTRUCTION)
         } else if (m.contains("multilingual-e5") || m.contains("/e5-") || m.starts_with("e5-"))
-            && !m.contains("e5-mistral") {
-            Self { query: "query: ".into(), document: "passage: ".into() }
+            && !m.contains("e5-mistral")
+        {
+            Self {
+                query: "query: ".into(),
+                document: "passage: ".into(),
+            }
         } else if m.contains("embeddinggemma") {
             Self {
                 query: "task: search result | query: ".into(),
                 document: "title: none | text: ".into(),
             }
         } else if m.contains("nomic-embed-text") {
-            Self { query: "search_query: ".into(), document: "search_document: ".into() }
-        } else if m.contains("snowflake-arctic-embed") {
             Self {
-                query: "Represent this sentence for searching relevant passages: ".into(),
-                document: String::new(),
+                query: "search_query: ".into(),
+                document: "search_document: ".into(),
             }
-        } else if m.contains("bge-") && m.contains("-en") {
+        } else if m.contains("snowflake-arctic-embed") || (m.contains("bge-") && m.contains("-en"))
+        {
             Self {
                 query: "Represent this sentence for searching relevant passages: ".into(),
                 document: String::new(),
@@ -146,7 +152,11 @@ pub(crate) fn prepare(texts: &[String], prefix: &str, max_tokens: usize) -> Vec<
         .iter()
         .map(|t| {
             let t = truncate_to_tokens(t, budget);
-            if prefix.is_empty() { t.to_owned() } else { format!("{prefix}{t}") }
+            if prefix.is_empty() {
+                t.to_owned()
+            } else {
+                format!("{prefix}{t}")
+            }
         })
         .collect()
 }
@@ -184,11 +194,29 @@ mod tests {
 
     #[test]
     fn prompts_by_model() {
-        assert_eq!(Prompts::for_model("intfloat/multilingual-e5-small").query, "query: ");
-        assert!(Prompts::for_model("qwen3-embedding:0.6b").query.starts_with("Instruct: "));
-        assert!(Prompts::for_model("qwen3-embedding:0.6b").query.ends_with("\nQuery:"));
-        assert!(Prompts::for_model("qwen3-embedding:0.6b").document.is_empty());
-        assert_eq!(Prompts::for_model("nomic-embed-text").document, "search_document: ");
+        assert_eq!(
+            Prompts::for_model("intfloat/multilingual-e5-small").query,
+            "query: "
+        );
+        assert!(
+            Prompts::for_model("qwen3-embedding:0.6b")
+                .query
+                .starts_with("Instruct: ")
+        );
+        assert!(
+            Prompts::for_model("qwen3-embedding:0.6b")
+                .query
+                .ends_with("\nQuery:")
+        );
+        assert!(
+            Prompts::for_model("qwen3-embedding:0.6b")
+                .document
+                .is_empty()
+        );
+        assert_eq!(
+            Prompts::for_model("nomic-embed-text").document,
+            "search_document: "
+        );
         assert!(Prompts::for_model("text-embedding-3-small").is_empty());
         assert!(Prompts::for_model("bge-m3").is_empty());
     }

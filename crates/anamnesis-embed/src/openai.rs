@@ -76,7 +76,9 @@ impl OpenAiCompatibleEmbedder {
     ) -> Self {
         let base_url = base_url.trim_end_matches('/').to_owned();
         let client = HttpClient::new(&base_url, &opts);
-        let host = base_url.split_once("://").map_or(base_url.as_str(), |(_, r)| r);
+        let host = base_url
+            .split_once("://")
+            .map_or(base_url.as_str(), |(_, r)| r);
         let host = host.split('/').next().unwrap_or(host);
         let host = host.rsplit_once('@').map_or(host, |(_, h)| h);
         let id = match dimensions {
@@ -128,10 +130,10 @@ impl OpenAiCompatibleEmbedder {
                 chunk.len(),
                 (known > 0).then_some(known),
             )?;
-            if known == 0 {
-                if let Some(v) = vecs.first() {
-                    self.dim.store(v.len(), Ordering::Relaxed);
-                }
+            if known == 0
+                && let Some(v) = vecs.first()
+            {
+                self.dim.store(v.len(), Ordering::Relaxed);
             }
             out.extend(vecs);
         }

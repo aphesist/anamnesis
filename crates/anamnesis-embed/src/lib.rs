@@ -111,7 +111,11 @@ pub fn dot(a: &[f32], b: &[f32]) -> f32 {
 /// Cosine similarity for arbitrary (not necessarily normalised) vectors.
 pub fn cosine(a: &[f32], b: &[f32]) -> f32 {
     let (na, nb) = (dot(a, a).sqrt(), dot(b, b).sqrt());
-    if na == 0.0 || nb == 0.0 { 0.0 } else { dot(a, b) / (na * nb) }
+    if na == 0.0 || nb == 0.0 {
+        0.0
+    } else {
+        dot(a, b) / (na * nb)
+    }
 }
 
 /// Matryoshka truncation: keep the first `dim` components and renormalise.
@@ -152,7 +156,12 @@ impl<E: Embedder> Embedder for Matryoshka<E> {
         self.dim
     }
     fn embed(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
-        Ok(self.inner.embed(texts)?.iter().map(|v| matryoshka_truncate(v, self.dim)).collect())
+        Ok(self
+            .inner
+            .embed(texts)?
+            .iter()
+            .map(|v| matryoshka_truncate(v, self.dim))
+            .collect())
     }
     fn embed_query(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
         Ok(self

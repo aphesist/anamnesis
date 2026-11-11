@@ -4,8 +4,8 @@
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
-use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use ureq::tls::{RootCerts, TlsConfig};
 use ureq::{Agent, Proxy};
 
@@ -24,20 +24,29 @@ pub struct RetryPolicy {
 
 impl Default for RetryPolicy {
     fn default() -> Self {
-        Self { max_retries: 3, base_delay_ms: 500, max_delay_ms: 8_000 }
+        Self {
+            max_retries: 3,
+            base_delay_ms: 500,
+            max_delay_ms: 8_000,
+        }
     }
 }
 
 impl RetryPolicy {
     pub fn none() -> Self {
-        Self { max_retries: 0, ..Self::default() }
+        Self {
+            max_retries: 0,
+            ..Self::default()
+        }
     }
 
     fn delay(&self, attempt: u32, retry_after: Option<Duration>) -> Duration {
         let exp = self.base_delay_ms.saturating_mul(1u64 << attempt.min(16));
         let d = Duration::from_millis(exp.min(self.max_delay_ms));
         match retry_after {
-            Some(ra) => ra.min(Duration::from_millis(self.max_delay_ms.max(1))).max(d),
+            Some(ra) => ra
+                .min(Duration::from_millis(self.max_delay_ms.max(1)))
+                .max(d),
             None => d,
         }
     }
@@ -59,19 +68,30 @@ pub struct HttpOptions {
 
 impl Default for HttpOptions {
     fn default() -> Self {
-        Self { batch_size: 32, max_input_tokens: 8_000, timeout_secs: 120, retry: RetryPolicy::default() }
+        Self {
+            batch_size: 32,
+            max_input_tokens: 8_000,
+            timeout_secs: 120,
+            retry: RetryPolicy::default(),
+        }
     }
 }
 
 /// True when `url`'s host is a loopback address (`localhost`, `127.0.0.0/8`,
 /// `::1`). Text sent to such a server does not leave this machine.
 pub fn is_loopback_url(url: &str) -> bool {
-    let Some(host) = host_of(url) else { return false };
-    let host = host.trim_start_matches('[').trim_end_matches(']').to_ascii_lowercase();
+    let Some(host) = host_of(url) else {
+        return false;
+    };
+    let host = host
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .to_ascii_lowercase();
     if host == "localhost" || host.ends_with(".localhost") {
         return true;
     }
-    host.parse::<std::net::IpAddr>().is_ok_and(|ip| ip.is_loopback())
+    host.parse::<std::net::IpAddr>()
+        .is_ok_and(|ip| ip.is_loopback())
 }
 
 fn host_of(url: &str) -> Option<&str> {
@@ -97,10 +117,16 @@ enum Attempt {
 
 impl HttpClient {
     pub(crate) fn new(base_url: &str, opts: &HttpOptions) -> Self {
-        let tls = TlsConfig::builder().root_certs(RootCerts::PlatformVerifier).build();
+        let tls = TlsConfig::builder()
+            .root_certs(RootCerts::PlatformVerifier)
+            .build();
         // Loopback servers are always reached directly, whatever proxy the
         // environment configures; everything else honours HTTPS_PROXY etc.
-        let proxy = if is_loopback_url(base_url) { None } else { Proxy::try_from_env() };
+        let proxy = if is_loopback_url(base_url) {
+            None
+        } else {
+            Proxy::try_from_env()
+        };
         let agent: Agent = Agent::config_builder()
             .timeout_global(Some(Duration::from_secs(opts.timeout_secs.max(1))))
             .http_status_as_error(false)
@@ -109,7 +135,10 @@ impl HttpClient {
             .user_agent("anamnesis-embed")
             .build()
             .into();
-        Self { agent, retry: opts.retry }
+        Self {
+            agent,
+            retry: opts.retry,
+        }
     }
 
     /// POST a JSON body and decode a JSON response, retrying transient
@@ -142,7 +171,12 @@ impl HttpClient {
         }
     }
 
-    fn try_once<B: Serialize>(&self, url: &str, body: &B, bearer: Option<&str>) -> Result<String, Attempt> {
+    fn try_once<B: Serialize>(
+        &self,
+        url: &str,
+        body: &B,
+        bearer: Option<&str>,
+    ) -> Result<String, Attempt> {
         let mut req = self.agent.post(url).header("Accept", "application/json");
         if let Some(key) = bearer.filter(|k| !k.is_empty()) {
             req = req.header("Authorization", format!("Bearer {key}"));
@@ -172,7 +206,9 @@ impl HttpClient {
             .with_config()
             .limit(256 * 1024 * 1024)
             .read_to_string()
-            .map_err(|e| Attempt::Retryable(anyhow!("reading response from {}: {e}", redact(url)), None))?;
+            .map_err(|e| {
+                Attempt::Retryable(anyhow!("reading response from {}: {e}", redact(url)), None)
+            })?;
         if (200..300).contains(&status) {
             return Ok(text);
         }
@@ -193,7 +229,11 @@ fn redact(url: &str) -> String {
         Some((auth, path)) => format!("{}/{path}", auth.rsplit_once('@').map_or(auth, |(_, h)| h)),
         None => rest.rsplit_once('@').map_or(rest, |(_, h)| h).to_owned(),
     };
-    if scheme.is_empty() { rest } else { format!("{scheme}://{rest}") }
+    if scheme.is_empty() {
+        rest
+    } else {
+        format!("{scheme}://{rest}")
+    }
 }
 
 /// The start of an error body, on one line, for error messages.
@@ -208,18 +248,32 @@ fn snippet(text: &str) -> String {
 
 /// Join a base URL and a path without doubling or dropping slashes.
 pub(crate) fn join(base: &str, path: &str) -> String {
-    format!("{}/{}", base.trim_end_matches('/'), path.trim_start_matches('/'))
+    format!(
+        "{}/{}",
+        base.trim_end_matches('/'),
+        path.trim_start_matches('/')
+    )
 }
 
 /// Check a batch response: right count, consistent dimension; normalise.
-pub(crate) fn finish(mut vecs: Vec<Vec<f32>>, expected: usize, dim: Option<usize>) -> Result<Vec<Vec<f32>>> {
+pub(crate) fn finish(
+    mut vecs: Vec<Vec<f32>>,
+    expected: usize,
+    dim: Option<usize>,
+) -> Result<Vec<Vec<f32>>> {
     if vecs.len() != expected {
-        bail!("server returned {} embeddings for {expected} inputs", vecs.len());
+        bail!(
+            "server returned {} embeddings for {expected} inputs",
+            vecs.len()
+        );
     }
     let d = dim.or_else(|| vecs.first().map(Vec::len)).unwrap_or(0);
     for v in &mut vecs {
         if v.len() != d || d == 0 {
-            bail!("server returned embeddings of inconsistent dimension ({} vs {d})", v.len());
+            bail!(
+                "server returned embeddings of inconsistent dimension ({} vs {d})",
+                v.len()
+            );
         }
         crate::l2_normalize(v);
     }
@@ -256,22 +310,35 @@ mod tests {
 
     #[test]
     fn redaction() {
-        assert_eq!(redact("https://user:secret@host/v1/x?key=abc"), "https://host/v1/x");
+        assert_eq!(
+            redact("https://user:secret@host/v1/x?key=abc"),
+            "https://host/v1/x"
+        );
         assert_eq!(redact("http://host:1/a"), "http://host:1/a");
     }
 
     #[test]
     fn backoff_grows_and_caps() {
-        let p = RetryPolicy { max_retries: 5, base_delay_ms: 100, max_delay_ms: 1000 };
+        let p = RetryPolicy {
+            max_retries: 5,
+            base_delay_ms: 100,
+            max_delay_ms: 1000,
+        };
         assert_eq!(p.delay(0, None), Duration::from_millis(100));
         assert_eq!(p.delay(2, None), Duration::from_millis(400));
         assert_eq!(p.delay(10, None), Duration::from_millis(1000));
-        assert_eq!(p.delay(0, Some(Duration::from_secs(60))), Duration::from_millis(1000));
+        assert_eq!(
+            p.delay(0, Some(Duration::from_secs(60))),
+            Duration::from_millis(1000)
+        );
     }
 
     #[test]
     fn join_paths() {
-        assert_eq!(join("http://h/v1/", "/embeddings"), "http://h/v1/embeddings");
+        assert_eq!(
+            join("http://h/v1/", "/embeddings"),
+            "http://h/v1/embeddings"
+        );
         assert_eq!(join("http://h", "api/embed"), "http://h/api/embed");
     }
 }
