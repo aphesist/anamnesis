@@ -50,17 +50,28 @@ struct ContextItem {
 }
 
 /// Hybrid search with the current embedder (text-only while no embedder is loaded).
-pub async fn hybrid_search(app: &Arc<App>, brain: &Arc<Brain>, q: &str, k: usize) -> anyhow::Result<Vec<Hit>> {
+pub async fn hybrid_search(
+    app: &Arc<App>,
+    brain: &Arc<Brain>,
+    q: &str,
+    k: usize,
+) -> anyhow::Result<Vec<Hit>> {
     let mut query = SearchQuery::text(q, k);
     if let Some(emb) = app.embedder()
         && !q.trim().is_empty()
     {
         let text = q.to_string();
         let e = emb.clone();
-        let v = tokio::task::spawn_blocking(move || anamnesis_embed::embed_one_query(e.as_ref(), &text)).await?;
+        let v = tokio::task::spawn_blocking(move || {
+            anamnesis_embed::embed_one_query(e.as_ref(), &text)
+        })
+        .await?;
         match v {
             Ok(values) => {
-                query.vector = Some(anamnesis_core::QueryVector { model_id: emb.id().to_string(), values });
+                query.vector = Some(anamnesis_core::QueryVector {
+                    model_id: emb.id().to_string(),
+                    values,
+                });
             }
             Err(e) => tracing::warn!("query embedding failed, text search only: {e:#}"),
         }
@@ -73,8 +84,17 @@ pub fn chat_source(s: &Store) -> anamnesis_core::Result<Source> {
     named_source(s, "chat", "chats", Origin::OwnerInChat)
 }
 
-pub(crate) fn named_source(s: &Store, connector: &str, name: &str, origin: Origin) -> anamnesis_core::Result<Source> {
-    if let Some(src) = s.list_sources()?.into_iter().find(|x| x.connector == connector) {
+pub(crate) fn named_source(
+    s: &Store,
+    connector: &str,
+    name: &str,
+    origin: Origin,
+) -> anamnesis_core::Result<Source> {
+    if let Some(src) = s
+        .list_sources()?
+        .into_iter()
+        .find(|x| x.connector == connector)
+    {
         return Ok(src);
     }
     s.add_source(Source {
@@ -90,7 +110,11 @@ pub(crate) fn named_source(s: &Store, connector: &str, name: &str, origin: Origi
 }
 
 fn first_line(s: &str, max: usize) -> String {
-    let line = s.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("chat");
+    let line = s
+        .lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .unwrap_or("chat");
     let mut t: String = line.chars().take(max).collect();
     if line.chars().count() > max {
         t.push('…');
@@ -113,7 +137,11 @@ fn store_message(
         external_id: format!("{chat_id}/{}", Id::new()),
         uri: None,
         kind: ItemKind::Chat,
-        title: if role == "user" { first_line(text, 80) } else { format!("re: {}", first_line(text, 72)) },
+        title: if role == "user" {
+            first_line(text, 80)
+        } else {
+            format!("re: {}", first_line(text, 72))
+        },
         body: text.to_string(),
         origin,
         created_at: None,
@@ -181,19 +209,32 @@ fn retrieval_reply(ctx: &[ContextItem]) -> String {
     if ctx.is_empty() {
         return "no model is connected, and nothing in your brain matches this yet.".into();
     }
-    let mut s = String::from("no model is connected, so here is what your brain holds on this:\n\n");
+    let mut s =
+        String::from("no model is connected, so here is what your brain holds on this:\n\n");
     for (i, c) in ctx.iter().enumerate() {
-        let snip: String = c.text.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(160).collect();
+        let snip: String = c
+            .text
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .chars()
+            .take(160)
+            .collect();
         s.push_str(&format!("[{}] {} — {}\n", i + 1, c.title, snip));
     }
     s
 }
 
-pub async fn chat(app: Arc<App>, body: ChatBody) -> Sse<impl Stream<Item = Result<SseEvent, Infallible>>> {
+pub async fn chat(
+    app: Arc<App>,
+    body: ChatBody,
+) -> Sse<impl Stream<Item = Result<SseEvent, Infallible>>> {
     let (tx, rx) = mpsc::channel::<Result<SseEvent, Infallible>>(64);
     tokio::spawn(async move {
         if let Err(e) = run_chat(&app, body, &tx).await {
-            let _ = tx.send(sse("error", json!({ "message": format!("{e:#}") }))).await;
+            let _ = tx
+                .send(sse("error", json!({ "message": format!("{e:#}") })))
+                .await;
         }
     });
     Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default())
@@ -213,7 +254,9 @@ async fn run_chat(
     let router = app.router();
     let wanted = body.backend.clone().filter(|b| !b.is_empty());
     let use_retrieval = wanted.as_deref() == Some(RETRIEVAL_BACKEND)
-        || router.as_ref().is_none_or(|r| r.plan(Task::Chat, wanted.as_deref()).is_err());
+        || router
+            .as_ref()
+            .is_none_or(|r| r.plan(Task::Chat, wanted.as_deref()).is_err());
     if let (Some(w), true) = (&wanted, use_retrieval)
         && w != RETRIEVAL_BACKEND
     {
@@ -236,7 +279,9 @@ async fn run_chat(
                 if !seen.insert(h.item_id.clone()) {
                     continue;
                 }
-                let Some(item) = s.get_item(&h.item_id)? else { continue };
+                let Some(item) = s.get_item(&h.item_id)? else {
+                    continue;
+                };
                 if item.deleted || item.kind == ItemKind::Chat {
                     continue;
                 }
@@ -273,7 +318,12 @@ async fn run_chat(
         }
     }
     if !needs_consent.is_empty() {
-        tx.send(sse("consent_required", json!({ "ids": needs_consent, "chat_id": chat_id }))).await.ok();
+        tx.send(sse(
+            "consent_required",
+            json!({ "ids": needs_consent, "chat_id": chat_id }),
+        ))
+        .await
+        .ok();
         return Ok(());
     }
 
@@ -286,13 +336,30 @@ async fn run_chat(
             let mut history = Vec::new();
             for t in turns.iter().rev().take(HISTORY_TURNS).rev() {
                 if let Some(it) = s.get_item(&t.item_id)? {
-                    history.push(if t.role == "user" { Message::user(it.body) } else { Message::assistant(it.body) });
+                    history.push(if t.role == "user" {
+                        Message::user(it.body)
+                    } else {
+                        Message::assistant(it.body)
+                    });
                 }
             }
-            let item = store_message(s, &cid, "user", &msg, Origin::OwnerInChat, Actor::User, json!({ "chat_id": cid }))?;
+            let item = store_message(
+                s,
+                &cid,
+                "user",
+                &msg,
+                Origin::OwnerInChat,
+                Actor::User,
+                json!({ "chat_id": cid }),
+            )?;
             s.append(
                 Actor::User,
-                EventKind::ChatTurn { chat_id: cid.clone(), role: "user".into(), item_id: item.id.clone(), cited: vec![] },
+                EventKind::ChatTurn {
+                    chat_id: cid.clone(),
+                    role: "user".into(),
+                    item_id: item.id.clone(),
+                    cited: vec![],
+                },
             )?;
             Ok((history, item))
         })
@@ -313,7 +380,11 @@ async fn run_chat(
         ))
         .await
         .ok();
-        (RETRIEVAL_BACKEND.to_string(), String::new(), Actor::System("chat:retrieval".into()))
+        (
+            RETRIEVAL_BACKEND.to_string(),
+            String::new(),
+            Actor::System("chat:retrieval".into()),
+        )
     } else {
         let router = router.expect("checked above");
         let mut messages = history;
@@ -327,7 +398,12 @@ async fn run_chat(
         let routed = match router.chat(Task::Chat, req, call).await {
             Ok(r) => r,
             Err(HarnessError::EgressNeedsConsent(ids)) => {
-                tx.send(sse("consent_required", json!({ "ids": ids, "chat_id": chat_id }))).await.ok();
+                tx.send(sse(
+                    "consent_required",
+                    json!({ "ids": ids, "chat_id": chat_id }),
+                ))
+                .await
+                .ok();
                 return Ok(());
             }
             Err(e) => return Err(e.into()),
@@ -336,14 +412,20 @@ async fn run_chat(
         if let Some(eg) = routed.egress {
             let kind = eg.into_event_kind();
             let b = backend.clone();
-            brain.db(move |s| Ok(s.append(Actor::Model(b), kind)?)).await?;
+            brain
+                .db(move |s| Ok(s.append(Actor::Model(b), kind)?))
+                .await?;
         }
         let mut stream = routed.stream;
         while let Some(ev) = stream.next().await {
             match ev {
                 ChatEvent::Token { text } => {
                     reply.push_str(&text);
-                    if tx.send(sse("token", json!({ "text": text }))).await.is_err() {
+                    if tx
+                        .send(sse("token", json!({ "text": text })))
+                        .await
+                        .is_err()
+                    {
                         break; // the client went away; still store what we have
                     }
                 }
@@ -357,7 +439,9 @@ async fn run_chat(
                 }
                 ChatEvent::Done { .. } => break,
                 ChatEvent::Error { message, .. } => {
-                    tx.send(sse("error", json!({ "message": message }))).await.ok();
+                    tx.send(sse("error", json!({ "message": message })))
+                        .await
+                        .ok();
                     break;
                 }
             }
@@ -369,7 +453,9 @@ async fn run_chat(
     let cited = cited_ids(&reply, &ctx);
     tx.send(sse("cited", json!({ "ids": cited }))).await.ok();
     if reply.trim().is_empty() {
-        tx.send(sse("done", json!({ "chat_id": chat_id, "item_id": null }))).await.ok();
+        tx.send(sse("done", json!({ "chat_id": chat_id, "item_id": null })))
+            .await
+            .ok();
         return Ok(());
     }
     let cid = chat_id.clone();
@@ -387,13 +473,23 @@ async fn run_chat(
             )?;
             s.append(
                 actor,
-                EventKind::ChatTurn { chat_id: cid.clone(), role: "assistant".into(), item_id: item.id.clone(), cited: c2 },
+                EventKind::ChatTurn {
+                    chat_id: cid.clone(),
+                    role: "assistant".into(),
+                    item_id: item.id.clone(),
+                    cited: c2,
+                },
             )?;
             Ok(item)
         })
         .await?;
     app.jobs_notify.notify_one();
-    tx.send(sse("done", json!({ "chat_id": chat_id, "item_id": reply_item.id }))).await.ok();
+    tx.send(sse(
+        "done",
+        json!({ "chat_id": chat_id, "item_id": reply_item.id }),
+    ))
+    .await
+    .ok();
     Ok(())
 }
 
@@ -404,7 +500,12 @@ mod tests {
     #[test]
     fn citations_are_parsed_in_order_and_bounded() {
         let ctx: Vec<ContextItem> = (0..3)
-            .map(|i| ContextItem { id: Id(format!("i{i}")), title: String::new(), text: String::new(), privacy: Privacy::CloudOk })
+            .map(|i| ContextItem {
+                id: Id(format!("i{i}")),
+                title: String::new(),
+                text: String::new(),
+                privacy: Privacy::CloudOk,
+            })
             .collect();
         let ids = cited_ids("see [2] and [1], again [2], not [9] or [x]", &ctx);
         assert_eq!(ids, vec![Id("i1".into()), Id("i0".into())]);

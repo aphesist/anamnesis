@@ -116,7 +116,11 @@ impl LinkSuggester {
         assert!(meta.is_empty() || meta.len() == ids.len());
         let mut x = Rows::from_vecs(vectors);
         x.normalize_rows();
-        let index: HashMap<Id, usize> = ids.iter().enumerate().map(|(i, id)| (id.clone(), i)).collect();
+        let index: HashMap<Id, usize> = ids
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (id.clone(), i))
+            .collect();
         let mut adj = vec![HashSet::new(); ids.len()];
         for l in links {
             if let (Some(&a), Some(&b)) = (index.get(&l.from), index.get(&l.to))
@@ -126,8 +130,18 @@ impl LinkSuggester {
                 adj[b].insert(a as u32);
             }
         }
-        let meta = if meta.is_empty() { vec![ItemMeta::default(); ids.len()] } else { meta.to_vec() };
-        LinkSuggester { ids: ids.to_vec(), index, x, adj, meta }
+        let meta = if meta.is_empty() {
+            vec![ItemMeta::default(); ids.len()]
+        } else {
+            meta.to_vec()
+        };
+        LinkSuggester {
+            ids: ids.to_vec(),
+            index,
+            x,
+            adj,
+            meta,
+        }
     }
 
     /// Record a new link (e.g. one the user just made).
@@ -149,7 +163,11 @@ impl LinkSuggester {
 
     /// Adamic–Adar index of two items over the link graph.
     pub fn adamic_adar(&self, a: usize, b: usize) -> f32 {
-        let (small, large) = if self.adj[a].len() <= self.adj[b].len() { (a, b) } else { (b, a) };
+        let (small, large) = if self.adj[a].len() <= self.adj[b].len() {
+            (a, b)
+        } else {
+            (b, a)
+        };
         self.adj[small]
             .iter()
             .filter(|z| self.adj[large].contains(z))
@@ -167,7 +185,9 @@ impl LinkSuggester {
         {
             return true;
         }
-        if let (Some(sa), Some(sb), Some(ta), Some(tb)) = (&ma.source_id, &mb.source_id, ma.created_at, mb.created_at) {
+        if let (Some(sa), Some(sb), Some(ta), Some(tb)) =
+            (&ma.source_id, &mb.source_id, ma.created_at, mb.created_at)
+        {
             return sa == sb && (ta - tb).num_seconds().abs() <= params.session_window_secs;
         }
         false
@@ -175,9 +195,13 @@ impl LinkSuggester {
 
     /// Top suggestions for `item`, best first.
     pub fn suggest(&self, item: &Id, params: &LinkParams) -> Vec<LinkSuggestion> {
-        let Some(&a) = self.index.get(item) else { return vec![] };
+        let Some(&a) = self.index.get(item) else {
+            return vec![];
+        };
         let q = self.x.row(a).to_vec();
-        let cands = top_k_dot(&self.x, &q, params.candidates, |j| j == a || self.adj[a].contains(&(j as u32)));
+        let cands = top_k_dot(&self.x, &q, params.candidates, |j| {
+            j == a || self.adj[a].contains(&(j as u32))
+        });
         let mut out: Vec<LinkSuggestion> = cands
             .into_iter()
             .filter(|&(_, c)| c >= params.min_cos)
@@ -202,7 +226,15 @@ impl LinkSuggester {
                     score -= params.same_session_penalty;
                     flags.push(SuggestionFlag::SameSession);
                 }
-                LinkSuggestion { from: item.clone(), to: self.ids[b].clone(), score, rank: 0, cosine: cos, adamic_adar: aa, flags }
+                LinkSuggestion {
+                    from: item.clone(),
+                    to: self.ids[b].clone(),
+                    score,
+                    rank: 0,
+                    cosine: cos,
+                    adamic_adar: aa,
+                    flags,
+                }
             })
             .collect();
         out.sort_by(|x, y| y.score.total_cmp(&x.score).then_with(|| x.to.cmp(&y.to)));
@@ -216,9 +248,15 @@ impl LinkSuggester {
     /// Items so similar to `item` (cos > threshold) that they are probably
     /// duplicates — offer "merge?" rather than "link?".
     pub fn near_duplicates(&self, item: &Id, threshold: f32) -> Vec<(Id, f32)> {
-        let Some(&a) = self.index.get(item) else { return vec![] };
+        let Some(&a) = self.index.get(item) else {
+            return vec![];
+        };
         let q = self.x.row(a).to_vec();
-        top_k_dot(&self.x, &q, 20, |j| j == a).into_iter().filter(|&(_, c)| c > threshold).map(|(j, c)| (self.ids[j].clone(), c)).collect()
+        top_k_dot(&self.x, &q, 20, |j| j == a)
+            .into_iter()
+            .filter(|&(_, c)| c > threshold)
+            .map(|(j, c)| (self.ids[j].clone(), c))
+            .collect()
     }
 }
 
@@ -229,12 +267,19 @@ pub fn is_held_out(from: &Id, to: &Id, rate: f64, seed: u64) -> bool {
 
 /// Mark each suggestion shown or held out (≈ `rate` held). Deterministic in
 /// `(seed, from, to)`, independent of order and of the other suggestions.
-pub fn split_for_holdout(suggestions: Vec<LinkSuggestion>, rate: f64, seed: u64) -> Vec<ArmedSuggestion> {
+pub fn split_for_holdout(
+    suggestions: Vec<LinkSuggestion>,
+    rate: f64,
+    seed: u64,
+) -> Vec<ArmedSuggestion> {
     suggestions
         .into_iter()
         .map(|s| {
             let shown = !is_held_out(&s.from, &s.to, rate, seed);
-            ArmedSuggestion { suggestion: s, shown }
+            ArmedSuggestion {
+                suggestion: s,
+                shown,
+            }
         })
         .collect()
 }

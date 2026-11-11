@@ -16,14 +16,22 @@ use crate::sync::{SyncReport, sync_source};
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ImportReport {
-    Bundle { events: u64 },
-    Folder { source_id: Id, connector: String, sync: SyncReport },
+    Bundle {
+        events: u64,
+    },
+    Folder {
+        source_id: Id,
+        connector: String,
+        sync: SyncReport,
+    },
 }
 
 /// Is this path an anamnesis bundle (json lines whose first line is a bundle manifest)?
 fn is_bundle_file(p: &Path) -> bool {
     use std::io::BufRead;
-    let Ok(f) = std::fs::File::open(p) else { return false };
+    let Ok(f) = std::fs::File::open(p) else {
+        return false;
+    };
     let mut first = String::new();
     if BufReader::new(f).read_line(&mut first).is_err() {
         return false;
@@ -63,17 +71,23 @@ pub async fn import_bundle(brain: &Arc<Brain>, path: &Path) -> Result<u64> {
 /// An already registered folder is synced again instead of added twice.
 pub async fn import_folder(brain: &Arc<Brain>, dir: &Path) -> Result<ImportReport> {
     let dir = std::fs::canonicalize(dir).with_context(|| format!("{}", dir.display()))?;
-    let connector = if dir.join(".obsidian").is_dir() { "obsidian" } else { "folder" };
+    let connector = if dir.join(".obsidian").is_dir() {
+        "obsidian"
+    } else {
+        "folder"
+    };
     let path = dir.display().to_string();
-    let name = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone());
+    let name = dir
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.clone());
     let c = connector.to_string();
     let source = brain
         .db(move |s| {
-            if let Some(src) = s
-                .list_sources()?
-                .into_iter()
-                .find(|x| x.connector == c && x.config.get("path").and_then(|p| p.as_str()) == Some(path.as_str()))
-            {
+            if let Some(src) = s.list_sources()?.into_iter().find(|x| {
+                x.connector == c
+                    && x.config.get("path").and_then(|p| p.as_str()) == Some(path.as_str())
+            }) {
                 return Ok(src);
             }
             Ok(s.add_source(Source {
@@ -89,7 +103,11 @@ pub async fn import_folder(brain: &Arc<Brain>, dir: &Path) -> Result<ImportRepor
         })
         .await?;
     let sync = sync_source(brain, &source.id).await?;
-    Ok(ImportReport::Folder { source_id: source.id, connector: connector.into(), sync })
+    Ok(ImportReport::Folder {
+        source_id: source.id,
+        connector: connector.into(),
+        sync,
+    })
 }
 
 /// `anamnesis import <folder|bundle>`.
@@ -98,11 +116,15 @@ pub async fn import_path(brain: &Arc<Brain>, path: &Path) -> Result<ImportReport
         if !is_bundle_file(path) {
             bail!("{} is not an anamnesis bundle", path.display());
         }
-        return Ok(ImportReport::Bundle { events: import_bundle(brain, path).await? });
+        return Ok(ImportReport::Bundle {
+            events: import_bundle(brain, path).await?,
+        });
     }
     if path.is_dir() {
         if let Some(b) = bundle_in(path) {
-            return Ok(ImportReport::Bundle { events: import_bundle(brain, &b).await? });
+            return Ok(ImportReport::Bundle {
+                events: import_bundle(brain, &b).await?,
+            });
         }
         return import_folder(brain, path).await;
     }
@@ -114,7 +136,8 @@ pub async fn export_to(brain: &Arc<Brain>, path: &Path) -> Result<anamnesis_core
     let p = path.to_path_buf();
     brain
         .db(move |s| {
-            let f = std::fs::File::create(&p).with_context(|| format!("creating {}", p.display()))?;
+            let f =
+                std::fs::File::create(&p).with_context(|| format!("creating {}", p.display()))?;
             Ok(s.export_bundle(std::io::BufWriter::new(f))?)
         })
         .await

@@ -61,10 +61,14 @@ pub struct FilesConnector {
 
 impl FilesConnector {
     pub fn folder() -> Self {
-        FilesConnector { flavor: Flavor::Folder }
+        FilesConnector {
+            flavor: Flavor::Folder,
+        }
     }
     pub fn obsidian() -> Self {
-        FilesConnector { flavor: Flavor::Obsidian }
+        FilesConnector {
+            flavor: Flavor::Obsidian,
+        }
     }
 
     fn id(&self) -> &'static str {
@@ -75,7 +79,8 @@ impl FilesConnector {
     }
 
     fn parse_config(&self, config: &Value) -> Result<FilesConfig> {
-        serde_json::from_value(config.clone()).map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
+        serde_json::from_value(config.clone())
+            .map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
     }
 
     fn scan_options(&self, c: &FilesConfig) -> ScanOptions {
@@ -148,7 +153,13 @@ pub fn folder_manifest() -> Manifest {
         runtime: Runtime::Builtin,
         entry: None,
         config_schema: files_schema(false),
-        capabilities: vec![Capability::Check, Capability::Incremental, Capability::Deletes, Capability::Renames, Capability::Watch],
+        capabilities: vec![
+            Capability::Check,
+            Capability::Incremental,
+            Capability::Deletes,
+            Capability::Renames,
+            Capability::Watch,
+        ],
         network_hosts: vec![],
         fs_paths: vec!["<config.path>".into()],
         default_origin: Origin::OwnerWritten,
@@ -171,9 +182,19 @@ pub fn obsidian_manifest() -> Manifest {
 static DAILY_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap());
 
 impl FilesConnector {
-    fn to_document(&self, cfg: &FilesConfig, root: &Path, f: &ChangedFile, resolver: &Resolver, renamed_from: Option<&str>) -> Document {
+    fn to_document(
+        &self,
+        cfg: &FilesConfig,
+        root: &Path,
+        f: &ChangedFile,
+        resolver: &Resolver,
+        renamed_from: Option<&str>,
+    ) -> Document {
         let text = String::from_utf8_lossy(&f.bytes).into_owned();
-        let stem = Path::new(&f.rel).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        let stem = Path::new(&f.rel)
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
         let is_md = !f.rel.to_lowercase().ends_with(".txt");
         let origin = cfg.origin.unwrap_or(Origin::OwnerWritten);
         let mut meta = json!({
@@ -190,7 +211,9 @@ impl FilesConnector {
         {
             let file = f.rel.strip_suffix(".md").unwrap_or(&f.rel);
             let mut u = url::Url::parse("obsidian://open").unwrap();
-            u.query_pairs_mut().append_pair("vault", &vault.to_string_lossy()).append_pair("file", file);
+            u.query_pairs_mut()
+                .append_pair("vault", &vault.to_string_lossy())
+                .append_pair("file", file);
             meta["obsidian_uri"] = json!(u.to_string());
         }
         let default_kind = match self.flavor {
@@ -241,7 +264,9 @@ impl FilesConnector {
                 wl_meta.push(m);
             }
             for l in &p.links {
-                let r = resolver.resolve_relative(l, &f.rel).unwrap_or_else(|| l.clone());
+                let r = resolver
+                    .resolve_relative(l, &f.rel)
+                    .unwrap_or_else(|| l.clone());
                 if r != f.rel && !refs.contains(&r) {
                     refs.push(r);
                 }
@@ -255,7 +280,11 @@ impl FilesConnector {
             meta["wikilinks"] = Value::Array(wl_meta);
             // Frontmatter may override kind / origin per note.
             if cfg.kind.is_none()
-                && let Some(k) = p.frontmatter.get("kind").cloned().and_then(|k| serde_json::from_value::<ItemKind>(k).ok())
+                && let Some(k) = p
+                    .frontmatter
+                    .get("kind")
+                    .cloned()
+                    .and_then(|k| serde_json::from_value::<ItemKind>(k).ok())
             {
                 doc.kind = k;
             }
@@ -317,7 +346,11 @@ impl Connector for FilesConnector {
             .changed
             .iter()
             .map(|f| {
-                let from = scanned.renames.iter().find(|r| r.to == f.rel).map(|r| r.from.as_str());
+                let from = scanned
+                    .renames
+                    .iter()
+                    .find(|r| r.to == f.rel)
+                    .map(|r| r.from.as_str());
                 self.to_document(&cfg, &opts.root, f, &resolver, from)
             })
             .collect();
@@ -342,12 +375,21 @@ impl Connector for FilesConnector {
                 return;
             }
             for p in ev.paths {
-                let rel = p.strip_prefix(&root2).ok().map(|r| r.to_string_lossy().replace('\\', "/"));
-                if rel.as_deref().is_some_and(|r| r.starts_with(".obsidian") || r.starts_with(".trash")) {
+                let rel = p
+                    .strip_prefix(&root2)
+                    .ok()
+                    .map(|r| r.to_string_lossy().replace('\\', "/"));
+                if rel
+                    .as_deref()
+                    .is_some_and(|r| r.starts_with(".obsidian") || r.starts_with(".trash"))
+                {
                     continue;
                 }
                 // Full channel: drop; the next list() catches up anyway.
-                let _ = tx.try_send(ChangeNotice { external_id: rel, location: Some(p.display().to_string()) });
+                let _ = tx.try_send(ChangeNotice {
+                    external_id: rel,
+                    location: Some(p.display().to_string()),
+                });
             }
         })
         .map_err(|e| ConnectorError::Unsupported(format!("watch: {e}")))?;

@@ -62,7 +62,10 @@ fn env_for_provider(provider: &str) -> &'static [&'static str] {
 /// The harness configuration from settings (`harness`, `routing`), with api keys filled
 /// in from the keychain (or the usual environment variables).
 pub fn harness_config(app: &App, settings: &Value) -> HarnessConfig {
-    let mut v = settings.get("harness").cloned().unwrap_or_else(|| json!({}));
+    let mut v = settings
+        .get("harness")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     if !v.is_object() {
         v = json!({});
     }
@@ -109,7 +112,11 @@ pub fn harness_config(app: &App, settings: &Value) -> HarnessConfig {
 /// ever appears on a command line.
 pub fn mcp_offer(app: &App) -> Option<McpOffer> {
     let exe = std::env::current_exe().ok()?;
-    let dir = if app.is_demo() { app.cfg.demo_brain_dir() } else { app.cfg.user_brain_dir() };
+    let dir = if app.is_demo() {
+        app.cfg.demo_brain_dir()
+    } else {
+        app.cfg.user_brain_dir()
+    };
     let config = json!({
         "mcpServers": {
             "anamnesis": {
@@ -217,7 +224,10 @@ pub async fn chatgpt_begin(app: &Arc<App>) -> anyhow::Result<String> {
     let client = chatgpt_client(app, &settings);
     let pending = client.begin_sign_in(false).await?;
     let url = pending.authorize_url.clone();
-    app.chatgpt.set(SignInState { in_progress: true, last_error: None });
+    app.chatgpt.set(SignInState {
+        in_progress: true,
+        last_error: None,
+    });
     let app2 = app.clone();
     tokio::spawn(async move {
         let res = client.complete_sign_in(pending).await;

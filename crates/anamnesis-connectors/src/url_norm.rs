@@ -22,20 +22,37 @@ fn is_tracking(key: &str) -> bool {
         || k.starts_with("vero_")
         || matches!(
             k.as_str(),
-            "fbclid" | "gclid" | "dclid" | "gbraid" | "wbraid" | "msclkid" | "yclid" | "mc_cid" | "mc_eid" | "igshid"
-                | "_hsenc" | "_hsmi" | "mkt_tok" | "spm" | "ref_src"
+            "fbclid"
+                | "gclid"
+                | "dclid"
+                | "gbraid"
+                | "wbraid"
+                | "msclkid"
+                | "yclid"
+                | "mc_cid"
+                | "mc_eid"
+                | "igshid"
+                | "_hsenc"
+                | "_hsmi"
+                | "mkt_tok"
+                | "spm"
+                | "ref_src"
         )
 }
 
 pub fn normalize_url(input: &str) -> Result<String> {
-    let mut u = Url::parse(input.trim()).map_err(|e| ConnectorError::Parse(format!("url {input:?}: {e}")))?;
+    let mut u = Url::parse(input.trim())
+        .map_err(|e| ConnectorError::Parse(format!("url {input:?}: {e}")))?;
     if !matches!(u.scheme(), "http" | "https") {
         return Ok(u.to_string());
     }
     u.set_fragment(None);
     if u.query().is_some() {
-        let kept: Vec<(String, String)> =
-            u.query_pairs().filter(|(k, _)| !is_tracking(k)).map(|(k, v)| (k.into_owned(), v.into_owned())).collect();
+        let kept: Vec<(String, String)> = u
+            .query_pairs()
+            .filter(|(k, _)| !is_tracking(k))
+            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .collect();
         if kept.is_empty() {
             u.set_query(None);
         } else {
@@ -61,17 +78,29 @@ mod tests {
     #[test]
     fn normalisation_table() {
         let table = [
-            ("https://Example.COM/a/b/?utm_source=x&utm_medium=y#frag", "https://example.com/a/b"),
+            (
+                "https://Example.COM/a/b/?utm_source=x&utm_medium=y#frag",
+                "https://example.com/a/b",
+            ),
             ("https://example.com", "https://example.com/"),
             ("https://example.com/", "https://example.com/"),
             ("https://example.com/?", "https://example.com/"),
             ("http://example.com:80/x", "http://example.com/x"),
             ("https://example.com:443/x/", "https://example.com/x"),
             ("https://example.com:8443/x", "https://example.com:8443/x"),
-            ("https://example.com/p?id=3&utm_campaign=z&b=2", "https://example.com/p?id=3&b=2"),
+            (
+                "https://example.com/p?id=3&utm_campaign=z&b=2",
+                "https://example.com/p?id=3&b=2",
+            ),
             ("https://example.com/p?fbclid=abc", "https://example.com/p"),
-            ("https://example.com/p?GCLID=abc&q=a+b", "https://example.com/p?q=a+b"),
-            ("https://example.com/p?q=a%20b", "https://example.com/p?q=a%20b"),
+            (
+                "https://example.com/p?GCLID=abc&q=a+b",
+                "https://example.com/p?q=a+b",
+            ),
+            (
+                "https://example.com/p?q=a%20b",
+                "https://example.com/p?q=a%20b",
+            ),
             ("https://www.example.com/a//", "https://www.example.com/a"),
             ("  https://example.com/a#top  ", "https://example.com/a"),
             ("https://bücher.de/x", "https://xn--bcher-kva.de/x"),

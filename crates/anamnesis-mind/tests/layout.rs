@@ -1,6 +1,8 @@
 mod support;
 
-use anamnesis_mind::layout::{LayoutParams, layout_full, neighbourhood_preservation, place_new, views};
+use anamnesis_mind::layout::{
+    LayoutParams, layout_full, neighbourhood_preservation, place_new, views,
+};
 use anamnesis_mind::rng::Rng;
 use anamnesis_mind::space::{Space, SpaceParams};
 use support::*;
@@ -55,11 +57,18 @@ fn layout_separates_and_is_stable() {
     let xyz = &run1.layout.xyz;
     assert_eq!(xyz.len(), 400);
     // normalised to a unit-ish box
-    let maxabs = xyz.iter().flat_map(|p| p.iter()).fold(0f32, |m, v| m.max(v.abs()));
+    let maxabs = xyz
+        .iter()
+        .flat_map(|p| p.iter())
+        .fold(0f32, |m, v| m.max(v.abs()));
     assert!(maxabs < 2.0 && maxabs > 0.3, "{maxabs}");
     // blobs are separated
     let cs = centroids(xyz, &label, 5);
-    let correct = xyz.iter().zip(&label).filter(|(p, l)| nearest(p, &cs) == **l).count();
+    let correct = xyz
+        .iter()
+        .zip(&label)
+        .filter(|(p, l)| nearest(p, &cs) == **l)
+        .count();
     assert!(correct >= 396, "{correct}");
     let np = neighbourhood_preservation(&space, xyz, 10, 100);
     assert!(np > 0.3, "neighbourhood preservation {np}");
@@ -72,7 +81,9 @@ fn layout_separates_and_is_stable() {
 
     // incremental placement: new points land near their own blob, nothing else moves
     let mut layout = run1.layout.clone();
-    let new_vs: Vec<Vec<f32>> = (0..10).map(|i| around(&mut r, &centers[i % 5], 0.08)).collect();
+    let new_vs: Vec<Vec<f32>> = (0..10)
+        .map(|i| around(&mut r, &centers[i % 5], 0.08))
+        .collect();
     let new_ids = support::ids(10, "n");
     let placed = place_new(&mut layout, &vs, &new_ids, &new_vs, &params);
     assert_eq!(layout.xyz.len(), 410);
@@ -88,7 +99,11 @@ fn layout_separates_and_is_stable() {
     all_ids.extend(new_ids.iter().cloned());
     let space3 = Space::new(&all, SpaceParams::default());
     let run3 = layout_full(&all_ids, &space3, Some(&layout), &params);
-    assert!(run3.procrustes_residual.unwrap() < 0.08, "{:?}", run3.procrustes_residual);
+    assert!(
+        run3.procrustes_residual.unwrap() < 0.08,
+        "{:?}",
+        run3.procrustes_residual
+    );
 }
 
 #[test]
@@ -98,18 +113,30 @@ fn views_have_brain_and_spheres() {
     let ids = ids(vs.len(), "i");
     let space = Space::new(&vs, SpaceParams::default());
     let run = layout_full(&ids, &space, None, &LayoutParams::default());
-    let mut assignment: Vec<Option<anamnesis_core::Id>> = label.iter().map(|&l| Some(anamnesis_core::Id(format!("r{l}")))).collect();
+    let mut assignment: Vec<Option<anamnesis_core::Id>> = label
+        .iter()
+        .map(|&l| Some(anamnesis_core::Id(format!("r{l}"))))
+        .collect();
     assignment[0] = None; // one unsorted item
     let v = views(&run.layout, &assignment);
     assert_eq!(v.anatomy.len(), 240);
     for p in &v.anatomy {
-        assert!(p[0].abs() < 0.65 && p[1].abs() < 0.6 && p[2].abs() < 0.8, "{p:?}");
+        assert!(
+            p[0].abs() < 0.65 && p[1].abs() < 0.6 && p[2].abs() < 0.8,
+            "{p:?}"
+        );
     }
     // hemispheres: both sides populated
     assert!(v.anatomy.iter().any(|p| p[0] < -0.1) && v.anatomy.iter().any(|p| p[0] > 0.1));
     // spheres: members of one region are tight, regions are apart
     let cs = centroids(&v.spheres, &label, 4);
-    let correct = v.spheres.iter().zip(&label).skip(1).filter(|(p, l)| nearest(p, &cs) == **l).count();
+    let correct = v
+        .spheres
+        .iter()
+        .zip(&label)
+        .skip(1)
+        .filter(|(p, l)| nearest(p, &cs) == **l)
+        .count();
     assert_eq!(correct, 239);
     assert!(v.mode("spheres").is_some() && v.mode("nope").is_none());
     // anatomy keeps neighbourhoods roughly

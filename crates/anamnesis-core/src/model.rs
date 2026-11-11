@@ -57,7 +57,10 @@ impl Origin {
     pub fn is_owner(self) -> bool {
         matches!(
             self,
-            Origin::OwnerWritten | Origin::OwnerSpoken | Origin::OwnerAnnotation | Origin::OwnerInChat
+            Origin::OwnerWritten
+                | Origin::OwnerSpoken
+                | Origin::OwnerAnnotation
+                | Origin::OwnerInChat
         )
     }
     /// The "speaker" bucket used by the "when you wrote" chart.
@@ -290,39 +293,108 @@ pub enum Actor {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EventKind {
-    SourceAdded { source: Source },
-    SourceRemoved { source_id: Id },
-    ItemCreated { item: Item },
-    ItemUpdated { item: Item },
-    ItemDeleted { item_id: Id },
-    LinkAdded { link: Link },
-    LinkRemoved { from: Id, to: Id },
+    SourceAdded {
+        source: Source,
+    },
+    SourceRemoved {
+        source_id: Id,
+    },
+    ItemCreated {
+        item: Item,
+    },
+    ItemUpdated {
+        item: Item,
+    },
+    ItemDeleted {
+        item_id: Id,
+    },
+    LinkAdded {
+        link: Link,
+    },
+    LinkRemoved {
+        from: Id,
+        to: Id,
+    },
     /// A link suggestion was computed. `shown=false` means randomly held out (the control arm).
-    SuggestionMade { suggestion_id: Id, from: Id, to: Id, score: f32, rank: u32, shown: bool, model: String },
-    SuggestionAccepted { suggestion_id: Id },
-    SuggestionDismissed { suggestion_id: Id },
-    ThreadAdded { thread: Thread },
-    ThreadUpdated { thread: Thread },
-    RegionsRecomputed { run_id: Id, regions: Vec<Region>, transitions: Vec<RegionTransition> },
-    LayoutUpdated { run_id: Id, placements_hash: String, count: u32 },
+    SuggestionMade {
+        suggestion_id: Id,
+        from: Id,
+        to: Id,
+        score: f32,
+        rank: u32,
+        shown: bool,
+        model: String,
+    },
+    SuggestionAccepted {
+        suggestion_id: Id,
+    },
+    SuggestionDismissed {
+        suggestion_id: Id,
+    },
+    ThreadAdded {
+        thread: Thread,
+    },
+    ThreadUpdated {
+        thread: Thread,
+    },
+    RegionsRecomputed {
+        run_id: Id,
+        regions: Vec<Region>,
+        transitions: Vec<RegionTransition>,
+    },
+    LayoutUpdated {
+        run_id: Id,
+        placements_hash: String,
+        count: u32,
+    },
     /// Resurfacing: `arm` is "algorithm" or "random" (micro-randomised trial).
-    ResurfaceShown { resurface_id: Id, item_id: Id, arm: String },
-    ResurfaceRated { resurface_id: Id, useful: bool },
+    ResurfaceShown {
+        resurface_id: Id,
+        item_id: Id,
+        arm: String,
+    },
+    ResurfaceRated {
+        resurface_id: Id,
+        useful: bool,
+    },
     /// A user relevance label for retrieval evaluation (grade 0..=3).
-    RetrievalLabeled { query: String, item_id: Id, grade: u8 },
+    RetrievalLabeled {
+        query: String,
+        item_id: Id,
+        grade: u8,
+    },
     /// Something left the machine for a model. Never contains the text, only counts.
-    Egress { provider: String, model: String, purpose: String, items: Vec<Id>, chars: u64 },
+    Egress {
+        provider: String,
+        model: String,
+        purpose: String,
+        items: Vec<Id>,
+        chars: u64,
+    },
     /// A chat turn (the app's own chats are items too; this records the exchange).
-    ChatTurn { chat_id: Id, role: String, item_id: Id, cited: Vec<Id> },
+    ChatTurn {
+        chat_id: Id,
+        role: String,
+        item_id: Id,
+        cited: Vec<Id>,
+    },
     /// The outgoing references declared by an item's text (wikilink targets, relative paths,
     /// urls), replacing any earlier set. References that resolve to an item are additionally
     /// recorded as `LinkAdded { kind: Written }`; the rest stay pending until a matching item
     /// appears.
-    RefsSet { item_id: Id, refs: Vec<String> },
+    RefsSet {
+        item_id: Id,
+        refs: Vec<String>,
+    },
     /// A source's name, config, defaults or sync cursor changed.
-    SourceUpdated { source: Source },
+    SourceUpdated {
+        source: Source,
+    },
     /// A user setting changed. `value: null` removes the key.
-    SettingSet { key: String, value: serde_json::Value },
+    SettingSet {
+        key: String,
+        value: serde_json::Value,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

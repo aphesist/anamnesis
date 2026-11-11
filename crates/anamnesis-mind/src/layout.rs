@@ -86,7 +86,11 @@ impl Layout {
             .iter()
             .zip(&self.xyz)
             .enumerate()
-            .map(|(i, (id, p))| Placement { item_id: id.clone(), xyz: *p, region_id: assignment.get(i).cloned().flatten() })
+            .map(|(i, (id, p))| Placement {
+                item_id: id.clone(),
+                xyz: *p,
+                region_id: assignment.get(i).cloned().flatten(),
+            })
             .collect()
     }
 }
@@ -128,7 +132,11 @@ fn fuzzy_graph(space: &Space) -> (Vec<(u32, u32)>, Vec<f32>) {
                 mid = (lo + hi) / 2.0;
             } else {
                 lo = mid;
-                mid = if hi.is_infinite() { mid * 2.0 } else { (lo + hi) / 2.0 };
+                mid = if hi.is_infinite() {
+                    mid * 2.0
+                } else {
+                    (lo + hi) / 2.0
+                };
             }
         }
         let mean_d = ds.iter().sum::<f32>() / k as f32;
@@ -141,7 +149,13 @@ fn fuzzy_graph(space: &Space) -> (Vec<(u32, u32)>, Vec<f32>) {
     // symmetrise: w = a + b − ab
     let mut keyed: Vec<(u32, u32, f32, bool)> = raw
         .into_iter()
-        .map(|(i, j, w)| if i < j { (i, j, w, true) } else { (j, i, w, false) })
+        .map(|(i, j, w)| {
+            if i < j {
+                (i, j, w, true)
+            } else {
+                (j, i, w, false)
+            }
+        })
         .collect();
     keyed.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
     let mut edges = Vec::with_capacity(keyed.len() * 2);
@@ -194,7 +208,16 @@ fn clip(v: f32) -> f32 {
 /// numba version does), which is fast but not bit-reproducible; otherwise
 /// they run in order and the result is deterministic for a seed.
 #[allow(clippy::too_many_arguments)]
-fn optimize(y: &mut [[f32; 3]], edges: &[(u32, u32)], weights: &[f32], n_epochs: usize, lr: f32, p: &LayoutParams, seed: u64, parallel: bool) {
+fn optimize(
+    y: &mut [[f32; 3]],
+    edges: &[(u32, u32)],
+    weights: &[f32],
+    n_epochs: usize,
+    lr: f32,
+    p: &LayoutParams,
+    seed: u64,
+    parallel: bool,
+) {
     use rayon::prelude::*;
     use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
     let n = y.len();
@@ -210,10 +233,16 @@ fn optimize(y: &mut [[f32; 3]], edges: &[(u32, u32)], weights: &[f32], n_epochs:
             keep.push(edges[e]);
         }
     }
-    let eps_neg: Vec<f32> = eps.iter().map(|e| e / p.negative_sample_rate as f32).collect();
+    let eps_neg: Vec<f32> = eps
+        .iter()
+        .map(|e| e / p.negative_sample_rate as f32)
+        .collect();
     let mut next_s: Vec<f32> = eps.clone();
     let mut next_neg: Vec<f32> = eps_neg.clone();
-    let pos: Vec<AtomicU32> = y.iter().flat_map(|q| q.iter().map(|v| AtomicU32::new(v.to_bits()))).collect();
+    let pos: Vec<AtomicU32> = y
+        .iter()
+        .flat_map(|q| q.iter().map(|v| AtomicU32::new(v.to_bits())))
+        .collect();
     let (a, b) = (p.a, p.b);
     const CHUNK: usize = 8192;
 
@@ -221,7 +250,13 @@ fn optimize(y: &mut [[f32; 3]], edges: &[(u32, u32)], weights: &[f32], n_epochs:
         let alpha = lr * (1.0 - epoch as f32 / n_epochs as f32);
         let ef = epoch as f32;
         let mut rng = Rng::new(crate::rng::mix64(seed ^ ((epoch as u64) << 32) ^ ci as u64));
-        let load = |i: usize| [f32::from_bits(pos[3 * i].load(Relaxed)), f32::from_bits(pos[3 * i + 1].load(Relaxed)), f32::from_bits(pos[3 * i + 2].load(Relaxed))];
+        let load = |i: usize| {
+            [
+                f32::from_bits(pos[3 * i].load(Relaxed)),
+                f32::from_bits(pos[3 * i + 1].load(Relaxed)),
+                f32::from_bits(pos[3 * i + 2].load(Relaxed)),
+            ]
+        };
         let store = |i: usize, v: [f32; 3]| {
             for k in 0..3 {
                 pos[3 * i + k].store(v[k].to_bits(), Relaxed);
@@ -236,7 +271,9 @@ fn optimize(y: &mut [[f32; 3]], edges: &[(u32, u32)], weights: &[f32], n_epochs:
             let (j, k) = (keep[slot].0 as usize, keep[slot].1 as usize);
             let mut cur = load(j);
             let mut other = load(k);
-            let d2 = (cur[0] - other[0]).powi(2) + (cur[1] - other[1]).powi(2) + (cur[2] - other[2]).powi(2);
+            let d2 = (cur[0] - other[0]).powi(2)
+                + (cur[1] - other[1]).powi(2)
+                + (cur[2] - other[2]).powi(2);
             if d2 > 0.0 {
                 let pw = fast_pow(d2, b);
                 let gc = -2.0 * a * b * pw / d2 / (a * pw + 1.0);
@@ -255,10 +292,20 @@ fn optimize(y: &mut [[f32; 3]], edges: &[(u32, u32)], weights: &[f32], n_epochs:
                     continue;
                 }
                 let other = load(kk);
-                let d2 = (cur[0] - other[0]).powi(2) + (cur[1] - other[1]).powi(2) + (cur[2] - other[2]).powi(2);
-                let gc = if d2 > 0.0 { 2.0 * b / ((0.001 + d2) * (a * fast_pow(d2, b) + 1.0)) } else { 0.0 };
+                let d2 = (cur[0] - other[0]).powi(2)
+                    + (cur[1] - other[1]).powi(2)
+                    + (cur[2] - other[2]).powi(2);
+                let gc = if d2 > 0.0 {
+                    2.0 * b / ((0.001 + d2) * (a * fast_pow(d2, b) + 1.0))
+                } else {
+                    0.0
+                };
                 for dd in 0..3 {
-                    let g = if gc > 0.0 { clip(gc * (cur[dd] - other[dd])) } else { 4.0 };
+                    let g = if gc > 0.0 {
+                        clip(gc * (cur[dd] - other[dd]))
+                    } else {
+                        4.0
+                    };
                     cur[dd] += g * alpha;
                 }
             }
@@ -275,7 +322,11 @@ fn optimize(y: &mut [[f32; 3]], edges: &[(u32, u32)], weights: &[f32], n_epochs:
                 .enumerate()
                 .for_each(|(ci, (ns, nn))| run_chunk(epoch, ci, ns, nn));
         } else {
-            for (ci, (ns, nn)) in next_s.chunks_mut(CHUNK).zip(next_neg.chunks_mut(CHUNK)).enumerate() {
+            for (ci, (ns, nn)) in next_s
+                .chunks_mut(CHUNK)
+                .zip(next_neg.chunks_mut(CHUNK))
+                .enumerate()
+            {
                 run_chunk(epoch, ci, ns, nn);
             }
         }
@@ -298,7 +349,10 @@ fn center_and_scale(y: &mut [[f32; 3]]) {
             m[k] += p[k] / n;
         }
     }
-    let mut r: Vec<f32> = y.iter().map(|p| ((p[0] - m[0]).powi(2) + (p[1] - m[1]).powi(2) + (p[2] - m[2]).powi(2)).sqrt()).collect();
+    let mut r: Vec<f32> = y
+        .iter()
+        .map(|p| ((p[0] - m[0]).powi(2) + (p[1] - m[1]).powi(2) + (p[2] - m[2]).powi(2)).sqrt())
+        .collect();
     r.sort_by(|a, b| a.total_cmp(b));
     let r99 = r[((r.len() - 1) as f32 * 0.99) as usize].max(1e-9);
     for p in y.iter_mut() {
@@ -321,22 +375,37 @@ fn principal_frame(y: &mut [[f32; 3]]) {
     }
     // new z = pc0, new x = pc1, new y = pc2 (right-handed: x × y = z)
     let (c0, c1) = (&pca.components[0], &pca.components[1]);
-    let c2 = [c0[1] * c1[2] - c0[2] * c1[1], c0[2] * c1[0] - c0[0] * c1[2], c0[0] * c1[1] - c0[1] * c1[0]];
+    let c2 = [
+        c0[1] * c1[2] - c0[2] * c1[1],
+        c0[2] * c1[0] - c0[0] * c1[2],
+        c0[0] * c1[1] - c0[1] * c1[0],
+    ];
     // x = c1, y = ?, z = c0 with x × y = z → y = z × x = c0 × c1 = c2
     for p in y.iter_mut() {
         let q = *p;
-        let d = |c: &[f32]| c[0] * (q[0] - pca.mean[0]) + c[1] * (q[1] - pca.mean[1]) + c[2] * (q[2] - pca.mean[2]);
+        let d = |c: &[f32]| {
+            c[0] * (q[0] - pca.mean[0]) + c[1] * (q[1] - pca.mean[1]) + c[2] * (q[2] - pca.mean[2])
+        };
         *p = [d(c1), d(&c2), d(c0)];
     }
 }
 
 /// Full layout of every item in `space`, optionally continuing `previous`.
-pub fn layout_full(ids: &[Id], space: &Space, previous: Option<&Layout>, params: &LayoutParams) -> LayoutRun {
+pub fn layout_full(
+    ids: &[Id],
+    space: &Space,
+    previous: Option<&Layout>,
+    params: &LayoutParams,
+) -> LayoutRun {
     let n = space.len();
     assert_eq!(ids.len(), n);
     let mut rng = Rng::new(params.seed);
     if n == 0 {
-        return LayoutRun { layout: Layout::default(), procrustes_residual: None, shared: 0 };
+        return LayoutRun {
+            layout: Layout::default(),
+            procrustes_residual: None,
+            shared: 0,
+        };
     }
     let (edges, weights) = fuzzy_graph(space);
     let parallel = params.parallel_above.is_some_and(|m| n >= m);
@@ -376,7 +445,11 @@ pub fn layout_full(ids: &[Id], space: &Space, previous: Option<&Layout>, params:
                     }
                 }
                 if wsum > 0.0 {
-                    y[i] = [acc[0] / wsum + 0.01 * rng.normal() as f32, acc[1] / wsum + 0.01 * rng.normal() as f32, acc[2] / wsum + 0.01 * rng.normal() as f32];
+                    y[i] = [
+                        acc[0] / wsum + 0.01 * rng.normal() as f32,
+                        acc[1] / wsum + 0.01 * rng.normal() as f32,
+                        acc[2] / wsum + 0.01 * rng.normal() as f32,
+                    ];
                     has[i] = true;
                     changed = true;
                 }
@@ -387,25 +460,57 @@ pub fn layout_full(ids: &[Id], space: &Space, previous: Option<&Layout>, params:
         }
         for (i, h) in has.iter().enumerate() {
             if !h {
-                y[i] = [rng.normal() as f32, rng.normal() as f32, rng.normal() as f32];
+                y[i] = [
+                    rng.normal() as f32,
+                    rng.normal() as f32,
+                    rng.normal() as f32,
+                ];
             }
         }
-        optimize(&mut y, &edges, &weights, params.refine_epochs, params.refine_learning_rate, params, params.seed, parallel);
+        optimize(
+            &mut y,
+            &edges,
+            &weights,
+            params.refine_epochs,
+            params.refine_learning_rate,
+            params,
+            params.seed,
+            parallel,
+        );
     } else {
         // PCA init (the reduced space is already PCA-ordered)
         let r = &space.reduced;
         for (i, p) in y.iter_mut().enumerate() {
             let row = r.row(i);
-            *p = [row.first().copied().unwrap_or(0.0), row.get(1).copied().unwrap_or(0.0), row.get(2).copied().unwrap_or(0.0)];
+            *p = [
+                row.first().copied().unwrap_or(0.0),
+                row.get(1).copied().unwrap_or(0.0),
+                row.get(2).copied().unwrap_or(0.0),
+            ];
         }
-        let maxabs = y.iter().flat_map(|p| p.iter()).fold(0f32, |m, v| m.max(v.abs())).max(1e-9);
+        let maxabs = y
+            .iter()
+            .flat_map(|p| p.iter())
+            .fold(0f32, |m, v| m.max(v.abs()))
+            .max(1e-9);
         for p in y.iter_mut() {
             for v in p.iter_mut() {
                 *v = *v / maxabs * UMAP_SCALE + 1e-4 * rng.normal() as f32;
             }
         }
-        let epochs = params.n_epochs.unwrap_or(if n > 10_000 { 200 } else { 300 });
-        optimize(&mut y, &edges, &weights, epochs, params.learning_rate, params, params.seed, parallel);
+        let epochs = params
+            .n_epochs
+            .unwrap_or(if n > 10_000 { 200 } else { 300 });
+        optimize(
+            &mut y,
+            &edges,
+            &weights,
+            epochs,
+            params.learning_rate,
+            params,
+            params.seed,
+            parallel,
+        );
     }
 
     let mut residual = None;
@@ -427,13 +532,26 @@ pub fn layout_full(ids: &[Id], space: &Space, previous: Option<&Layout>, params:
         principal_frame(&mut y);
         center_and_scale(&mut y);
     }
-    LayoutRun { layout: Layout { ids: ids.to_vec(), xyz: y }, procrustes_residual: residual, shared }
+    LayoutRun {
+        layout: Layout {
+            ids: ids.to_vec(),
+            xyz: y,
+        },
+        procrustes_residual: residual,
+        shared,
+    }
 }
 
 /// Place new items into an existing layout without moving anything else.
 /// `existing` holds the vectors of `layout.ids` (same order). Returns the
 /// positions of the new items and appends them to `layout`.
-pub fn place_new(layout: &mut Layout, existing: &[Vec<f32>], new_ids: &[Id], new_vectors: &[Vec<f32>], params: &LayoutParams) -> Vec<[f32; 3]> {
+pub fn place_new(
+    layout: &mut Layout,
+    existing: &[Vec<f32>],
+    new_ids: &[Id],
+    new_vectors: &[Vec<f32>],
+    params: &LayoutParams,
+) -> Vec<[f32; 3]> {
     assert_eq!(existing.len(), layout.ids.len());
     assert_eq!(new_ids.len(), new_vectors.len());
     let mut x = Rows::from_vecs(existing);
@@ -463,7 +581,11 @@ pub fn place_new(layout: &mut Layout, existing: &[Vec<f32>], new_ids: &[Id], new
                 wsum += w;
             }
             // barycentre, in UMAP scale for relaxation
-            let mut p = [acc[0] / wsum * UMAP_SCALE, acc[1] / wsum * UMAP_SCALE, acc[2] / wsum * UMAP_SCALE];
+            let mut p = [
+                acc[0] / wsum * UMAP_SCALE,
+                acc[1] / wsum * UMAP_SCALE,
+                acc[2] / wsum * UMAP_SCALE,
+            ];
             for k in 0..3 {
                 p[k] += 0.02 * rng.normal() as f32;
             }
@@ -542,8 +664,8 @@ const BRAIN: &[([f32; 3], [f32; 3])] = &[
     ([-0.17, 0.05, 0.0], [0.40, 0.46, 0.70]), // left hemisphere
     ([0.17, 0.05, 0.0], [0.40, 0.46, 0.70]),  // right hemisphere
     ([-0.36, -0.20, 0.12], [0.20, 0.18, 0.40]), // left temporal lobe
-    ([0.36, -0.20, 0.12], [0.20, 0.18, 0.40]),  // right temporal lobe
-    ([0.0, -0.34, -0.50], [0.36, 0.16, 0.22]),  // cerebellum
+    ([0.36, -0.20, 0.12], [0.20, 0.18, 0.40]), // right temporal lobe
+    ([0.0, -0.34, -0.50], [0.36, 0.16, 0.22]), // cerebellum
 ];
 
 /// Distance from the origin to the brain surface along unit direction `u`.
@@ -586,9 +708,17 @@ impl AnatomyWarp {
     }
 
     fn whiten(p: &[f32; 3], mean: &[f32; 3], std: &[f32; 3]) -> ([f32; 3], [f32; 3], f32) {
-        let q = [(p[0] - mean[0]) / std[0], (p[1] - mean[1]) / std[1], (p[2] - mean[2]) / std[2]];
+        let q = [
+            (p[0] - mean[0]) / std[0],
+            (p[1] - mean[1]) / std[1],
+            (p[2] - mean[2]) / std[2],
+        ];
         let r = (q[0] * q[0] + q[1] * q[1] + q[2] * q[2]).sqrt();
-        let u = if r > 1e-9 { q.map(|v| v / r) } else { [0.0, 0.0, 1.0] };
+        let u = if r > 1e-9 {
+            q.map(|v| v / r)
+        } else {
+            [0.0, 0.0, 1.0]
+        };
         (q, u, r)
     }
 
@@ -642,7 +772,10 @@ impl SpherePack {
         // radius ∝ cbrt(size), total volume fraction fixed
         let total: f32 = count.iter().map(|&c| c as f32).sum::<f32>().max(1.0);
         let fill = 0.30f32; // Σ r³
-        let radius: Vec<f32> = count.iter().map(|&c| (fill * c as f32 / total).cbrt()).collect();
+        let radius: Vec<f32> = count
+            .iter()
+            .map(|&c| (fill * c as f32 / total).cbrt())
+            .collect();
         // separate overlapping spheres, weakly pulled to their source
         let mut centers = source.clone();
         let gap = 0.03;
@@ -666,7 +799,10 @@ impl SpherePack {
                             [a.cos(), a.sin(), 0.0]
                         };
                         let push = (need - dist) / 2.0;
-                        let (wi, wj) = (radius[j] / (radius[i] + radius[j]), radius[i] / (radius[i] + radius[j]));
+                        let (wi, wj) = (
+                            radius[j] / (radius[i] + radius[j]),
+                            radius[i] / (radius[i] + radius[j]),
+                        );
                         for k in 0..3 {
                             centers[i][k] -= dir[k] * push * wi * 2.0;
                             centers[j][k] += dir[k] * push * wj * 2.0;
@@ -705,25 +841,56 @@ impl SpherePack {
             .fold(0.0f32, f32::max)
             .max(0.8)
             + 0.08;
-        SpherePack { source, centers, radius, radii, halo_radii, halo_inner }
+        SpherePack {
+            source,
+            centers,
+            radius,
+            radii,
+            halo_radii,
+            halo_inner,
+        }
     }
 
     pub fn apply(&self, p: [f32; 3], region: Option<usize>) -> [f32; 3] {
         match region {
             Some(r) if r < self.centers.len() => {
-                let o = [p[0] - self.source[r][0], p[1] - self.source[r][1], p[2] - self.source[r][2]];
+                let o = [
+                    p[0] - self.source[r][0],
+                    p[1] - self.source[r][1],
+                    p[2] - self.source[r][2],
+                ];
                 let d = norm3(&o);
-                let u = if d > 1e-9 { o.map(|v| v / d) } else { [0.0, 0.0, 0.0] };
+                let u = if d > 1e-9 {
+                    o.map(|v| v / d)
+                } else {
+                    [0.0, 0.0, 0.0]
+                };
                 let rs = &self.radii[r];
-                let f = if rs.is_empty() { 0.5 } else { (rs.partition_point(|&x| x < d) as f32 + 0.5) / rs.len() as f32 };
+                let f = if rs.is_empty() {
+                    0.5
+                } else {
+                    (rs.partition_point(|&x| x < d) as f32 + 0.5) / rs.len() as f32
+                };
                 let rad = self.radius[r] * f.clamp(0.0, 1.0).cbrt();
-                [self.centers[r][0] + u[0] * rad, self.centers[r][1] + u[1] * rad, self.centers[r][2] + u[2] * rad]
+                [
+                    self.centers[r][0] + u[0] * rad,
+                    self.centers[r][1] + u[1] * rad,
+                    self.centers[r][2] + u[2] * rad,
+                ]
             }
             _ => {
                 let d = norm3(&p);
-                let u = if d > 1e-9 { p.map(|v| v / d) } else { [0.0, 1.0, 0.0] };
+                let u = if d > 1e-9 {
+                    p.map(|v| v / d)
+                } else {
+                    [0.0, 1.0, 0.0]
+                };
                 let hs = &self.halo_radii;
-                let f = if hs.is_empty() { 0.5 } else { (hs.partition_point(|&x| x < d) as f32 + 0.5) / hs.len() as f32 };
+                let f = if hs.is_empty() {
+                    0.5
+                } else {
+                    (hs.partition_point(|&x| x < d) as f32 + 0.5) / hs.len() as f32
+                };
                 u.map(|v| v * (self.halo_inner + 0.25 * f))
             }
         }
@@ -761,8 +928,18 @@ pub fn views(layout: &Layout, assignment: &[Option<Id>]) -> LayoutViews {
     let anatomy = layout.xyz.iter().map(|p| warp.apply(*p)).collect();
     let (region_of, order) = region_indices(assignment);
     let pack = SpherePack::fit(&layout.xyz, &region_of, order.len());
-    let spheres = layout.xyz.iter().zip(&region_of).map(|(p, r)| pack.apply(*p, *r)).collect();
-    LayoutViews { ids: layout.ids.clone(), layout: layout.xyz.clone(), anatomy, spheres }
+    let spheres = layout
+        .xyz
+        .iter()
+        .zip(&region_of)
+        .map(|(p, r)| pack.apply(*p, *r))
+        .collect();
+    LayoutViews {
+        ids: layout.ids.clone(),
+        layout: layout.xyz.clone(),
+        anatomy,
+        spheres,
+    }
 }
 
 /// Trustworthiness-style check: the fraction of each point's `k` nearest
@@ -778,10 +955,16 @@ pub fn neighbourhood_preservation(space: &Space, xyz: &[[f32; 3]], k: usize, sam
     let mut total = 0f32;
     let mut count = 0;
     for i in (0..n).step_by(step) {
-        let mut d: Vec<(f32, usize)> = (0..n).filter(|&j| j != i).map(|j| (dist3(&xyz[i], &xyz[j]), j)).collect();
+        let mut d: Vec<(f32, usize)> = (0..n)
+            .filter(|&j| j != i)
+            .map(|j| (dist3(&xyz[i], &xyz[j]), j))
+            .collect();
         d.select_nth_unstable_by(k - 1, |a, b| a.0.total_cmp(&b.0));
         let low: std::collections::HashSet<usize> = d[..k].iter().map(|&(_, j)| j).collect();
-        let hits = space.knn.neighbors(i)[..k].iter().filter(|&&j| low.contains(&(j as usize))).count();
+        let hits = space.knn.neighbors(i)[..k]
+            .iter()
+            .filter(|&&j| low.contains(&(j as usize)))
+            .count();
         total += hits as f32 / k as f32;
         count += 1;
     }

@@ -104,7 +104,10 @@ impl App {
     pub fn open(cfg: ServerConfig, demo: bool) -> Result<Arc<App>> {
         let user = Arc::new(Brain::open(&cfg.user_brain_dir(), false)?);
         let (active, user_slot) = if demo {
-            (Arc::new(Brain::open(&cfg.demo_brain_dir(), true)?), Some(user))
+            (
+                Arc::new(Brain::open(&cfg.demo_brain_dir(), true)?),
+                Some(user),
+            )
         } else {
             (user.clone(), Some(user))
         };
@@ -215,11 +218,16 @@ impl App {
                 e.fallback = false;
             }
             Err(err) => {
-                tracing::warn!("embedder {} failed to load, using the hash embedder: {err:#}", spec.backend());
-                let h = anamnesis_embed::HashEmbedder::new(match anamnesis_embed::EmbedderSpec::hash() {
-                    EmbedderSpec::Hash { dim } => dim,
-                    _ => 256,
-                });
+                tracing::warn!(
+                    "embedder {} failed to load, using the hash embedder: {err:#}",
+                    spec.backend()
+                );
+                let h = anamnesis_embed::HashEmbedder::new(
+                    match anamnesis_embed::EmbedderSpec::hash() {
+                        EmbedderSpec::Hash { dim } => dim,
+                        _ => 256,
+                    },
+                );
                 e.embedder = Some(Arc::new(h));
                 e.status = format!("fallback to hash embedder: {}", short_err(&err));
                 e.fallback = true;

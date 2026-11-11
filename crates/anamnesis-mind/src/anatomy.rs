@@ -78,12 +78,21 @@ pub fn areas() -> Vec<Area> {
     loop {
         let mut any = false;
         if let Some((name, p)) = mi.next() {
-            v.push(Area { name: name.to_string(), pos: *p });
+            v.push(Area {
+                name: name.to_string(),
+                pos: *p,
+            });
             any = true;
         }
         if let Some((name, p)) = bi.next() {
-            v.push(Area { name: format!("left {name}"), pos: [-p[0], p[1], p[2]] });
-            v.push(Area { name: format!("right {name}"), pos: *p });
+            v.push(Area {
+                name: format!("left {name}"),
+                pos: [-p[0], p[1], p[2]],
+            });
+            v.push(Area {
+                name: format!("right {name}"),
+                pos: *p,
+            });
             any = true;
         }
         if !any {
@@ -142,7 +151,12 @@ fn base_name(name: &str) -> &str {
 /// Assign anatomy names. Returns one name per request, in order.
 pub fn assign_anatomy(requests: &[AnatomyRequest]) -> Vec<String> {
     let areas = areas();
-    let pos_of = |name: &str| areas.iter().find(|a| a.name == base_name(name)).map(|a| a.pos);
+    let pos_of = |name: &str| {
+        areas
+            .iter()
+            .find(|a| a.name == base_name(name))
+            .map(|a| a.pos)
+    };
     let mut taken: HashSet<String> = HashSet::new();
     let mut out: Vec<Option<String>> = vec![None; requests.len()];
 
@@ -221,7 +235,9 @@ pub fn assign_anatomy(requests: &[AnatomyRequest]) -> Vec<String> {
         _ => 0,
     });
     for k in split_rest {
-        let AnatomyHint::Split { parent, .. } = &requests[k].hint else { unreachable!() };
+        let AnatomyHint::Split { parent, .. } = &requests[k].hint else {
+            unreachable!()
+        };
         let target = pos_of(parent).or(requests[k].position);
         let name = free_nearest(&taken, target);
         taken.insert(name.clone());
@@ -233,7 +249,10 @@ pub fn assign_anatomy(requests: &[AnatomyRequest]) -> Vec<String> {
             continue;
         }
         let target = match &requests[k].hint {
-            AnatomyHint::Merge(parents) => parents.first().and_then(|p| pos_of(p)).or(requests[k].position),
+            AnatomyHint::Merge(parents) => parents
+                .first()
+                .and_then(|p| pos_of(p))
+                .or(requests[k].position),
             AnatomyHint::Keep(n) => pos_of(n).or(requests[k].position),
             _ => requests[k].position,
         };
@@ -249,17 +268,36 @@ mod tests {
     use super::*;
 
     fn req(hint: AnatomyHint, position: Option<[f32; 3]>) -> AnatomyRequest {
-        AnatomyRequest { region: Id::new(), hint, position }
+        AnatomyRequest {
+            region: Id::new(),
+            hint,
+            position,
+        }
     }
 
     #[test]
     fn stable_and_inheriting() {
         let names = assign_anatomy(&[
             req(AnatomyHint::Keep("left insula".into()), None),
-            req(AnatomyHint::Split { parent: "precuneus".into(), rank: 0 }, None),
-            req(AnatomyHint::Split { parent: "precuneus".into(), rank: 1 }, None),
+            req(
+                AnatomyHint::Split {
+                    parent: "precuneus".into(),
+                    rank: 0,
+                },
+                None,
+            ),
+            req(
+                AnatomyHint::Split {
+                    parent: "precuneus".into(),
+                    rank: 1,
+                },
+                None,
+            ),
             req(AnatomyHint::Birth, Some([0.0, -0.36, -0.5])),
-            req(AnatomyHint::Merge(vec!["left insula".into(), "cuneus".into()]), None),
+            req(
+                AnatomyHint::Merge(vec!["left insula".into(), "cuneus".into()]),
+                None,
+            ),
         ]);
         assert_eq!(names[0], "left insula");
         assert_eq!(names[1], "precuneus");

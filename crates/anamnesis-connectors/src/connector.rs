@@ -71,10 +71,16 @@ pub struct CheckReport {
 
 impl CheckReport {
     pub fn ok(message: impl Into<String>) -> Self {
-        CheckReport { ok: true, message: message.into() }
+        CheckReport {
+            ok: true,
+            message: message.into(),
+        }
     }
     pub fn failed(message: impl Into<String>) -> Self {
-        CheckReport { ok: false, message: message.into() }
+        CheckReport {
+            ok: false,
+            message: message.into(),
+        }
     }
 }
 
@@ -96,7 +102,10 @@ pub struct WatchHandle {
 
 impl WatchHandle {
     pub fn new(notices: mpsc::Receiver<ChangeNotice>, guard: impl std::any::Any + Send) -> Self {
-        WatchHandle { notices, _guard: Box::new(guard) }
+        WatchHandle {
+            notices,
+            _guard: Box::new(guard),
+        }
     }
 }
 
@@ -131,7 +140,11 @@ pub async fn validated_check(c: &dyn Connector, config: &Value) -> Result<CheckR
 }
 
 /// Validate `config` against the connector's schema, then `list`.
-pub async fn validated_list(c: &dyn Connector, config: &Value, cursor: Option<&str>) -> Result<Batch> {
+pub async fn validated_list(
+    c: &dyn Connector,
+    config: &Value,
+    cursor: Option<&str>,
+) -> Result<Batch> {
     c.manifest().validate_config(config)?;
     c.list(config, cursor).await
 }

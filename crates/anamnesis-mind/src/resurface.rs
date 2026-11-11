@@ -45,8 +45,8 @@ use crate::rng::{Rng, mix64, unit_from};
 
 /// FSRS-6 default parameters.
 pub const FSRS6_DEFAULT: [f64; 21] = [
-    0.212, 1.2931, 2.3065, 8.2956, 6.4133, 0.8334, 3.0194, 0.001, 1.8722, 0.1666, 0.796, 1.4835, 0.0614, 0.2629, 1.6483,
-    0.6014, 1.8729, 0.5425, 0.0912, 0.0658, 0.1542,
+    0.212, 1.2931, 2.3065, 8.2956, 6.4133, 0.8334, 3.0194, 0.001, 1.8722, 0.1666, 0.796, 1.4835,
+    0.0614, 0.2629, 1.6483, 0.6014, 1.8729, 0.5425, 0.0912, 0.0658, 0.1542,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -84,7 +84,11 @@ impl Engagement {
 
     /// The review panel's "useful / not useful" buttons.
     pub fn from_useful(useful: bool) -> Engagement {
-        if useful { Engagement::Opened } else { Engagement::NotNow }
+        if useful {
+            Engagement::Opened
+        } else {
+            Engagement::NotNow
+        }
     }
 }
 
@@ -103,7 +107,15 @@ pub struct SrsCard {
 impl SrsCard {
     /// A new card, due now.
     pub fn new(now: Timestamp) -> Self {
-        SrsCard { stability: 0.0, difficulty: 0.0, last_review: None, due: now, reps: 0, lapses: 0, suspended: false }
+        SrsCard {
+            stability: 0.0,
+            difficulty: 0.0,
+            last_review: None,
+            due: now,
+            reps: 0,
+            lapses: 0,
+            suspended: false,
+        }
     }
 }
 
@@ -116,7 +128,11 @@ pub struct Scheduler {
 
 impl Default for Scheduler {
     fn default() -> Self {
-        Scheduler { w: FSRS6_DEFAULT, desired_retention: 0.9, max_interval_days: 3650.0 }
+        Scheduler {
+            w: FSRS6_DEFAULT,
+            desired_retention: 0.9,
+            max_interval_days: 3650.0,
+        }
     }
 }
 
@@ -168,12 +184,22 @@ impl Scheduler {
                 } else {
                     let r = self.retrievability(elapsed, s);
                     if rating == Rating::Again {
-                        let sf = w[11] * d.powf(-w[12]) * ((s + 1.0).powf(w[13]) - 1.0) * (w[14] * (1.0 - r)).exp();
+                        let sf = w[11]
+                            * d.powf(-w[12])
+                            * ((s + 1.0).powf(w[13]) - 1.0)
+                            * (w[14] * (1.0 - r)).exp();
                         c.stability = sf.min(s / (w[17] * w[18]).exp());
                     } else {
                         let hard = if rating == Rating::Hard { w[15] } else { 1.0 };
                         let easy = if rating == Rating::Easy { w[16] } else { 1.0 };
-                        c.stability = s * (w[8].exp() * (11.0 - d) * s.powf(-w[9]) * ((w[10] * (1.0 - r)).exp() - 1.0) * hard * easy + 1.0);
+                        c.stability = s
+                            * (w[8].exp()
+                                * (11.0 - d)
+                                * s.powf(-w[9])
+                                * ((w[10] * (1.0 - r)).exp() - 1.0)
+                                * hard
+                                * easy
+                                + 1.0);
                     }
                 }
                 c.stability = c.stability.max(0.01);
@@ -184,7 +210,11 @@ impl Scheduler {
         }
         c.reps += 1;
         c.last_review = Some(now);
-        let days = if rating == Rating::Again { 1.0 } else { self.interval_days(c.stability) };
+        let days = if rating == Rating::Again {
+            1.0
+        } else {
+            self.interval_days(c.stability)
+        };
         c.due = now + chrono::Duration::seconds((days * 86_400.0).round() as i64);
         c
     }
@@ -193,7 +223,10 @@ impl Scheduler {
     pub fn engage(&self, card: &SrsCard, e: Engagement, now: Timestamp) -> SrsCard {
         match e.rating() {
             Some(r) => self.review(card, r, now),
-            None => SrsCard { suspended: true, ..card.clone() },
+            None => SrsCard {
+                suspended: true,
+                ..card.clone()
+            },
         }
     }
 }
@@ -306,7 +339,9 @@ pub fn daily_review(
             let inf = &info[i];
             !excluded.contains(&ids[i])
                 && !inf.card.as_ref().is_some_and(|c| c.suspended)
-                && inf.last_seen.is_none_or(|t| (now - t).num_days() >= params.cooldown_days)
+                && inf
+                    .last_seen
+                    .is_none_or(|t| (now - t).num_days() >= params.cooldown_days)
         })
         .collect();
 
@@ -315,7 +350,14 @@ pub fn daily_review(
     x.normalize_rows();
     let mut rv = Rows::from_vecs(recent);
     rv.normalize_rows();
-    let near: Vec<f32> = (0..n).map(|i| (0..rv.n).map(|r| dot(x.row(i), rv.row(r))).fold(f32::MIN, f32::max)).map(|v| if v == f32::MIN { 0.0 } else { v }).collect();
+    let near: Vec<f32> = (0..n)
+        .map(|i| {
+            (0..rv.n)
+                .map(|r| dot(x.row(i), rv.row(r)))
+                .fold(f32::MIN, f32::max)
+        })
+        .map(|v| if v == f32::MIN { 0.0 } else { v })
+        .collect();
 
     // due queue: most overdue (lowest retrievability) first
     let mut due: Vec<(usize, f32)> = (0..n)
@@ -326,7 +368,9 @@ pub fn daily_review(
                 return None;
             }
             let r = match c.last_review {
-                Some(l) => sched.retrievability((now - l).num_seconds() as f64 / 86_400.0, c.stability),
+                Some(l) => {
+                    sched.retrievability((now - l).num_seconds() as f64 / 86_400.0, c.stability)
+                }
                 None => 0.0,
             };
             Some((i, (1.0 - r) as f32))
@@ -339,19 +383,30 @@ pub fn daily_review(
         vec![]
     } else {
         (0..n)
-            .filter(|&i| eligible[i] && near[i] < params.contextual_max_cos && (now - info[i].created_at).num_days() >= 2)
+            .filter(|&i| {
+                eligible[i]
+                    && near[i] < params.contextual_max_cos
+                    && (now - info[i].created_at).num_days() >= 2
+            })
             .map(|i| (i, near[i]))
             .collect()
     };
     contextual.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
 
     // serendipity: old, far, rarely seen — Gumbel-top-k sampling with temperature
-    let mut srng = Rng::new(mix64(seed ^ crate::rng::hash_bytes(day.as_bytes()) ^ 0x5e4e));
+    let mut srng = Rng::new(mix64(
+        seed ^ crate::rng::hash_bytes(day.as_bytes()) ^ 0x5e4e,
+    ));
     let mut seren: Vec<(usize, f32, f64)> = (0..n)
-        .filter(|&i| eligible[i] && (now - info[i].created_at).num_days() >= params.serendipity_min_age_days)
+        .filter(|&i| {
+            eligible[i] && (now - info[i].created_at).num_days() >= params.serendipity_min_age_days
+        })
         .map(|i| {
             let inf = &info[i];
-            let since = (now - inf.last_seen.unwrap_or(inf.created_at)).num_seconds().max(0) as f64 / 86_400.0;
+            let since = (now - inf.last_seen.unwrap_or(inf.created_at))
+                .num_seconds()
+                .max(0) as f64
+                / 86_400.0;
             let far = (1.0 - near[i].max(0.0)) as f64;
             let cent = inf.centrality.unwrap_or(1.0).max(0.05) as f64;
             let oq = if inf.is_open_question { 1.5 } else { 1.0 };
@@ -368,20 +423,38 @@ pub fn daily_review(
     seren.sort_by(|a, b| b.2.total_cmp(&a.2).then(a.0.cmp(&b.0)));
 
     let slots: Vec<ReviewReason> = std::iter::repeat_n(ReviewReason::Due, params.due)
-        .chain(std::iter::repeat_n(ReviewReason::Contextual, params.contextual))
-        .chain(std::iter::repeat_n(ReviewReason::Serendipity, params.serendipity))
+        .chain(std::iter::repeat_n(
+            ReviewReason::Contextual,
+            params.contextual,
+        ))
+        .chain(std::iter::repeat_n(
+            ReviewReason::Serendipity,
+            params.serendipity,
+        ))
         .collect();
     let mut picked: HashSet<usize> = HashSet::new();
     let mut out = vec![];
-    let mut rrng = Rng::new(mix64(seed ^ crate::rng::hash_bytes(day.as_bytes()) ^ 0x4a4d));
+    let mut rrng = Rng::new(mix64(
+        seed ^ crate::rng::hash_bytes(day.as_bytes()) ^ 0x4a4d,
+    ));
     let pool: Vec<usize> = (0..n).filter(|&i| eligible[i]).collect();
     let (mut qd, mut qc, mut qs) = (0usize, 0usize, 0usize);
     let seren2: Vec<(usize, f32)> = seren.iter().map(|&(i, s, _)| (i, s)).collect();
     for (k, slot) in slots.iter().enumerate() {
-        let arm = if unit_from(seed, &["resurface-arm", &day, &k.to_string()]) < params.random_arm_probability { Arm::Random } else { Arm::Algorithm };
+        let arm = if unit_from(seed, &["resurface-arm", &day, &k.to_string()])
+            < params.random_arm_probability
+        {
+            Arm::Random
+        } else {
+            Arm::Algorithm
+        };
         let choice = match arm {
             Arm::Random => {
-                let left: Vec<usize> = pool.iter().copied().filter(|i| !picked.contains(i)).collect();
+                let left: Vec<usize> = pool
+                    .iter()
+                    .copied()
+                    .filter(|i| !picked.contains(i))
+                    .collect();
                 if left.is_empty() {
                     None
                 } else {
@@ -389,7 +462,10 @@ pub fn daily_review(
                 }
             }
             Arm::Algorithm => {
-                let next = |q: &[(usize, f32)], pos: &mut usize, picked: &HashSet<usize>| -> Option<(usize, f32)> {
+                let next = |q: &[(usize, f32)],
+                            pos: &mut usize,
+                            picked: &HashSet<usize>|
+                 -> Option<(usize, f32)> {
                     while *pos < q.len() {
                         let c = q[*pos];
                         *pos += 1;
@@ -401,9 +477,21 @@ pub fn daily_review(
                 };
                 // fall back through the other queues when one runs dry
                 let order: [ReviewReason; 3] = match slot {
-                    ReviewReason::Due => [ReviewReason::Due, ReviewReason::Contextual, ReviewReason::Serendipity],
-                    ReviewReason::Contextual => [ReviewReason::Contextual, ReviewReason::Serendipity, ReviewReason::Due],
-                    _ => [ReviewReason::Serendipity, ReviewReason::Contextual, ReviewReason::Due],
+                    ReviewReason::Due => [
+                        ReviewReason::Due,
+                        ReviewReason::Contextual,
+                        ReviewReason::Serendipity,
+                    ],
+                    ReviewReason::Contextual => [
+                        ReviewReason::Contextual,
+                        ReviewReason::Serendipity,
+                        ReviewReason::Due,
+                    ],
+                    _ => [
+                        ReviewReason::Serendipity,
+                        ReviewReason::Contextual,
+                        ReviewReason::Due,
+                    ],
                 };
                 let mut found = None;
                 for r in order {
@@ -422,7 +510,13 @@ pub fn daily_review(
         };
         if let Some((i, score, reason)) = choice {
             picked.insert(i);
-            out.push(ReviewPick { item_id: ids[i].clone(), reason, slot: *slot, arm, score });
+            out.push(ReviewPick {
+                item_id: ids[i].clone(),
+                reason,
+                slot: *slot,
+                arm,
+                score,
+            });
         }
     }
     out

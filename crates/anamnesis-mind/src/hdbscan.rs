@@ -27,7 +27,9 @@ struct Dsu {
 
 impl Dsu {
     fn new(n: usize) -> Self {
-        Dsu { parent: (0..n).collect() }
+        Dsu {
+            parent: (0..n).collect(),
+        }
     }
     fn find(&mut self, mut x: usize) -> usize {
         while self.parent[x] != x {
@@ -276,12 +278,26 @@ mod tests {
         }
         let x = Rows::from_vecs(&vs);
         let g = knn_graph(&x, 15);
-        let labels = hdbscan(&x, &g, HdbscanParams { min_cluster_size: 15, min_samples: 5, allow_single_cluster: true });
-        let distinct: std::collections::BTreeSet<i32> = labels.iter().copied().filter(|&l| l >= 0).collect();
+        let labels = hdbscan(
+            &x,
+            &g,
+            HdbscanParams {
+                min_cluster_size: 15,
+                min_samples: 5,
+                allow_single_cluster: true,
+            },
+        );
+        let distinct: std::collections::BTreeSet<i32> =
+            labels.iter().copied().filter(|&l| l >= 0).collect();
         assert_eq!(distinct.len(), 3, "{distinct:?}");
         for b in 0..3 {
             let ls = &labels[b * 80..(b + 1) * 80];
-            let main = ls.iter().filter(|&&l| l >= 0).copied().max_by_key(|l| ls.iter().filter(|&&m| m == *l).count()).unwrap();
+            let main = ls
+                .iter()
+                .filter(|&&l| l >= 0)
+                .copied()
+                .max_by_key(|l| ls.iter().filter(|&&m| m == *l).count())
+                .unwrap();
             let agree = ls.iter().filter(|&&l| l == main).count();
             assert!(agree >= 70, "blob {b}: {agree}");
         }

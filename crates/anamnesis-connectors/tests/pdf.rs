@@ -53,7 +53,10 @@ fn make_pdf(pages: &[&str], title: &str) -> Vec<u8> {
 
 #[test]
 fn extracts_pages_with_offsets() {
-    let bytes = make_pdf(&["Virtue cannot be taught.", "Then it is recollection."], "Meno");
+    let bytes = make_pdf(
+        &["Virtue cannot be taught.", "Then it is recollection."],
+        "Meno",
+    );
     assert!(bytes.len() < 20_000);
     let t = extract_pdf(&bytes).unwrap();
     assert_eq!(t.page_count, 2);
@@ -62,8 +65,16 @@ fn extracts_pages_with_offsets() {
     let (n1, s1, e1) = t.pages[0];
     let (n2, s2, e2) = t.pages[1];
     assert_eq!((n1, n2), (1, 2));
-    assert!(t.body[s1..e1].contains("Virtue cannot be taught."), "{:?}", t.body);
-    assert!(t.body[s2..e2].contains("Then it is recollection."), "{:?}", t.body);
+    assert!(
+        t.body[s1..e1].contains("Virtue cannot be taught."),
+        "{:?}",
+        t.body
+    );
+    assert!(
+        t.body[s2..e2].contains("Then it is recollection."),
+        "{:?}",
+        t.body
+    );
     assert!(e1 <= s2);
 }
 
@@ -75,14 +86,28 @@ fn garbage_is_an_error_not_a_panic() {
 #[tokio::test]
 async fn pdf_connector_folder_and_single_file() {
     let tmp = tempfile::tempdir().unwrap();
-    std::fs::write(tmp.path().join("meno.pdf"), make_pdf(&["page one", "page two"], "Meno")).unwrap();
+    std::fs::write(
+        tmp.path().join("meno.pdf"),
+        make_pdf(&["page one", "page two"], "Meno"),
+    )
+    .unwrap();
     std::fs::write(tmp.path().join("broken.pdf"), b"not a pdf").unwrap();
     std::fs::write(tmp.path().join("notes.md"), "not a pdf either").unwrap();
     let c = builtin("pdf").unwrap();
 
-    let b = validated_list(c.as_ref(), &json!({"path": tmp.path().to_str().unwrap()}), None).await.unwrap();
+    let b = validated_list(
+        c.as_ref(),
+        &json!({"path": tmp.path().to_str().unwrap()}),
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(b.upserts.len(), 2);
-    let d = b.upserts.iter().find(|d| d.external_id == "meno.pdf").unwrap();
+    let d = b
+        .upserts
+        .iter()
+        .find(|d| d.external_id == "meno.pdf")
+        .unwrap();
     assert_eq!(d.kind, ItemKind::Pdf);
     assert_eq!(d.origin, Origin::External);
     assert_eq!(d.title, "Meno");
@@ -90,14 +115,32 @@ async fn pdf_connector_folder_and_single_file() {
     assert_eq!(d.meta["pages"][1]["page"], 2);
     let start = d.meta["pages"][1]["start"].as_u64().unwrap() as usize;
     assert!(d.body[start..].contains("page two"));
-    let broken = b.upserts.iter().find(|d| d.external_id == "broken.pdf").unwrap();
+    let broken = b
+        .upserts
+        .iter()
+        .find(|d| d.external_id == "broken.pdf")
+        .unwrap();
     assert!(broken.meta["extract_error"].is_string());
     assert!(broken.body.is_empty());
 
-    let again = validated_list(c.as_ref(), &json!({"path": tmp.path().to_str().unwrap()}), b.next_cursor.as_deref()).await.unwrap();
+    let again = validated_list(
+        c.as_ref(),
+        &json!({"path": tmp.path().to_str().unwrap()}),
+        b.next_cursor.as_deref(),
+    )
+    .await
+    .unwrap();
     assert!(again.is_empty());
 
     let single = tmp.path().join("meno.pdf");
-    let b = validated_list(c.as_ref(), &json!({"path": single.to_str().unwrap()}), None).await.unwrap();
-    assert_eq!(b.upserts.iter().map(|d| d.external_id.as_str()).collect::<Vec<_>>(), vec!["meno.pdf"]);
+    let b = validated_list(c.as_ref(), &json!({"path": single.to_str().unwrap()}), None)
+        .await
+        .unwrap();
+    assert_eq!(
+        b.upserts
+            .iter()
+            .map(|d| d.external_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["meno.pdf"]
+    );
 }

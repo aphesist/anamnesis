@@ -7,15 +7,22 @@ use url::Url;
 
 use crate::error::{ConnectorError, Result};
 
-pub const USER_AGENT: &str = concat!("anamnesis/", env!("CARGO_PKG_VERSION"), " (+https://github.com/aphesimos/anamnesis)");
+pub const USER_AGENT: &str = concat!(
+    "anamnesis/",
+    env!("CARGO_PKG_VERSION"),
+    " (+https://github.com/aphesimos/anamnesis)"
+);
 
 /// Responses larger than this are cut off with an error.
 pub const MAX_BODY_BYTES: usize = 32 * 1024 * 1024;
 
 pub fn client_for(url: &str, timeout: Duration) -> Result<reqwest::Client> {
-    let u = Url::parse(url).map_err(|e| ConnectorError::InvalidConfig(vec![format!("url {url:?}: {e}")]))?;
+    let u = Url::parse(url)
+        .map_err(|e| ConnectorError::InvalidConfig(vec![format!("url {url:?}: {e}")]))?;
     if !matches!(u.scheme(), "http" | "https") {
-        return Err(ConnectorError::InvalidConfig(vec![format!("url {url:?} must be http(s)")]));
+        return Err(ConnectorError::InvalidConfig(vec![format!(
+            "url {url:?} must be http(s)"
+        )]));
     }
     let mut b = reqwest::Client::builder()
         .user_agent(USER_AGENT)
@@ -46,7 +53,10 @@ pub struct Fetched {
 
 impl Fetched {
     pub fn header(&self, name: &str) -> Option<String> {
-        self.headers.get(name).and_then(|v| v.to_str().ok()).map(str::to_string)
+        self.headers
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_string)
     }
 }
 
@@ -55,7 +65,8 @@ pub async fn get(url: &str, headers: &[(String, String)], timeout: Duration) -> 
     let client = client_for(url, timeout)?;
     let mut req = client.get(url);
     for (k, v) in headers {
-        let hv = HeaderValue::from_str(v).map_err(|e| ConnectorError::Http(format!("header {k}: {e}")))?;
+        let hv = HeaderValue::from_str(v)
+            .map_err(|e| ConnectorError::Http(format!("header {k}: {e}")))?;
         req = req.header(k.as_str(), hv);
     }
     let mut resp = req.send().await?;
@@ -65,11 +76,18 @@ pub async fn get(url: &str, headers: &[(String, String)], timeout: Duration) -> 
     let mut bytes = Vec::new();
     while let Some(chunk) = resp.chunk().await? {
         if bytes.len() + chunk.len() > MAX_BODY_BYTES {
-            return Err(ConnectorError::Http(format!("{url}: response larger than {MAX_BODY_BYTES} bytes")));
+            return Err(ConnectorError::Http(format!(
+                "{url}: response larger than {MAX_BODY_BYTES} bytes"
+            )));
         }
         bytes.extend_from_slice(&chunk);
     }
-    Ok(Fetched { status, final_url, headers, bytes })
+    Ok(Fetched {
+        status,
+        final_url,
+        headers,
+        bytes,
+    })
 }
 
 /// Error unless 2xx (or 304 when `allow_not_modified`).
@@ -77,6 +95,9 @@ pub fn ensure_ok(f: &Fetched, allow_not_modified: bool) -> Result<()> {
     if (200..300).contains(&f.status) || (allow_not_modified && f.status == 304) {
         Ok(())
     } else {
-        Err(ConnectorError::Http(format!("{} answered {}", f.final_url, f.status)))
+        Err(ConnectorError::Http(format!(
+            "{} answered {}",
+            f.final_url, f.status
+        )))
     }
 }

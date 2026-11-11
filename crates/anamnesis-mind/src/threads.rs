@@ -17,38 +17,138 @@ use serde::{Deserialize, Serialize};
 
 const REJECTION_CUES: &[&str] = &[
     // english
-    "decided not to", "decided against", "i won't", "i will not", "we won't", "we will not", "i'm not going to",
-    "i am not going to", "we're not going to", "not going to do", "ruled out", "i rejected", "we rejected", "rejected:",
-    "giving up on", "gave up on", "i'm dropping", "we're dropping", "i dropped", "i scrapped", "we scrapped",
-    "i abandoned", "no longer going to", "not worth it", "won't do",
+    "decided not to",
+    "decided against",
+    "i won't",
+    "i will not",
+    "we won't",
+    "we will not",
+    "i'm not going to",
+    "i am not going to",
+    "we're not going to",
+    "not going to do",
+    "ruled out",
+    "i rejected",
+    "we rejected",
+    "rejected:",
+    "giving up on",
+    "gave up on",
+    "i'm dropping",
+    "we're dropping",
+    "i dropped",
+    "i scrapped",
+    "we scrapped",
+    "i abandoned",
+    "no longer going to",
+    "not worth it",
+    "won't do",
     // portuguese
-    "decidi não", "decidimos não", "resolvi não", "não vou", "não vamos", "descartei", "descartamos", "descartado",
-    "desisti", "desistimos", "abandonei", "não vale a pena", "rejeitei", "deixei de lado", "abri mão", "nunca mais vou",
+    "decidi não",
+    "decidimos não",
+    "resolvi não",
+    "não vou",
+    "não vamos",
+    "descartei",
+    "descartamos",
+    "descartado",
+    "desisti",
+    "desistimos",
+    "abandonei",
+    "não vale a pena",
+    "rejeitei",
+    "deixei de lado",
+    "abri mão",
+    "nunca mais vou",
 ];
 
 const DECISION_CUES: &[&str] = &[
     // english
-    "i decided", "i've decided", "i have decided", "we decided", "we've decided", "decided to", "decision:",
-    "i chose", "we chose", "i'm going with", "we're going with", "i'll go with", "settled on", "the decision is",
-    "final decision", "i concluded",
+    "i decided",
+    "i've decided",
+    "i have decided",
+    "we decided",
+    "we've decided",
+    "decided to",
+    "decision:",
+    "i chose",
+    "we chose",
+    "i'm going with",
+    "we're going with",
+    "i'll go with",
+    "settled on",
+    "the decision is",
+    "final decision",
+    "i concluded",
     // portuguese
-    "decidi", "decidimos", "decisão:", "resolvi", "optei", "optamos", "escolhi", "escolhemos", "vou ficar com",
-    "fechei com", "bati o martelo", "ficou decidido", "está decidido",
+    "decidi",
+    "decidimos",
+    "decisão:",
+    "resolvi",
+    "optei",
+    "optamos",
+    "escolhi",
+    "escolhemos",
+    "vou ficar com",
+    "fechei com",
+    "bati o martelo",
+    "ficou decidido",
+    "está decidido",
 ];
 
 const QUESTION_CUES: &[&str] = &[
-    "open question", "question:", "i wonder", "i'm wondering", "unclear whether", "not sure whether", "not sure if",
-    "pergunta:", "questão:", "dúvida:", "será que", "não sei se", "me pergunto", "não está claro",
+    "open question",
+    "question:",
+    "i wonder",
+    "i'm wondering",
+    "unclear whether",
+    "not sure whether",
+    "not sure if",
+    "pergunta:",
+    "questão:",
+    "dúvida:",
+    "será que",
+    "não sei se",
+    "me pergunto",
+    "não está claro",
 ];
 
 const PLAN_CUES: &[&str] = &[
     // english
-    "todo:", "to do:", "to-do:", "i will", "i'll", "we will", "we'll", "i'm going to", "i am going to",
-    "we're going to", "we are going to", "plan:", "plan to", "planning to", "next step", "i need to", "we need to",
-    "i should", "we should", "let's", "i want to",
+    "todo:",
+    "to do:",
+    "to-do:",
+    "i will",
+    "i'll",
+    "we will",
+    "we'll",
+    "i'm going to",
+    "i am going to",
+    "we're going to",
+    "we are going to",
+    "plan:",
+    "plan to",
+    "planning to",
+    "next step",
+    "i need to",
+    "we need to",
+    "i should",
+    "we should",
+    "let's",
+    "i want to",
     // portuguese
-    "vou", "vamos", "plano:", "planejo", "pretendo", "próximo passo", "próximos passos", "preciso", "precisamos",
-    "tenho que", "temos que", "a fazer:", "quero",
+    "vou",
+    "vamos",
+    "plano:",
+    "planejo",
+    "pretendo",
+    "próximo passo",
+    "próximos passos",
+    "preciso",
+    "precisamos",
+    "tenho que",
+    "temos que",
+    "a fazer:",
+    "quero",
 ];
 
 /// Does `hay` (lowercase) contain `cue` at word boundaries?
@@ -57,8 +157,12 @@ fn has_cue(hay: &str, cue: &str) -> bool {
     while let Some(pos) = hay[start..].find(cue) {
         let a = start + pos;
         let b = a + cue.len();
-        let before_ok = hay[..a].chars().next_back().is_none_or(|c| !c.is_alphanumeric());
-        let after_ok = cue.ends_with(|c: char| !c.is_alphanumeric()) || hay[b..].chars().next().is_none_or(|c| !c.is_alphanumeric());
+        let before_ok = hay[..a]
+            .chars()
+            .next_back()
+            .is_none_or(|c| !c.is_alphanumeric());
+        let after_ok = cue.ends_with(|c: char| !c.is_alphanumeric())
+            || hay[b..].chars().next().is_none_or(|c| !c.is_alphanumeric());
         if before_ok && after_ok {
             return true;
         }
@@ -97,7 +201,9 @@ fn spans(text: &str) -> Vec<Span> {
         let mut i = 0;
         while i < bytes.len() {
             let c = bytes[i];
-            if (c == b'.' || c == b'!' || c == b'?') && (i + 1 == bytes.len() || bytes[i + 1].is_ascii_whitespace()) {
+            if (c == b'.' || c == b'!' || c == b'?')
+                && (i + 1 == bytes.len() || bytes[i + 1].is_ascii_whitespace())
+            {
                 // don't split on "e.g." style abbreviations of one letter
                 let prev_is_short = i >= 2 && bytes[i - 2] == b'.';
                 if !prev_is_short {
@@ -119,7 +225,10 @@ fn push_span(line: &str, offset: usize, s: usize, e: usize, out: &mut Vec<Span>)
     if seg.trim().is_empty() {
         return;
     }
-    out.push(Span { start: offset + s + lead, end: offset + e - trail });
+    out.push(Span {
+        start: offset + s + lead,
+        end: offset + e - trail,
+    });
 }
 
 /// Strip list/quote/heading markers and checkboxes from the start.
@@ -166,7 +275,14 @@ fn statement_of(s: &str) -> String {
 pub fn classify_sentence(sentence: &str) -> Option<(ThreadKind, ThreadStatus)> {
     let (body, checkbox) = strip_markers(sentence);
     if let Some(done) = checkbox {
-        return Some((ThreadKind::Plan, if done { ThreadStatus::Resolved } else { ThreadStatus::Open }));
+        return Some((
+            ThreadKind::Plan,
+            if done {
+                ThreadStatus::Resolved
+            } else {
+                ThreadStatus::Open
+            },
+        ));
     }
     let lower = body.to_lowercase().replace(['’', '‘'], "'");
     if REJECTION_CUES.iter().any(|c| has_cue(&lower, c)) {
@@ -277,8 +393,13 @@ example answer:
 
 /// Build the extraction prompt for one item.
 pub fn extraction_prompt(title: &str, text: &str) -> ExtractionPrompt {
-    let user = format!("{EXTRACTION_EXAMPLES}\n\nnote title: {title}\nnote:\n\"\"\"\n{text}\n\"\"\"");
-    ExtractionPrompt { system: EXTRACTION_SYSTEM.to_string(), user, schema: extraction_schema() }
+    let user =
+        format!("{EXTRACTION_EXAMPLES}\n\nnote title: {title}\nnote:\n\"\"\"\n{text}\n\"\"\"");
+    ExtractionPrompt {
+        system: EXTRACTION_SYSTEM.to_string(),
+        user,
+        schema: extraction_schema(),
+    }
 }
 
 /// An extracted item that did not become a thread, and why.
@@ -330,31 +451,70 @@ pub fn find_verbatim(source: &str, quote: &str) -> Option<(usize, usize)> {
     let start = map[p];
     let last = p + qc.len() - 1; // last byte of the match in collapsed
     let last_src = map[last];
-    let end = last_src + source[last_src..].chars().next().map(|c| c.len_utf8()).unwrap_or(0);
+    let end = last_src
+        + source[last_src..]
+            .chars()
+            .next()
+            .map(|c| c.len_utf8())
+            .unwrap_or(0);
     Some((start, end))
 }
 
 fn strip_fences(s: &str) -> &str {
     let t = s.trim();
-    let t = t.strip_prefix("```json").or_else(|| t.strip_prefix("```")).unwrap_or(t);
+    let t = t
+        .strip_prefix("```json")
+        .or_else(|| t.strip_prefix("```"))
+        .unwrap_or(t);
     t.strip_suffix("```").unwrap_or(t).trim()
 }
 
 /// Parse a raw model answer (tolerates ```json fences) and validate it.
-pub fn validate_extraction_str(source: &str, answer: &str, item_id: &Id, at: Timestamp, extractor: &str, min_confidence: f32) -> Result<ExtractionReport, String> {
-    let v: serde_json::Value = serde_json::from_str(strip_fences(answer)).map_err(|e| format!("not json: {e}"))?;
-    Ok(validate_extraction(source, &v, item_id, at, extractor, min_confidence))
+pub fn validate_extraction_str(
+    source: &str,
+    answer: &str,
+    item_id: &Id,
+    at: Timestamp,
+    extractor: &str,
+    min_confidence: f32,
+) -> Result<ExtractionReport, String> {
+    let v: serde_json::Value =
+        serde_json::from_str(strip_fences(answer)).map_err(|e| format!("not json: {e}"))?;
+    Ok(validate_extraction(
+        source,
+        &v,
+        item_id,
+        at,
+        extractor,
+        min_confidence,
+    ))
 }
 
 /// Validate a model answer against the source text. Items must have a known
 /// type and a quote that occurs verbatim in `source`; items below
 /// `min_confidence` (when given) are rejected too.
-pub fn validate_extraction(source: &str, answer: &serde_json::Value, item_id: &Id, at: Timestamp, extractor: &str, min_confidence: f32) -> ExtractionReport {
+pub fn validate_extraction(
+    source: &str,
+    answer: &serde_json::Value,
+    item_id: &Id,
+    at: Timestamp,
+    extractor: &str,
+    min_confidence: f32,
+) -> ExtractionReport {
     let mut accepted: Vec<Thread> = vec![];
     let mut rejected = vec![];
-    let items = answer.get("items").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let items = answer
+        .get("items")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     for it in items {
-        let reject = |reason: &str, rejected: &mut Vec<RejectedExtraction>| rejected.push(RejectedExtraction { item: it.clone(), reason: reason.to_string() });
+        let reject = |reason: &str, rejected: &mut Vec<RejectedExtraction>| {
+            rejected.push(RejectedExtraction {
+                item: it.clone(),
+                reason: reason.to_string(),
+            })
+        };
         let kind = match it.get("type").and_then(|v| v.as_str()) {
             Some("decision") => ThreadKind::Decision,
             Some("open_question") => ThreadKind::OpenQuestion,
@@ -382,12 +542,16 @@ pub fn validate_extraction(source: &str, answer: &serde_json::Value, item_id: &I
             continue;
         }
         let raw_quote = it.get("quote").and_then(|v| v.as_str()).unwrap_or("");
-        let trimmed = raw_quote.trim().trim_matches(|c| c == '"' || c == '“' || c == '”');
+        let trimmed = raw_quote
+            .trim()
+            .trim_matches(|c| c == '"' || c == '“' || c == '”');
         if trimmed.chars().count() < 3 {
             reject("missing quote", &mut rejected);
             continue;
         }
-        let Some((s, e)) = find_verbatim(source, trimmed).or_else(|| find_verbatim(source, raw_quote)) else {
+        let Some((s, e)) =
+            find_verbatim(source, trimmed).or_else(|| find_verbatim(source, raw_quote))
+        else {
             reject("quote is not verbatim in the source", &mut rejected);
             continue;
         };
@@ -396,7 +560,12 @@ pub fn validate_extraction(source: &str, answer: &serde_json::Value, item_id: &I
             reject("duplicate", &mut rejected);
             continue;
         }
-        let statement = it.get("statement").and_then(|v| v.as_str()).map(statement_of).filter(|s| !s.is_empty()).unwrap_or_else(|| statement_of(strip_markers(&quote).0));
+        let statement = it
+            .get("statement")
+            .and_then(|v| v.as_str())
+            .map(statement_of)
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| statement_of(strip_markers(&quote).0));
         accepted.push(Thread {
             id: Id::new(),
             kind,

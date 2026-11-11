@@ -65,7 +65,9 @@ fn candidates(path: &str) -> Vec<String> {
 }
 
 fn safe(rel: &str) -> bool {
-    Path::new(rel).components().all(|c| matches!(c, Component::Normal(_)))
+    Path::new(rel)
+        .components()
+        .all(|c| matches!(c, Component::Normal(_)))
 }
 
 fn file_response(rel: &str, bytes: Vec<u8>) -> Response {
@@ -74,7 +76,8 @@ fn file_response(rel: &str, bytes: Vec<u8>) -> Response {
     if let Ok(v) = HeaderValue::from_str(mime.as_ref()) {
         res.headers_mut().insert(header::CONTENT_TYPE, v);
     }
-    res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    res.headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
     res
 }
 
@@ -106,7 +109,10 @@ pub async fn serve(ui_dir: Option<PathBuf>, uri: Uri) -> Response {
     }
     if wants_index {
         return (
-            [(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"))],
+            [(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("text/html; charset=utf-8"),
+            )],
             PLACEHOLDER,
         )
             .into_response();

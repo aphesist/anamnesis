@@ -18,8 +18,13 @@ pub mod registry;
 pub mod scan;
 pub mod url_norm;
 
-pub use connector::{Batch, ChangeNotice, CheckReport, Connector, Rename, WatchHandle, list_all, validated_check, validated_list};
+pub use connector::{
+    Batch, ChangeNotice, CheckReport, Connector, Rename, WatchHandle, list_all, validated_check,
+    validated_list,
+};
 pub use error::{ConnectorError, Result};
-pub use manifest::{API_VERSION, Capability, Manifest, PLUGIN_MANIFEST_FILE, RESERVED_CONNECTOR_IDS, Runtime};
+pub use manifest::{
+    API_VERSION, Capability, Manifest, PLUGIN_MANIFEST_FILE, RESERVED_CONNECTOR_IDS, Runtime,
+};
 pub use registry::{BUILTIN_IDS, BuiltinConnector, builtin, builtin_connectors, load_plugin};
 pub use url_norm::normalize_url;

@@ -298,11 +298,8 @@ fn chain_verifies_and_detects_tampering() {
     s.verify_chain().unwrap();
 
     // recomputing the hash of an edited event breaks the next link
-    conn.execute(
-        "UPDATE events SET hash = 'tampered' WHERE seq = 3",
-        [],
-    )
-    .unwrap();
+    conn.execute("UPDATE events SET hash = 'tampered' WHERE seq = 3", [])
+        .unwrap();
     assert!(matches!(s.verify_chain(), Err(Error::Chain { seq: 3, .. })));
     conn.execute(
         "UPDATE events SET hash = (SELECT prev_hash FROM events WHERE seq = 4) WHERE seq = 3",

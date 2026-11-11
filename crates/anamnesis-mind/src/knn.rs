@@ -51,9 +51,16 @@ pub fn knn_graph(x: &Rows, k: usize) -> Knn {
     let p = x.d;
     let k = k.min(n.saturating_sub(1));
     if k == 0 {
-        return Knn { n, k: 0, idx: vec![], dist: vec![] };
+        return Knn {
+            n,
+            k: 0,
+            idx: vec![],
+            dist: vec![],
+        };
     }
-    let sq: Vec<f32> = (0..n).map(|i| crate::linalg::dot(x.row(i), x.row(i))).collect();
+    let sq: Vec<f32> = (0..n)
+        .map(|i| crate::linalg::dot(x.row(i), x.row(i)))
+        .collect();
     const BLOCK: usize = 128;
     let blocks: Vec<usize> = (0..n).step_by(BLOCK).collect();
     let results: Vec<Vec<(Vec<u32>, Vec<f32>)>> = blocks
@@ -62,7 +69,20 @@ pub fn knn_graph(x: &Rows, k: usize) -> Knn {
             let e = (s + BLOCK).min(n);
             let b = e - s;
             let mut g = vec![0f32; b * n];
-            sgemm(b, p, n, &x.data[s * p..], p as isize, 1, &x.data, 1, p as isize, &mut g, n as isize, 1);
+            sgemm(
+                b,
+                p,
+                n,
+                &x.data[s * p..],
+                p as isize,
+                1,
+                &x.data,
+                1,
+                p as isize,
+                &mut g,
+                n as isize,
+                1,
+            );
             let mut out = Vec::with_capacity(b);
             let mut buf: Vec<(f32, u32)> = Vec::with_capacity(k + 1);
             for r in 0..b {
@@ -79,7 +99,10 @@ pub fn knn_graph(x: &Rows, k: usize) -> Knn {
                         push_topk(&mut buf, k, d2, j as u32);
                     }
                 }
-                out.push((buf.iter().map(|&(_, j)| j).collect(), buf.iter().map(|&(d, _)| d.sqrt()).collect()));
+                out.push((
+                    buf.iter().map(|&(_, j)| j).collect(),
+                    buf.iter().map(|&(d, _)| d.sqrt()).collect(),
+                ));
             }
             out
         })
@@ -123,7 +146,9 @@ mod tests {
     #[test]
     fn matches_naive() {
         let mut r = Rng::new(9);
-        let vs: Vec<Vec<f32>> = (0..300).map(|_| (0..7).map(|_| r.normal() as f32).collect()).collect();
+        let vs: Vec<Vec<f32>> = (0..300)
+            .map(|_| (0..7).map(|_| r.normal() as f32).collect())
+            .collect();
         let x = Rows::from_vecs(&vs);
         let g = knn_graph(&x, 5);
         for i in [0usize, 17, 150, 299] {

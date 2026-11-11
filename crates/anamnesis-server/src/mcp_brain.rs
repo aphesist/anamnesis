@@ -38,7 +38,10 @@ fn internal(e: anyhow::Error) -> BrainError {
 }
 
 fn region_map(s: &anamnesis_core::Store) -> anamnesis_core::Result<HashMap<Id, Option<Id>>> {
-    Ok(s.placements()?.into_iter().map(|p| (p.item_id, p.region_id)).collect())
+    Ok(s.placements()?
+        .into_iter()
+        .map(|p| (p.item_id, p.region_id))
+        .collect())
 }
 
 fn summarise(items: Vec<Item>, regions: &HashMap<Id, Option<Id>>) -> Vec<ItemSummary> {
@@ -49,8 +52,13 @@ fn summarise(items: Vec<Item>, regions: &HashMap<Id, Option<Id>>) -> Vec<ItemSum
 }
 
 /// Live items, as summaries, by id.
-pub(crate) fn item_summary(s: &anamnesis_core::Store, id: &Id) -> anamnesis_core::Result<Option<ItemSummary>> {
-    let Some(item) = s.get_item(id)?.filter(|i| !i.deleted) else { return Ok(None) };
+pub(crate) fn item_summary(
+    s: &anamnesis_core::Store,
+    id: &Id,
+) -> anamnesis_core::Result<Option<ItemSummary>> {
+    let Some(item) = s.get_item(id)?.filter(|i| !i.deleted) else {
+        return Ok(None);
+    };
     let region = s.item_region(id)?.map(|r| r.id);
     Ok(Some(ItemSummary::from_item(&item, region, SNIPPET)))
 }
@@ -59,13 +67,20 @@ pub(crate) fn item_summary(s: &anamnesis_core::Store, id: &Id) -> anamnesis_core
 impl BrainApi for StoreBrain {
     async fn search(&self, query: &str, k: usize) -> BrainResult<Vec<SearchHit>> {
         let brain = self.app.brain();
-        let hits = hybrid_search(&self.app, &brain, query, k).await.map_err(internal)?;
+        let hits = hybrid_search(&self.app, &brain, query, k)
+            .await
+            .map_err(internal)?;
         brain
             .db(move |s| {
                 let mut out = Vec::new();
                 for h in hits {
                     if let Some(it) = s.get_item(&h.item_id)? {
-                        out.push(SearchHit { kind: it.kind, origin: it.origin, privacy: it.privacy, hit: h });
+                        out.push(SearchHit {
+                            kind: it.kind,
+                            origin: it.origin,
+                            privacy: it.privacy,
+                            hit: h,
+                        });
                     }
                 }
                 Ok(out)
@@ -79,11 +94,16 @@ impl BrainApi for StoreBrain {
         self.app
             .brain()
             .db(move |s| {
-                let Some(item) = s.get_item(&id)?.filter(|i| !i.deleted) else { return Ok(None) };
+                let Some(item) = s.get_item(&id)?.filter(|i| !i.deleted) else {
+                    return Ok(None);
+                };
                 Ok(Some(ItemView {
                     links_out: s.links_from(&id)?,
                     links_in: s.links_to(&id)?,
-                    threads: s.threads(&ThreadFilter { item_id: Some(id.clone()), ..Default::default() })?,
+                    threads: s.threads(&ThreadFilter {
+                        item_id: Some(id.clone()),
+                        ..Default::default()
+                    })?,
                     region: s.item_region(&id)?,
                     item,
                 }))
@@ -122,28 +142,48 @@ impl BrainApi for StoreBrain {
                 }
                 // only suggestions recorded as shown: the held-out arm never leaves
                 let mut suggestions = Vec::new();
-                for sg in s.open_suggestions(&id)?.into_iter().filter(|x| x.shown).take(k) {
+                for sg in s
+                    .open_suggestions(&id)?
+                    .into_iter()
+                    .filter(|x| x.shown)
+                    .take(k)
+                {
                     if let Some(to) = item_summary(s, &sg.to)? {
-                        suggestions.push(LinkSuggestion { suggestion_id: sg.id, to, score: sg.score });
+                        suggestions.push(LinkSuggestion {
+                            suggestion_id: sg.id,
+                            to,
+                            score: sg.score,
+                        });
                     }
                 }
-                Ok(Related { neighbours, suggestions })
+                Ok(Related {
+                    neighbours,
+                    suggestions,
+                })
             })
             .await
             .map_err(internal)
     }
 
-    async fn list_threads(&self, kind: Option<ThreadKind>, status: Option<ThreadStatus>) -> BrainResult<Vec<Thread>> {
+    async fn list_threads(
+        &self,
+        kind: Option<ThreadKind>,
+        status: Option<ThreadStatus>,
+    ) -> BrainResult<Vec<Thread>> {
         self.app
             .brain()
             .db(move |s| {
-                let threads = s.threads(&ThreadFilter { kind, status, item_id: None })?;
+                let threads = s.threads(&ThreadFilter {
+                    kind,
+                    status,
+                    item_id: None,
+                })?;
                 // a thread quotes its item: only items the user lets leave may be listed
                 let mut out = Vec::new();
                 for t in threads {
-                    if s.get_item(&t.item_id)?
-                        .is_some_and(|i| !i.deleted && i.privacy == anamnesis_core::Privacy::CloudOk)
-                    {
+                    if s.get_item(&t.item_id)?.is_some_and(|i| {
+                        !i.deleted && i.privacy == anamnesis_core::Privacy::CloudOk
+                    }) {
                         out.push(t);
                     }
                 }
@@ -156,7 +196,12 @@ impl BrainApi for StoreBrain {
     async fn regions(&self) -> BrainResult<Vec<Region>> {
         self.app
             .brain()
-            .db(|s| Ok(s.current_regions()?.into_iter().filter(|r| r.died_at.is_none()).collect()))
+            .db(|s| {
+                Ok(s.current_regions()?
+                    .into_iter()
+                    .filter(|r| r.died_at.is_none())
+                    .collect())
+            })
             .await
             .map_err(internal)
     }
@@ -166,7 +211,9 @@ impl BrainApi for StoreBrain {
         self.app
             .brain()
             .db(move |s| {
-                let Some(region) = s.get_region(&id)? else { return Ok(None) };
+                let Some(region) = s.get_region(&id)? else {
+                    return Ok(None);
+                };
                 let members: Vec<Id> = s
                     .placements()?
                     .into_iter()
@@ -181,18 +228,29 @@ impl BrainApi for StoreBrain {
                 items.sort_by_key(|i| std::cmp::Reverse(i.created_at));
                 items.truncate(10);
                 let regions = region_map(s)?;
-                Ok(Some(RegionView { region, items: summarise(items, &regions) }))
+                Ok(Some(RegionView {
+                    region,
+                    items: summarise(items, &regions),
+                }))
             })
             .await
             .map_err(internal)
     }
 
-    async fn timeline(&self, from: Option<Timestamp>, to: Option<Timestamp>, limit: usize) -> BrainResult<Vec<ItemSummary>> {
+    async fn timeline(
+        &self,
+        from: Option<Timestamp>,
+        to: Option<Timestamp>,
+        limit: usize,
+    ) -> BrainResult<Vec<ItemSummary>> {
         self.app
             .brain()
             .db(move |s| {
                 let items: Vec<Item> = s
-                    .list_items(&ItemFilter { since: from, ..Default::default() })?
+                    .list_items(&ItemFilter {
+                        since: from,
+                        ..Default::default()
+                    })?
                     .into_iter()
                     .filter(|i| to.is_none_or(|t| i.created_at <= t))
                     .take(limit)
@@ -251,7 +309,13 @@ impl BrainApi for StoreBrain {
         Ok(item)
     }
 
-    async fn link(&self, actor: Actor, from: &Id, to: &Id, _note: Option<String>) -> BrainResult<Link> {
+    async fn link(
+        &self,
+        actor: Actor,
+        from: &Id,
+        to: &Id,
+        _note: Option<String>,
+    ) -> BrainResult<Link> {
         let (from, to) = (from.clone(), to.clone());
         let l = self
             .app
@@ -263,7 +327,13 @@ impl BrainApi for StoreBrain {
         Ok(l)
     }
 
-    async fn update_thread(&self, actor: Actor, id: &Id, status: ThreadStatus, resolved_by: Option<Id>) -> BrainResult<Thread> {
+    async fn update_thread(
+        &self,
+        actor: Actor,
+        id: &Id,
+        status: ThreadStatus,
+        resolved_by: Option<Id>,
+    ) -> BrainResult<Thread> {
         let id = id.clone();
         self.app
             .brain()

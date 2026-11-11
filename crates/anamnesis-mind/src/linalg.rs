@@ -13,7 +13,11 @@ pub struct Rows {
 
 impl Rows {
     pub fn zeros(n: usize, d: usize) -> Self {
-        Rows { n, d, data: vec![0.0; n * d] }
+        Rows {
+            n,
+            d,
+            data: vec![0.0; n * d],
+        }
     }
 
     /// Copy a slice of vectors into a matrix. All vectors must share a dimension.
@@ -186,7 +190,9 @@ impl Pca {
         }
         // covariance = Xcᵀ Xc / n  (d × d)
         let mut cov = vec![0f32; d * d];
-        sgemm(d, n, d, &xc.data, 1, d as isize, &xc.data, d as isize, 1, &mut cov, d as isize, 1);
+        sgemm(
+            d, n, d, &xc.data, 1, d as isize, &xc.data, d as isize, 1, &mut cov, d as isize, 1,
+        );
         let denom = (n.max(2) - 1) as f64;
         let m = DMatrix::<f64>::from_fn(d, d, |i, j| cov[i * d + j] as f64 / denom);
         let eig = nalgebra::SymmetricEigen::new(m);
@@ -213,7 +219,11 @@ impl Pca {
             components.push(v);
             variances.push(eig.eigenvalues[j].max(0.0) as f32);
         }
-        Pca { mean, components, variances }
+        Pca {
+            mean,
+            components,
+            variances,
+        }
     }
 
     pub fn k(&self) -> usize {
@@ -236,14 +246,33 @@ impl Pca {
             }
         }
         let mut out = Rows::zeros(n, k);
-        sgemm(n, d, k, &xc.data, d as isize, 1, &w, k as isize, 1, &mut out.data, k as isize, 1);
+        sgemm(
+            n,
+            d,
+            k,
+            &xc.data,
+            d as isize,
+            1,
+            &w,
+            k as isize,
+            1,
+            &mut out.data,
+            k as isize,
+            1,
+        );
         out
     }
 
     pub fn transform_one(&self, v: &[f32]) -> Vec<f32> {
         self.components
             .iter()
-            .map(|c| c.iter().zip(v).zip(&self.mean).map(|((c, x), m)| c * (x - m)).sum())
+            .map(|c| {
+                c.iter()
+                    .zip(v)
+                    .zip(&self.mean)
+                    .map(|((c, x), m)| c * (x - m))
+                    .sum()
+            })
             .collect()
     }
 }
@@ -269,7 +298,8 @@ impl Similarity {
         let r = &self.rotation;
         let mut out = [0f32; 3];
         for (i, o) in out.iter_mut().enumerate() {
-            *o = self.scale * (r[i][0] * p[0] + r[i][1] * p[1] + r[i][2] * p[2]) + self.translation[i];
+            *o = self.scale * (r[i][0] * p[0] + r[i][1] * p[1] + r[i][2] * p[2])
+                + self.translation[i];
         }
         out
     }
@@ -312,7 +342,11 @@ pub fn procrustes(a: &[[f32; 3]], b: &[[f32; 3]], allow_scale: bool) -> (Similar
     }
     let r = vt.transpose() * dmat * u.transpose();
     let trace: f64 = (0..3).map(|i| svd.singular_values[i] * dmat[(i, i)]).sum();
-    let s = if allow_scale && var_b > 1e-12 { trace / var_b } else { 1.0 };
+    let s = if allow_scale && var_b > 1e-12 {
+        trace / var_b
+    } else {
+        1.0
+    };
     let t = ma - s * r * mb;
     let mut rotation = [[0f32; 3]; 3];
     for (i, row) in rotation.iter_mut().enumerate() {
@@ -320,7 +354,11 @@ pub fn procrustes(a: &[[f32; 3]], b: &[[f32; 3]], allow_scale: bool) -> (Similar
             *x = r[(i, j)] as f32;
         }
     }
-    let sim = Similarity { rotation, scale: s as f32, translation: [t[0] as f32, t[1] as f32, t[2] as f32] };
+    let sim = Similarity {
+        rotation,
+        scale: s as f32,
+        translation: [t[0] as f32, t[1] as f32, t[2] as f32],
+    };
     let mut resid = 0.0f64;
     for (pa, pb) in a.iter().zip(b) {
         let q = sim.apply(*pb);
@@ -341,7 +379,11 @@ mod tests {
         let vs: Vec<Vec<f32>> = (0..500)
             .map(|_| {
                 let t = r.normal() as f32 * 5.0;
-                vec![t, t * 0.5 + r.normal() as f32 * 0.1, r.normal() as f32 * 0.1]
+                vec![
+                    t,
+                    t * 0.5 + r.normal() as f32 * 0.1,
+                    r.normal() as f32 * 0.1,
+                ]
             })
             .collect();
         let x = Rows::from_vecs(&vs);
@@ -358,9 +400,20 @@ mod tests {
     #[test]
     fn procrustes_recovers_rotation() {
         let mut r = Rng::new(5);
-        let a: Vec<[f32; 3]> = (0..100).map(|_| [r.normal() as f32, r.normal() as f32, r.normal() as f32]).collect();
+        let a: Vec<[f32; 3]> = (0..100)
+            .map(|_| [r.normal() as f32, r.normal() as f32, r.normal() as f32])
+            .collect();
         let (c, s) = (0.6f32.cos(), 0.6f32.sin());
-        let b: Vec<[f32; 3]> = a.iter().map(|p| [2.0 * (c * p[0] - s * p[1]) + 1.0, 2.0 * (s * p[0] + c * p[1]) - 3.0, 2.0 * p[2]]).collect();
+        let b: Vec<[f32; 3]> = a
+            .iter()
+            .map(|p| {
+                [
+                    2.0 * (c * p[0] - s * p[1]) + 1.0,
+                    2.0 * (s * p[0] + c * p[1]) - 3.0,
+                    2.0 * p[2],
+                ]
+            })
+            .collect();
         let (sim, resid) = procrustes(&a, &b, true);
         assert!(resid < 1e-6, "resid {resid}");
         assert!((sim.scale - 0.5).abs() < 1e-3);

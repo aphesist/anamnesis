@@ -146,7 +146,12 @@ pub fn json_api_manifest() -> Manifest {
                 "timeout_secs": {"type": "integer", "minimum": 1, "maximum": 600}
             }
         }),
-        capabilities: vec![Capability::Check, Capability::Incremental, Capability::Deletes, Capability::Paged],
+        capabilities: vec![
+            Capability::Check,
+            Capability::Incremental,
+            Capability::Deletes,
+            Capability::Paged,
+        ],
         network_hosts: vec!["<config.url host>".into()],
         fs_paths: vec![],
         default_origin: Origin::OwnerWritten,
@@ -196,11 +201,19 @@ fn tags_of(v: Option<&Value>) -> Vec<String> {
         Some(Value::Array(a)) => a
             .iter()
             .filter_map(|t| match t {
-                Value::Object(o) => as_string(o.get("name").or_else(|| o.get("slug")).or_else(|| o.get("title"))),
+                Value::Object(o) => as_string(
+                    o.get("name")
+                        .or_else(|| o.get("slug"))
+                        .or_else(|| o.get("title")),
+                ),
                 other => as_string(Some(other)),
             })
             .collect(),
-        Some(Value::String(s)) => s.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect(),
+        Some(Value::String(s)) => s
+            .split(',')
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty())
+            .collect(),
         _ => vec![],
     }
 }
@@ -232,7 +245,11 @@ pub fn map_page(resp: &Value, cfg: &JsonApiConfig, since: Option<&str>) -> Resul
     let f = &cfg.fields;
     let mut page = Page {
         count: items.len(),
-        next_url: cfg.next_path.as_deref().and_then(|p| as_string(get_path(resp, p))).filter(|s| !s.is_empty()),
+        next_url: cfg
+            .next_path
+            .as_deref()
+            .and_then(|p| as_string(get_path(resp, p)))
+            .filter(|s| !s.is_empty()),
         ..Default::default()
     };
     for it in items {
@@ -251,7 +268,10 @@ pub fn map_page(resp: &Value, cfg: &JsonApiConfig, since: Option<&str>) -> Resul
                 continue;
             }
         }
-        if f.deleted.as_deref().is_some_and(|d| truthy(get_path(it, d))) {
+        if f.deleted
+            .as_deref()
+            .is_some_and(|d| truthy(get_path(it, d)))
+        {
             page.deletes.push(id);
             continue;
         }
@@ -265,7 +285,14 @@ pub fn map_page(resp: &Value, cfg: &JsonApiConfig, since: Option<&str>) -> Resul
             .as_deref()
             .and_then(|t| as_string(get_path(it, t)))
             .filter(|t| !t.trim().is_empty())
-            .unwrap_or_else(|| body.lines().next().unwrap_or(&id).chars().take(80).collect());
+            .unwrap_or_else(|| {
+                body.lines()
+                    .next()
+                    .unwrap_or(&id)
+                    .chars()
+                    .take(80)
+                    .collect()
+            });
         let kind = f
             .kind
             .as_deref()
@@ -281,7 +308,11 @@ pub fn map_page(resp: &Value, cfg: &JsonApiConfig, since: Option<&str>) -> Resul
             title,
             body,
             origin: cfg.origin.unwrap_or(Origin::OwnerWritten),
-            created_at: f.created_at.as_deref().and_then(|c| as_string(get_path(it, c))).and_then(|c| parse_date(&c)),
+            created_at: f
+                .created_at
+                .as_deref()
+                .and_then(|c| as_string(get_path(it, c)))
+                .and_then(|c| parse_date(&c)),
             modified_at: updated.as_deref().and_then(parse_date),
             tags: tags_of(f.tags.as_deref().and_then(|t| get_path(it, t))),
             refs: uri.into_iter().collect(),
@@ -293,11 +324,13 @@ pub fn map_page(resp: &Value, cfg: &JsonApiConfig, since: Option<&str>) -> Resul
 
 impl JsonApiConnector {
     fn cfg(config: &Value) -> Result<JsonApiConfig> {
-        serde_json::from_value(config.clone()).map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
+        serde_json::from_value(config.clone())
+            .map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
     }
 
     fn page_url(cfg: &JsonApiConfig, since: Option<&str>, page: Option<u64>) -> Result<String> {
-        let mut u = url::Url::parse(&cfg.url).map_err(|e| ConnectorError::InvalidConfig(vec![format!("url: {e}")]))?;
+        let mut u = url::Url::parse(&cfg.url)
+            .map_err(|e| ConnectorError::InvalidConfig(vec![format!("url: {e}")]))?;
         {
             let mut q = u.query_pairs_mut();
             if let (Some(p), Some(s)) = (&cfg.since_param, since) {
@@ -317,8 +350,11 @@ impl JsonApiConnector {
     fn headers(cfg: &JsonApiConfig) -> Result<Vec<(String, String)>> {
         let mut h = vec![("accept".to_string(), "application/json".to_string())];
         if let Some(var) = &cfg.token_env {
-            let tok = std::env::var(var)
-                .map_err(|_| ConnectorError::InvalidConfig(vec![format!("environment variable {var} is not set")]))?;
+            let tok = std::env::var(var).map_err(|_| {
+                ConnectorError::InvalidConfig(vec![format!(
+                    "environment variable {var} is not set"
+                )])
+            })?;
             match cfg.auth_header.as_deref().map(str::to_ascii_lowercase) {
                 None => h.push(("authorization".into(), format!("Bearer {tok}"))),
                 Some(name) if name == "authorization" => h.push((name, format!("Bearer {tok}"))),
@@ -329,9 +365,15 @@ impl JsonApiConnector {
     }
 
     async fn fetch_json(cfg: &JsonApiConfig, url: &str) -> Result<Value> {
-        let f = http::get(url, &Self::headers(cfg)?, Duration::from_secs(cfg.timeout_secs.unwrap_or(30))).await?;
+        let f = http::get(
+            url,
+            &Self::headers(cfg)?,
+            Duration::from_secs(cfg.timeout_secs.unwrap_or(30)),
+        )
+        .await?;
         http::ensure_ok(&f, false)?;
-        serde_json::from_slice(&f.bytes).map_err(|e| ConnectorError::Parse(format!("json from {url}: {e}")))
+        serde_json::from_slice(&f.bytes)
+            .map_err(|e| ConnectorError::Parse(format!("json from {url}: {e}")))
     }
 }
 
@@ -343,7 +385,11 @@ impl Connector for JsonApiConnector {
 
     async fn check(&self, config: &Value) -> Result<CheckReport> {
         let cfg = Self::cfg(config)?;
-        let url = Self::page_url(&cfg, None, cfg.page_param.as_ref().map(|_| cfg.page_start.unwrap_or(1)))?;
+        let url = Self::page_url(
+            &cfg,
+            None,
+            cfg.page_param.as_ref().map(|_| cfg.page_start.unwrap_or(1)),
+        )?;
         let v = match Self::fetch_json(&cfg, &url).await {
             Ok(v) => v,
             Err(e) => return Ok(CheckReport::failed(e.to_string())),
@@ -357,8 +403,13 @@ impl Connector for JsonApiConnector {
     async fn list(&self, config: &Value, cursor: Option<&str>) -> Result<Batch> {
         let cfg = Self::cfg(config)?;
         let mut cur: ApiCursor = match cursor {
-            Some(c) => serde_json::from_str(c).map_err(|e| ConnectorError::BadCursor(e.to_string()))?,
-            None => ApiCursor { v: 1, ..Default::default() },
+            Some(c) => {
+                serde_json::from_str(c).map_err(|e| ConnectorError::BadCursor(e.to_string()))?
+            }
+            None => ApiCursor {
+                v: 1,
+                ..Default::default()
+            },
         };
         let first_page = cfg.page_start.unwrap_or(1);
         let url = match (&cur.next_url, cur.page) {
@@ -391,7 +442,10 @@ impl Connector for JsonApiConnector {
             match &page.next_url {
                 Some(n) => {
                     // Resolve relative next links against the current url.
-                    let abs = url::Url::parse(&url).and_then(|b| b.join(n)).map(|u| u.to_string()).unwrap_or(n.clone());
+                    let abs = url::Url::parse(&url)
+                        .and_then(|b| b.join(n))
+                        .map(|u| u.to_string())
+                        .unwrap_or(n.clone());
                     cur.next_url = Some(abs);
                 }
                 None => cur.page = Some(cur.page.unwrap_or(first_page) + 1),
@@ -455,12 +509,21 @@ mod tests {
         assert_eq!(d.body, "hello **there**");
         assert_eq!(d.tags, vec!["a", "b"]);
         assert_eq!(d.uri.as_deref(), Some("https://me.example/1"));
-        assert_eq!(d.created_at.unwrap().to_rfc3339(), "2024-01-01T00:00:00+00:00");
+        assert_eq!(
+            d.created_at.unwrap().to_rfc3339(),
+            "2024-01-01T00:00:00+00:00"
+        );
         assert_eq!(p.upserts[1].title, "body line more");
         assert_eq!(p.upserts[1].tags, vec!["x", "y"]);
         // Incremental filter.
         let p = map_page(&page_json(), &cfg(), Some("2024-01-03T00:00:00Z")).unwrap();
-        assert_eq!(p.upserts.iter().map(|d| d.external_id.as_str()).collect::<Vec<_>>(), vec!["2"]);
+        assert_eq!(
+            p.upserts
+                .iter()
+                .map(|d| d.external_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["2"]
+        );
         assert_eq!(p.deletes, vec!["3"]);
         assert!(map_page(&json!({"nope": 1}), &cfg(), None).is_err());
     }
@@ -484,8 +547,17 @@ mod tests {
                     }
                 }
                 let path = line.split_whitespace().nth(1).unwrap().to_string();
-                let page: usize = path.split("page=").nth(1).and_then(|p| p.split('&').next()).and_then(|p| p.parse().ok()).unwrap_or(1);
-                let body = pages.get(page - 1).cloned().unwrap_or(json!({"data": []})).to_string();
+                let page: usize = path
+                    .split("page=")
+                    .nth(1)
+                    .and_then(|p| p.split('&').next())
+                    .and_then(|p| p.parse().ok())
+                    .unwrap_or(1);
+                let body = pages
+                    .get(page - 1)
+                    .cloned()
+                    .unwrap_or(json!({"data": []}))
+                    .to_string();
                 write!(s, "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}", body.len(), body).unwrap();
                 seen.push(path);
             }
@@ -516,12 +588,18 @@ mod tests {
         let cur: ApiCursor = serde_json::from_str(b2.next_cursor.as_deref().unwrap()).unwrap();
         assert_eq!(cur.since.as_deref(), Some("2024-01-03T00:00:00Z"));
         // Next sync sends the cursor; the canned server ignores it, the client-side filter drops all.
-        let b3 = list_all(&c, &config, b2.next_cursor.as_deref()).await.unwrap();
+        let b3 = list_all(&c, &config, b2.next_cursor.as_deref())
+            .await
+            .unwrap();
         assert!(b3.upserts.is_empty());
         let paths = h.join().unwrap();
         assert_eq!(paths[0], "/api/posts?page=1&per_page=2");
         assert_eq!(paths[1], "/api/posts?page=2&per_page=2");
-        assert!(paths[2].contains("updated_after=2024-01-03T00%3A00%3A00Z"), "{}", paths[2]);
+        assert!(
+            paths[2].contains("updated_after=2024-01-03T00%3A00%3A00Z"),
+            "{}",
+            paths[2]
+        );
         assert!(paths[3].contains("page=2"), "{}", paths[3]);
     }
 }

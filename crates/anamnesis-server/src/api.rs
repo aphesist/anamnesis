@@ -41,7 +41,9 @@ impl ApiError {
 impl From<anyhow::Error> for ApiError {
     fn from(e: anyhow::Error) -> Self {
         match e.downcast_ref::<anamnesis_core::Error>() {
-            Some(anamnesis_core::Error::NotFound(m)) => ApiError(StatusCode::NOT_FOUND, format!("not found: {m}")),
+            Some(anamnesis_core::Error::NotFound(m)) => {
+                ApiError(StatusCode::NOT_FOUND, format!("not found: {m}"))
+            }
             Some(anamnesis_core::Error::Invalid(m)) => ApiError(StatusCode::BAD_REQUEST, m.clone()),
             _ => {
                 tracing::warn!("api error: {e:#}");
@@ -61,11 +63,14 @@ type ApiResult<T = Json<Value>> = Result<T, ApiError>;
 type S = State<Arc<App>>;
 
 fn ok(v: impl serde::Serialize) -> ApiResult {
-    Ok(Json(serde_json::to_value(v).map_err(|e| ApiError::from(anyhow::Error::from(e)))?))
+    Ok(Json(
+        serde_json::to_value(v).map_err(|e| ApiError::from(anyhow::Error::from(e)))?,
+    ))
 }
 
 fn parse_enum<T: serde::de::DeserializeOwned>(s: &str, what: &str) -> Result<T, ApiError> {
-    serde_json::from_value(Value::String(s.to_string())).map_err(|_| ApiError::bad(format!("unknown {what} {s:?}")))
+    serde_json::from_value(Value::String(s.to_string()))
+        .map_err(|_| ApiError::bad(format!("unknown {what} {s:?}")))
 }
 
 // ---------------------------------------------------------------------------------------
@@ -96,7 +101,10 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/sources/{id}/sync", post(sync_source))
         .route("/backends", get(backends))
         .route("/backends/refresh", post(refresh_backends))
-        .route("/backends/{id}/key", axum::routing::put(set_backend_key).delete(delete_backend_key))
+        .route(
+            "/backends/{id}/key",
+            axum::routing::put(set_backend_key).delete(delete_backend_key),
+        )
         .route("/backends/chatgpt", get(chatgpt_status))
         .route("/backends/chatgpt/sign-in", post(chatgpt_sign_in))
         .route("/backends/chatgpt/sign-out", post(chatgpt_sign_out))
@@ -166,11 +174,21 @@ async fn cloud(State(app): S) -> ApiResult {
     let v = brain
         .db(move |s| {
             let items = s.list_item_summaries(&ItemFilter::default())?;
-            let placements: HashMap<Id, anamnesis_core::Placement> =
-                s.placements()?.into_iter().map(|p| (p.item_id.clone(), p)).collect();
-            let regions: Vec<anamnesis_core::Region> =
-                s.current_regions()?.into_iter().filter(|r| r.died_at.is_none()).collect();
-            let region_idx: HashMap<&Id, usize> = regions.iter().enumerate().map(|(i, r)| (&r.id, i)).collect();
+            let placements: HashMap<Id, anamnesis_core::Placement> = s
+                .placements()?
+                .into_iter()
+                .map(|p| (p.item_id.clone(), p))
+                .collect();
+            let regions: Vec<anamnesis_core::Region> = s
+                .current_regions()?
+                .into_iter()
+                .filter(|r| r.died_at.is_none())
+                .collect();
+            let region_idx: HashMap<&Id, usize> = regions
+                .iter()
+                .enumerate()
+                .map(|(i, r)| (&r.id, i))
+                .collect();
             type PosMap<'a> = HashMap<&'a Id, [f32; 3]>;
             let (anat, sph): (PosMap, PosMap) = match &views {
                 Some(lv) => (
@@ -181,9 +199,19 @@ async fn cloud(State(app): S) -> ApiResult {
             };
             let mut kinds: Vec<String> = Vec::new();
             let n = items.len();
-            let (mut ids, mut xyz, mut xa, mut xs) = (Vec::with_capacity(n), Vec::with_capacity(3 * n), Vec::with_capacity(3 * n), Vec::with_capacity(3 * n));
-            let (mut region, mut kind, mut speaker, mut t, mut titles) =
-                (Vec::with_capacity(n), Vec::with_capacity(n), Vec::with_capacity(n), Vec::with_capacity(n), Vec::with_capacity(n));
+            let (mut ids, mut xyz, mut xa, mut xs) = (
+                Vec::with_capacity(n),
+                Vec::with_capacity(3 * n),
+                Vec::with_capacity(3 * n),
+                Vec::with_capacity(3 * n),
+            );
+            let (mut region, mut kind, mut speaker, mut t, mut titles) = (
+                Vec::with_capacity(n),
+                Vec::with_capacity(n),
+                Vec::with_capacity(n),
+                Vec::with_capacity(n),
+                Vec::with_capacity(n),
+            );
             let mut sums = vec![([0f64; 3], 0usize); regions.len()];
             let mut index: HashMap<Id, usize> = HashMap::new();
             for (i, it) in items.iter().enumerate() {
@@ -237,7 +265,11 @@ async fn cloud(State(app): S) -> ApiResult {
                 .all_links()?
                 .into_iter()
                 .filter_map(|l| {
-                    Some(json!([index.get(&l.from)?, index.get(&l.to)?, enum_str(&l.kind)]))
+                    Some(json!([
+                        index.get(&l.from)?,
+                        index.get(&l.to)?,
+                        enum_str(&l.kind)
+                    ]))
                 })
                 .collect();
             Ok(json!({
@@ -265,7 +297,8 @@ async fn get_item(State(app): S, Path(id): Path<String>) -> ApiResult {
             })))
         })
         .await?;
-    v.map(Json).ok_or_else(|| ApiError::not_found("no such item"))
+    v.map(Json)
+        .ok_or_else(|| ApiError::not_found("no such item"))
 }
 
 #[derive(Deserialize)]
@@ -282,7 +315,13 @@ async fn create_item(State(app): S, Json(b): Json<CreateItem>) -> ApiResult {
         .brain()
         .db(move |s| {
             Ok(s.create_note(
-                NewNote { title: b.title, body: b.body, kind: b.kind, tags: b.tags, origin: None },
+                NewNote {
+                    title: b.title,
+                    body: b.body,
+                    kind: b.kind,
+                    tags: b.tags,
+                    origin: None,
+                },
                 Actor::User,
             )?)
         })
@@ -298,12 +337,25 @@ struct UpdateItem {
     tags: Option<Vec<String>>,
 }
 
-async fn update_item(State(app): S, Path(id): Path<String>, Json(b): Json<UpdateItem>) -> ApiResult {
+async fn update_item(
+    State(app): S,
+    Path(id): Path<String>,
+    Json(b): Json<UpdateItem>,
+) -> ApiResult {
     let id = Id(id);
     let item = app
         .brain()
         .db(move |s| {
-            Ok(s.update_item(&id, ItemPatch { title: b.title, body: b.body, tags: b.tags, kind: None }, Actor::User)?)
+            Ok(s.update_item(
+                &id,
+                ItemPatch {
+                    title: b.title,
+                    body: b.body,
+                    tags: b.tags,
+                    kind: None,
+                },
+                Actor::User,
+            )?)
         })
         .await?;
     app.jobs_notify.notify_one();
@@ -338,10 +390,26 @@ struct ThreadParams {
 }
 
 async fn threads(State(app): S, Query(p): Query<ThreadParams>) -> ApiResult {
-    let kind: Option<ThreadKind> = p.kind.filter(|k| !k.is_empty()).map(|k| parse_enum(&k, "kind")).transpose()?;
-    let status: Option<ThreadStatus> =
-        p.status.filter(|k| !k.is_empty()).map(|k| parse_enum(&k, "status")).transpose()?;
-    let t = app.brain().db(move |s| Ok(s.threads(&ThreadFilter { kind, status, item_id: None })?)).await?;
+    let kind: Option<ThreadKind> = p
+        .kind
+        .filter(|k| !k.is_empty())
+        .map(|k| parse_enum(&k, "kind"))
+        .transpose()?;
+    let status: Option<ThreadStatus> = p
+        .status
+        .filter(|k| !k.is_empty())
+        .map(|k| parse_enum(&k, "status"))
+        .transpose()?;
+    let t = app
+        .brain()
+        .db(move |s| {
+            Ok(s.threads(&ThreadFilter {
+                kind,
+                status,
+                item_id: None,
+            })?)
+        })
+        .await?;
     ok(json!({ "threads": t }))
 }
 
@@ -351,9 +419,16 @@ struct ThreadUpdate {
     resolved_by: Option<Id>,
 }
 
-async fn update_thread(State(app): S, Path(id): Path<String>, Json(b): Json<ThreadUpdate>) -> ApiResult {
+async fn update_thread(
+    State(app): S,
+    Path(id): Path<String>,
+    Json(b): Json<ThreadUpdate>,
+) -> ApiResult {
     let id = Id(id);
-    ok(app.brain().db(move |s| Ok(s.set_thread_status(&id, b.status, b.resolved_by, Actor::User)?)).await?)
+    ok(app
+        .brain()
+        .db(move |s| Ok(s.set_thread_status(&id, b.status, b.resolved_by, Actor::User)?))
+        .await?)
 }
 
 async fn review(State(app): S) -> ApiResult {
@@ -368,7 +443,9 @@ async fn review(State(app): S) -> ApiResult {
         .db(move |s| {
             let mut out = Vec::new();
             for r in s.resurfacings(true)? {
-                let Some(item) = s.get_item(&r.item_id)?.filter(|i| !i.deleted) else { continue };
+                let Some(item) = s.get_item(&r.item_id)?.filter(|i| !i.deleted) else {
+                    continue;
+                };
                 out.push(json!({
                     "resurface_id": r.id,
                     "item": item,
@@ -389,7 +466,9 @@ struct Rate {
 
 async fn rate_review(State(app): S, Path(id): Path<String>, Json(b): Json<Rate>) -> ApiResult {
     let id = Id(id);
-    app.brain().db(move |s| Ok(s.rate_resurface(&id, b.useful, Actor::User)?)).await?;
+    app.brain()
+        .db(move |s| Ok(s.rate_resurface(&id, b.useful, Actor::User)?))
+        .await?;
     ok(json!({ "ok": true }))
 }
 
@@ -421,12 +500,18 @@ struct Decide {
     accept: bool,
 }
 
-async fn decide_suggestion(State(app): S, Path(id): Path<String>, Json(b): Json<Decide>) -> ApiResult {
+async fn decide_suggestion(
+    State(app): S,
+    Path(id): Path<String>,
+    Json(b): Json<Decide>,
+) -> ApiResult {
     let id = Id(id);
     let s = app
         .brain()
         .db(move |s| {
-            let sg = s.get_suggestion(&id)?.ok_or_else(|| anamnesis_core::Error::NotFound(format!("suggestion {id}")))?;
+            let sg = s
+                .get_suggestion(&id)?
+                .ok_or_else(|| anamnesis_core::Error::NotFound(format!("suggestion {id}")))?;
             if !sg.shown {
                 // the control arm cannot be decided from the ui
                 return Err(anamnesis_core::Error::NotFound(format!("suggestion {id}")).into());
@@ -445,7 +530,10 @@ struct NewLink {
 }
 
 async fn add_link(State(app): S, Json(b): Json<NewLink>) -> ApiResult {
-    let l = app.brain().db(move |s| Ok(s.add_manual_link(&b.from, &b.to, Actor::User)?)).await?;
+    let l = app
+        .brain()
+        .db(move |s| Ok(s.add_manual_link(&b.from, &b.to, Actor::User)?))
+        .await?;
     app.jobs_notify.notify_one();
     ok(l)
 }
@@ -468,11 +556,21 @@ pub async fn eval_report(app: &Arc<App>) -> anyhow::Result<anamnesis_eval::EvalR
                 if let Some(e) = &emb
                     && let Ok(v) = anamnesis_embed::embed_one_query(e.as_ref(), q)
                 {
-                    query.vector = Some(anamnesis_core::QueryVector { model_id: e.id().to_string(), values: v });
+                    query.vector = Some(anamnesis_core::QueryVector {
+                        model_id: e.id().to_string(),
+                        values: v,
+                    });
                 }
-                s.search(&query).map(|h| h.into_iter().map(|h| h.item_id).collect()).unwrap_or_default()
+                s.search(&query)
+                    .map(|h| h.into_iter().map(|h| h.item_id).collect())
+                    .unwrap_or_default()
             };
-            Ok(anamnesis_eval::evaluate(&events, Some(&mut search), None, &Default::default()))
+            Ok(anamnesis_eval::evaluate(
+                &events,
+                Some(&mut search),
+                None,
+                &Default::default(),
+            ))
         })
         .await
 }
@@ -489,7 +587,9 @@ struct Label {
 }
 
 async fn eval_label(State(app): S, Json(b): Json<Label>) -> ApiResult {
-    app.brain().db(move |s| Ok(s.label_retrieval(&b.query, &b.item_id, b.grade, Actor::User)?)).await?;
+    app.brain()
+        .db(move |s| Ok(s.label_retrieval(&b.query, &b.item_id, b.grade, Actor::User)?))
+        .await?;
     ok(json!({ "ok": true }))
 }
 
@@ -497,10 +597,13 @@ async fn skills(State(app): S) -> ApiResult {
     let v = app
         .brain()
         .db(|s| {
-            Ok(s.list_items(&ItemFilter { kind: Some(ItemKind::Skill), ..Default::default() })?
-                .into_iter()
-                .map(|i| json!({ "id": i.id, "title": i.title, "body": i.body }))
-                .collect::<Vec<_>>())
+            Ok(s.list_items(&ItemFilter {
+                kind: Some(ItemKind::Skill),
+                ..Default::default()
+            })?
+            .into_iter()
+            .map(|i| json!({ "id": i.id, "title": i.title, "body": i.body }))
+            .collect::<Vec<_>>())
         })
         .await?;
     ok(json!({ "skills": v }))
@@ -530,11 +633,21 @@ struct NewSource {
 
 /// Validate and register a source (used by the api and `anamnesis add-source`).
 pub async fn add_source_checked(app: &Arc<App>, b: NewSourceArgs) -> Result<Source, ApiError> {
-    let conn = anamnesis_connectors::builtin(&b.connector).map_err(|e| ApiError::bad(e.to_string()))?;
+    let conn =
+        anamnesis_connectors::builtin(&b.connector).map_err(|e| ApiError::bad(e.to_string()))?;
     let manifest = conn.manifest();
-    let config = if b.config.is_null() { json!({}) } else { b.config };
-    manifest.validate_config(&config).map_err(|e| ApiError::bad(e.to_string()))?;
-    let check = conn.check(&config).await.map_err(|e| ApiError::bad(e.to_string()))?;
+    let config = if b.config.is_null() {
+        json!({})
+    } else {
+        b.config
+    };
+    manifest
+        .validate_config(&config)
+        .map_err(|e| ApiError::bad(e.to_string()))?;
+    let check = conn
+        .check(&config)
+        .await
+        .map_err(|e| ApiError::bad(e.to_string()))?;
     if !check.ok {
         return Err(ApiError::bad(check.message));
     }
@@ -584,7 +697,11 @@ struct SourcePatch {
     default_privacy: Option<Privacy>,
 }
 
-async fn update_source(State(app): S, Path(id): Path<String>, Json(b): Json<SourcePatch>) -> ApiResult {
+async fn update_source(
+    State(app): S,
+    Path(id): Path<String>,
+    Json(b): Json<SourcePatch>,
+) -> ApiResult {
     let id = Id(id);
     let mut src = app
         .brain()
@@ -593,7 +710,9 @@ async fn update_source(State(app): S, Path(id): Path<String>, Json(b): Json<Sour
         .ok_or_else(|| ApiError::not_found("no such source"))?;
     if let Some(c) = b.config {
         if let Ok(conn) = anamnesis_connectors::builtin(&src.connector) {
-            conn.manifest().validate_config(&c).map_err(|e| ApiError::bad(e.to_string()))?;
+            conn.manifest()
+                .validate_config(&c)
+                .map_err(|e| ApiError::bad(e.to_string()))?;
         }
         // the stored cursor carries a hash of the config, so a changed config resyncs fully
         src.config = c;
@@ -607,7 +726,10 @@ async fn update_source(State(app): S, Path(id): Path<String>, Json(b): Json<Sour
     if let Some(p) = b.default_privacy {
         src.default_privacy = p;
     }
-    let src = app.brain().db(move |s| Ok(s.update_source(src, Actor::User)?)).await?;
+    let src = app
+        .brain()
+        .db(move |s| Ok(s.update_source(src, Actor::User)?))
+        .await?;
     app.sync_notify.notify_one();
     ok(src)
 }
@@ -657,7 +779,9 @@ async fn backends(State(app): S) -> ApiResult {
             routing[t] = Value::Null;
         }
     }
-    let usage = app.router().map(|r| serde_json::to_value(r.usage()).unwrap_or(Value::Null));
+    let usage = app
+        .router()
+        .map(|r| serde_json::to_value(r.usage()).unwrap_or(Value::Null));
     ok(json!({
         "backends": rows,
         "routing": routing,
@@ -677,7 +801,11 @@ struct KeyBody {
     key: String,
 }
 
-async fn set_backend_key(State(app): S, Path(id): Path<String>, Json(b): Json<KeyBody>) -> ApiResult {
+async fn set_backend_key(
+    State(app): S,
+    Path(id): Path<String>,
+    Json(b): Json<KeyBody>,
+) -> ApiResult {
     let key = b.key.trim().to_string();
     if key.is_empty() {
         return Err(ApiError::bad("empty key"));
@@ -703,7 +831,9 @@ async fn chatgpt_status(State(app): S) -> ApiResult {
 
 async fn chatgpt_sign_in(State(app): S) -> ApiResult {
     let url = crate::backends::chatgpt_begin(&app).await?;
-    ok(json!({ "authorize_url": url, "button_label": anamnesis_harness::adapters::chatgpt::BUTTON_LABEL }))
+    ok(
+        json!({ "authorize_url": url, "button_label": anamnesis_harness::adapters::chatgpt::BUTTON_LABEL }),
+    )
 }
 
 async fn chatgpt_sign_out(State(app): S) -> ApiResult {
@@ -719,7 +849,9 @@ async fn get_settings(State(app): S) -> ApiResult {
 }
 
 async fn put_settings(State(app): S, Json(b): Json<Value>) -> ApiResult {
-    let obj = b.as_object().ok_or_else(|| ApiError::bad("settings must be a json object"))?;
+    let obj = b
+        .as_object()
+        .ok_or_else(|| ApiError::bad("settings must be a json object"))?;
     // typed sections are validated before anything is stored
     let new_spec = match obj.get("embedder") {
         Some(Value::Null) | None => None,
@@ -732,8 +864,13 @@ async fn put_settings(State(app): S, Json(b): Json<Value>) -> ApiResult {
         serde_json::from_value::<anamnesis_harness::RoutingSettings>(r.clone())
             .map_err(|e| ApiError::bad(format!("routing: {e}")))?;
     }
-    if let Some(d) = obj.get("privacy").filter(|v| !v.is_null()).and_then(|p| p.get("default")) {
-        serde_json::from_value::<Privacy>(d.clone()).map_err(|e| ApiError::bad(format!("privacy.default: {e}")))?;
+    if let Some(d) = obj
+        .get("privacy")
+        .filter(|v| !v.is_null())
+        .and_then(|p| p.get("default"))
+    {
+        serde_json::from_value::<Privacy>(d.clone())
+            .map_err(|e| ApiError::bad(format!("privacy.default: {e}")))?;
     }
     if let Some(h) = obj.get("harness").filter(|v| !v.is_null()) {
         let mut h = h.clone();
@@ -756,7 +893,11 @@ async fn put_settings(State(app): S, Json(b): Json<Value>) -> ApiResult {
     if touches_harness {
         crate::backends::detect_in_background(&app);
     } else if let (Some(r), Some(router)) = (routing, app.router()) {
-        let rs = if r.is_null() { Default::default() } else { serde_json::from_value(r).unwrap_or_default() };
+        let rs = if r.is_null() {
+            Default::default()
+        } else {
+            serde_json::from_value(r).unwrap_or_default()
+        };
         router.set_settings(rs);
     }
     ok(all)
@@ -793,7 +934,10 @@ async fn export(State(app): S) -> Result<Response, ApiError> {
         .await?;
     let name = format!("anamnesis-{}.jsonl", now().format("%Y%m%d-%H%M%S"));
     let mut res = Response::new(axum::body::Body::from(bytes));
-    res.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("application/x-ndjson"));
+    res.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/x-ndjson"),
+    );
     if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{name}\"")) {
         res.headers_mut().insert(header::CONTENT_DISPOSITION, v);
     }
@@ -842,7 +986,9 @@ fn yes() -> bool {
 
 async fn demo(State(app): S, body: Option<Json<DemoBody>>) -> ApiResult {
     let on = body.map(|b| b.enabled).unwrap_or(true);
-    ok(crate::importer::set_demo(&app, on).await.map_err(|e| ApiError::bad(format!("{e:#}")))?)
+    ok(crate::importer::set_demo(&app, on)
+        .await
+        .map_err(|e| ApiError::bad(format!("{e:#}")))?)
 }
 
 async fn run_jobs(State(app): S) -> ApiResult {

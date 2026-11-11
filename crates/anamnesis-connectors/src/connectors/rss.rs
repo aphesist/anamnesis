@@ -78,12 +78,21 @@ pub fn rss_manifest() -> Manifest {
 
 fn text_of(t: &feed_rs::model::Text) -> String {
     let ct = t.content_type.to_string();
-    if ct.contains("html") { html_to_text(&t.content) } else { t.content.trim().to_string() }
+    if ct.contains("html") {
+        html_to_text(&t.content)
+    } else {
+        t.content.trim().to_string()
+    }
 }
 
 /// Parse feed bytes into documents. `feed_url` is the url the feed was fetched from; it
 /// resolves relative links and is recorded in meta.
-pub fn parse_feed(bytes: &[u8], feed_url: &str, origin: Origin, kind: ItemKind) -> Result<(Vec<Document>, Value)> {
+pub fn parse_feed(
+    bytes: &[u8],
+    feed_url: &str,
+    origin: Origin,
+    kind: ItemKind,
+) -> Result<(Vec<Document>, Value)> {
     let feed = feed_rs::parser::Builder::new()
         .base_uri(Some(feed_url))
         .build()
@@ -108,16 +117,34 @@ pub fn parse_feed(bytes: &[u8], feed_url: &str, origin: Origin, kind: ItemKind) 
         let body = match (&e.content, &e.summary) {
             (Some(c), _) if c.body.as_deref().is_some_and(|b| !b.trim().is_empty()) => {
                 let b = c.body.clone().unwrap_or_default();
-                if c.content_type.to_string().contains("html") { html_to_text(&b) } else { b.trim().to_string() }
+                if c.content_type.to_string().contains("html") {
+                    html_to_text(&b)
+                } else {
+                    b.trim().to_string()
+                }
             }
             (_, Some(s)) => text_of(s),
             _ => String::new(),
         };
-        let title = e.title.as_ref().map(text_of).filter(|t| !t.is_empty()).unwrap_or_else(|| {
-            body.lines().next().unwrap_or("untitled").chars().take(80).collect()
-        });
+        let title = e
+            .title
+            .as_ref()
+            .map(text_of)
+            .filter(|t| !t.is_empty())
+            .unwrap_or_else(|| {
+                body.lines()
+                    .next()
+                    .unwrap_or("untitled")
+                    .chars()
+                    .take(80)
+                    .collect()
+            });
         let authors: Vec<&str> = e.authors.iter().filter_map(|a| a.name.as_deref()).collect();
-        let tags: Vec<String> = e.categories.iter().map(|c| c.label.clone().unwrap_or_else(|| c.term.clone())).collect();
+        let tags: Vec<String> = e
+            .categories
+            .iter()
+            .map(|c| c.label.clone().unwrap_or_else(|| c.term.clone()))
+            .collect();
         let mut meta = feed_meta.clone();
         meta["authors"] = json!(authors);
         meta["summary"] = json!(e.summary.as_ref().map(text_of));
@@ -142,12 +169,19 @@ pub fn parse_feed(bytes: &[u8], feed_url: &str, origin: Origin, kind: ItemKind) 
 }
 
 fn doc_hash(d: &Document) -> String {
-    sha256_hex(format!("{}\u{0}{}\u{0}{:?}\u{0}{:?}", d.title, d.body, d.uri, d.modified_at).as_bytes())
+    sha256_hex(
+        format!(
+            "{}\u{0}{}\u{0}{:?}\u{0}{:?}",
+            d.title, d.body, d.uri, d.modified_at
+        )
+        .as_bytes(),
+    )
 }
 
 impl RssConnector {
     fn cfg(config: &Value) -> Result<RssConfig> {
-        serde_json::from_value(config.clone()).map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
+        serde_json::from_value(config.clone())
+            .map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
     }
 
     /// Diff parsed documents against the cursor. Pure; used by `list` and tests.
@@ -167,7 +201,10 @@ impl RssConnector {
 
 fn parse_cursor(s: Option<&str>) -> Result<RssCursor> {
     match s {
-        None => Ok(RssCursor { v: 1, ..Default::default() }),
+        None => Ok(RssCursor {
+            v: 1,
+            ..Default::default()
+        }),
         Some(s) => serde_json::from_str(s).map_err(|e| ConnectorError::BadCursor(e.to_string())),
     }
 }
@@ -183,15 +220,23 @@ impl Connector for RssConnector {
         let timeout = Duration::from_secs(cfg.timeout_secs.unwrap_or(30));
         let f = match http::get(&cfg.url, &[], timeout).await {
             Ok(f) => f,
-            Err(e) => return Ok(CheckReport::failed(format!("could not reach the feed: {e}"))),
+            Err(e) => {
+                return Ok(CheckReport::failed(format!(
+                    "could not reach the feed: {e}"
+                )));
+            }
         };
         if let Err(e) = http::ensure_ok(&f, false) {
             return Ok(CheckReport::failed(e.to_string()));
         }
-        Ok(match parse_feed(&f.bytes, &f.final_url, Origin::External, ItemKind::Feed) {
-            Ok((docs, _)) => CheckReport::ok(format!("feed answered with {} entries", docs.len())),
-            Err(e) => CheckReport::failed(format!("not a feed: {e}")),
-        })
+        Ok(
+            match parse_feed(&f.bytes, &f.final_url, Origin::External, ItemKind::Feed) {
+                Ok((docs, _)) => {
+                    CheckReport::ok(format!("feed answered with {} entries", docs.len()))
+                }
+                Err(e) => CheckReport::failed(format!("not a feed: {e}")),
+            },
+        )
     }
 
     async fn list(&self, config: &Value, cursor: Option<&str>) -> Result<Batch> {
@@ -208,7 +253,10 @@ impl Connector for RssConnector {
         let f = http::get(&cfg.url, &headers, timeout).await?;
         http::ensure_ok(&f, true)?;
         if f.status == 304 {
-            return Ok(Batch { next_cursor: cursor.map(str::to_owned), ..Default::default() });
+            return Ok(Batch {
+                next_cursor: cursor.map(str::to_owned),
+                ..Default::default()
+            });
         }
         let (docs, _) = parse_feed(
             &f.bytes,
@@ -217,7 +265,12 @@ impl Connector for RssConnector {
             cfg.kind.unwrap_or(ItemKind::Feed),
         )?;
         let (upserts, seen) = Self::diff(docs, &prev);
-        let next = RssCursor { v: 1, etag: f.header("etag"), last_modified: f.header("last-modified"), seen };
+        let next = RssCursor {
+            v: 1,
+            etag: f.header("etag"),
+            last_modified: f.header("last-modified"),
+            seen,
+        };
         Ok(Batch {
             upserts,
             deletes: vec![],
@@ -252,7 +305,13 @@ mod tests {
 
     #[test]
     fn parses_rss() {
-        let (docs, meta) = parse_feed(RSS.as_bytes(), "https://garden.example/feed.xml", Origin::External, ItemKind::Feed).unwrap();
+        let (docs, meta) = parse_feed(
+            RSS.as_bytes(),
+            "https://garden.example/feed.xml",
+            Origin::External,
+            ItemKind::Feed,
+        )
+        .unwrap();
         assert_eq!(meta["feed_title"], "Garden Notes");
         assert_eq!(docs.len(), 2);
         let d = &docs[0];
@@ -260,17 +319,33 @@ mod tests {
         assert_eq!(d.kind, ItemKind::Feed);
         assert_eq!(d.origin, Origin::External);
         assert_eq!(d.tags, vec!["memory"]);
-        assert!(d.body.contains("Recollection is *not* retrieval."), "{}", d.body);
+        assert!(
+            d.body.contains("Recollection is *not* retrieval."),
+            "{}",
+            d.body
+        );
         assert!(d.body.contains("Second para."));
         assert_eq!(d.meta["canonical_url"], "https://garden.example/memory");
-        assert_eq!(d.created_at.unwrap().to_rfc3339(), "2024-03-05T10:00:00+00:00");
+        assert_eq!(
+            d.created_at.unwrap().to_rfc3339(),
+            "2024-03-05T10:00:00+00:00"
+        );
         assert_eq!(docs[1].external_id, "id-2");
-        assert_eq!(docs[1].uri.as_deref(), Some("https://garden.example/relative"));
+        assert_eq!(
+            docs[1].uri.as_deref(),
+            Some("https://garden.example/relative")
+        );
     }
 
     #[test]
     fn parses_atom() {
-        let (docs, meta) = parse_feed(ATOM.as_bytes(), "https://log.example/atom.xml", Origin::External, ItemKind::Feed).unwrap();
+        let (docs, meta) = parse_feed(
+            ATOM.as_bytes(),
+            "https://log.example/atom.xml",
+            Origin::External,
+            ItemKind::Feed,
+        )
+        .unwrap();
         assert_eq!(meta["feed_title"], "Atom Log");
         let d = &docs[0];
         assert_eq!(d.external_id, "urn:x:1");
@@ -280,15 +355,28 @@ mod tests {
         assert!(d.body.contains("## Sub"), "{}", d.body);
         assert!(d.body.contains("Body link"), "{}", d.body);
         assert_eq!(d.meta["authors"][0], "Ana");
-        assert_eq!(d.created_at.unwrap().to_rfc3339(), "2024-03-31T12:00:00+00:00");
+        assert_eq!(
+            d.created_at.unwrap().to_rfc3339(),
+            "2024-03-31T12:00:00+00:00"
+        );
     }
 
     #[test]
     fn diff_only_returns_changes() {
-        let (docs, _) = parse_feed(RSS.as_bytes(), "https://garden.example/feed.xml", Origin::External, ItemKind::Feed).unwrap();
+        let (docs, _) = parse_feed(
+            RSS.as_bytes(),
+            "https://garden.example/feed.xml",
+            Origin::External,
+            ItemKind::Feed,
+        )
+        .unwrap();
         let (up, seen) = RssConnector::diff(docs.clone(), &RssCursor::default());
         assert_eq!(up.len(), 2);
-        let prev = RssCursor { v: 1, seen, ..Default::default() };
+        let prev = RssCursor {
+            v: 1,
+            seen,
+            ..Default::default()
+        };
         let (up, _) = RssConnector::diff(docs.clone(), &prev);
         assert!(up.is_empty());
         let mut changed = docs;
@@ -301,7 +389,10 @@ mod tests {
     #[tokio::test]
     #[ignore = "network"]
     async fn live_feed() {
-        let b = RssConnector.list(&json!({"url": "https://blog.rust-lang.org/feed.xml"}), None).await.unwrap();
+        let b = RssConnector
+            .list(&json!({"url": "https://blog.rust-lang.org/feed.xml"}), None)
+            .await
+            .unwrap();
         assert!(!b.upserts.is_empty());
     }
 }

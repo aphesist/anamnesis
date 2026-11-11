@@ -36,8 +36,22 @@ fn full_run_twice_keeps_identity() {
     vs2.extend(blob(&mut r, &centers[0], 5, 0.08));
     ids2.extend(support::ids(5, "n"));
     texts2.extend((0..5).map(|i| format!("topic0 new {i}")));
-    let b = full_run(&ids2, &vs2, Some(&texts2), &state, t + Duration::days(7), &p);
-    assert!(b.regions.transitions.iter().all(|x| matches!(x, RegionTransition::Survive { .. })), "{:?}", b.regions.transitions);
+    let b = full_run(
+        &ids2,
+        &vs2,
+        Some(&texts2),
+        &state,
+        t + Duration::days(7),
+        &p,
+    );
+    assert!(
+        b.regions
+            .transitions
+            .iter()
+            .all(|x| matches!(x, RegionTransition::Survive { .. })),
+        "{:?}",
+        b.regions.transitions
+    );
     assert!(b.procrustes_residual.unwrap() < 0.1);
     for (ra, rb) in a.regions.regions.iter().zip(&b.regions.regions) {
         let other = b.regions.regions.iter().find(|x| x.id == ra.id).unwrap();
@@ -70,7 +84,10 @@ fn drift_detects_moving_region() {
     assert_eq!(d.len(), 2, "{:?}", b.regions.transitions);
     let moved = d.iter().max_by(|x, y| x.drift.total_cmp(&y.drift)).unwrap();
     let still = d.iter().min_by(|x, y| x.drift.total_cmp(&y.drift)).unwrap();
-    assert!(moved.drift > 0.05 && still.drift < 0.01, "{moved:?} {still:?}");
+    assert!(
+        moved.drift > 0.05 && still.drift < 0.01,
+        "{moved:?} {still:?}"
+    );
     assert!(moved.cohesion_after < moved.cohesion_before);
 }
 

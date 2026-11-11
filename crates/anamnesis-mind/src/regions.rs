@@ -189,7 +189,11 @@ pub fn cluster(space: &Space, params: &RegionParams) -> (Vec<Vec<usize>>, Vec<us
     let labels = hdbscan(
         &space.reduced,
         &space.knn,
-        HdbscanParams { min_cluster_size: mcs, min_samples: params.min_samples, allow_single_cluster: true },
+        HdbscanParams {
+            min_cluster_size: mcs,
+            min_samples: params.min_samples,
+            allow_single_cluster: true,
+        },
     );
     let nl = labels.iter().copied().max().unwrap_or(-1);
     let mut clusters: Vec<Vec<usize>> = vec![vec![]; (nl + 1).max(0) as usize];
@@ -217,7 +221,10 @@ pub fn cluster(space: &Space, params: &RegionParams) -> (Vec<Vec<usize>>, Vec<us
             m.iter().map(|&i| dot(x.row(i), &c)).collect()
         })
         .collect();
-    let cohesions: Vec<f32> = sims.iter().map(|s| s.iter().sum::<f32>() / s.len() as f32).collect();
+    let cohesions: Vec<f32> = sims
+        .iter()
+        .map(|s| s.iter().sum::<f32>() / s.len() as f32)
+        .collect();
     let median_cohesion = quantile(cohesions.clone(), 0.5);
     let mut kept = vec![];
     for ((m, s), coh) in clusters.into_iter().zip(&sims).zip(&cohesions) {
@@ -242,7 +249,12 @@ pub fn cluster(space: &Space, params: &RegionParams) -> (Vec<Vec<usize>>, Vec<us
     let thresholds: Vec<f32> = clusters
         .iter()
         .zip(&cents)
-        .map(|(m, c)| quantile(m.iter().map(|&i| dot(x.row(i), c)).collect(), params.assign_quantile) - params.assign_slack)
+        .map(|(m, c)| {
+            quantile(
+                m.iter().map(|&i| dot(x.row(i), c)).collect(),
+                params.assign_quantile,
+            ) - params.assign_slack
+        })
         .collect();
     let mut unsorted = vec![];
     for i in noise {
@@ -290,7 +302,11 @@ pub fn recompute_regions(
     }
     let present: HashSet<&Id> = ids.iter().collect();
     // |A_i ∩ present|
-    let old_size: Vec<usize> = previous.regions.iter().map(|r| r.members.iter().filter(|m| present.contains(m)).count()).collect();
+    let old_size: Vec<usize> = previous
+        .regions
+        .iter()
+        .map(|r| r.members.iter().filter(|m| present.contains(m)).count())
+        .collect();
     // |B_j ∩ old universe| and intersections
     let mut new_size = vec![0usize; nc];
     let mut inter: HashMap<(usize, usize), usize> = HashMap::new();
@@ -308,8 +324,20 @@ pub fn recompute_regions(
         let u = old_size[o] as f32 + new_size[j] as f32 - i;
         if u > 0.0 { i / u } else { 0.0 }
     };
-    let c_old = |o: usize, j: usize| if old_size[o] > 0 { it(o, j) / old_size[o] as f32 } else { 0.0 };
-    let c_new = |o: usize, j: usize| if new_size[j] > 0 { it(o, j) / new_size[j] as f32 } else { 0.0 };
+    let c_old = |o: usize, j: usize| {
+        if old_size[o] > 0 {
+            it(o, j) / old_size[o] as f32
+        } else {
+            0.0
+        }
+    };
+    let c_new = |o: usize, j: usize| {
+        if new_size[j] > 0 {
+            it(o, j) / new_size[j] as f32
+        } else {
+            0.0
+        }
+    };
 
     #[derive(Clone)]
     enum Fate {
@@ -324,7 +352,9 @@ pub fn recompute_regions(
 
     // merges
     for j in 0..nc {
-        let parents: Vec<usize> = (0..no).filter(|&o| !old_used[o] && c_old(o, j) >= params.merge_containment).collect();
+        let parents: Vec<usize> = (0..no)
+            .filter(|&o| !old_used[o] && c_old(o, j) >= params.merge_containment)
+            .collect();
         if parents.len() >= 2 {
             let mut parents = parents;
             parents.sort_by(|&a, &b| old_size[b].cmp(&old_size[a]).then(a.cmp(&b)));
@@ -341,7 +371,11 @@ pub fn recompute_regions(
             continue;
         }
         let mut kids: Vec<usize> = (0..nc)
-            .filter(|&j| new_fate[j].is_none() && c_old(o, j) >= params.split_containment && c_new(o, j) >= params.child_purity)
+            .filter(|&j| {
+                new_fate[j].is_none()
+                    && c_old(o, j) >= params.split_containment
+                    && c_new(o, j) >= params.child_purity
+            })
             .collect();
         if kids.len() >= 2 {
             kids.sort_by(|&a, &b| it(o, b).total_cmp(&it(o, a)).then(a.cmp(&b)));
@@ -357,13 +391,21 @@ pub fn recompute_regions(
     let rest_new: Vec<usize> = (0..nc).filter(|&j| new_fate[j].is_none()).collect();
     if !rest_old.is_empty() && !rest_new.is_empty() {
         let transpose = rest_old.len() > rest_new.len();
-        let (rows, cols) = if transpose { (&rest_new, &rest_old) } else { (&rest_old, &rest_new) };
+        let (rows, cols) = if transpose {
+            (&rest_new, &rest_old)
+        } else {
+            (&rest_old, &rest_new)
+        };
         let weights: Vec<Vec<i64>> = rows
             .iter()
             .map(|&r| {
                 cols.iter()
                     .map(|&c| {
-                        let jac = if transpose { jaccard(c, r) } else { jaccard(r, c) };
+                        let jac = if transpose {
+                            jaccard(c, r)
+                        } else {
+                            jaccard(r, c)
+                        };
                         (jac * 1_000_000.0) as i64
                     })
                     .collect()
@@ -372,7 +414,11 @@ pub fn recompute_regions(
         let m = pathfinding::matrix::Matrix::from_rows(weights).expect("rectangular");
         let (_, assignment) = pathfinding::kuhn_munkres::kuhn_munkres(&m);
         for (ri, &ci) in assignment.iter().enumerate() {
-            let (o, j) = if transpose { (cols[ci], rows[ri]) } else { (rows[ri], cols[ci]) };
+            let (o, j) = if transpose {
+                (cols[ci], rows[ri])
+            } else {
+                (rows[ri], cols[ci])
+            };
             if jaccard(o, j) >= params.survive_jaccard {
                 old_used[o] = true;
                 new_fate[j] = Some(Fate::Survive(o));
@@ -399,10 +445,16 @@ pub fn recompute_regions(
     // keywords
     let keywords: Vec<Vec<String>> = match extras.texts {
         Some(texts) => {
-            let mut classes: Vec<Vec<&str>> = clusters.iter().map(|m| m.iter().map(|&i| texts[i].as_str()).collect()).collect();
+            let mut classes: Vec<Vec<&str>> = clusters
+                .iter()
+                .map(|m| m.iter().map(|&i| texts[i].as_str()).collect())
+                .collect();
             classes.push(unsorted.iter().map(|&i| texts[i].as_str()).collect());
             let kw = c_tf_idf(&classes, params.keywords);
-            kw.into_iter().take(nc).map(|v| v.into_iter().map(|(w, _)| w).collect()).collect()
+            kw.into_iter()
+                .take(nc)
+                .map(|v| v.into_iter().map(|(w, _)| w).collect())
+                .collect()
         }
         None => vec![vec![]; nc],
     };
@@ -430,14 +482,23 @@ pub fn recompute_regions(
                     Some(a) => AnatomyHint::Keep(a),
                     None => AnatomyHint::Birth,
                 },
-                Fate::Merge(ps) => AnatomyHint::Merge(ps.iter().filter_map(|&o| prev_anat(o)).collect()),
+                Fate::Merge(ps) => {
+                    AnatomyHint::Merge(ps.iter().filter_map(|&o| prev_anat(o)).collect())
+                }
                 Fate::Split(o, rank) => match prev_anat(*o) {
-                    Some(a) => AnatomyHint::Split { parent: a, rank: *rank },
+                    Some(a) => AnatomyHint::Split {
+                        parent: a,
+                        rank: *rank,
+                    },
                     None => AnatomyHint::Birth,
                 },
                 Fate::Birth => AnatomyHint::Birth,
             };
-            AnatomyRequest { region: new_ids[j].clone(), hint, position: anatomy_pos[j] }
+            AnatomyRequest {
+                region: new_ids[j].clone(),
+                hint,
+                position: anatomy_pos[j],
+            }
         })
         .collect();
     let anatomy = assign_anatomy(&requests);
@@ -458,8 +519,18 @@ pub fn recompute_regions(
                 let r = &previous.regions[*o].region;
                 (r.label.clone(), r.born_at, r.parent_ids.clone())
             }
-            Fate::Merge(ps) => (fb.clone(), now, ps.iter().map(|&o| previous.regions[o].region.id.clone()).collect()),
-            Fate::Split(o, _) => (fb.clone(), now, vec![previous.regions[*o].region.id.clone()]),
+            Fate::Merge(ps) => (
+                fb.clone(),
+                now,
+                ps.iter()
+                    .map(|&o| previous.regions[o].region.id.clone())
+                    .collect(),
+            ),
+            Fate::Split(o, _) => (
+                fb.clone(),
+                now,
+                vec![previous.regions[*o].region.id.clone()],
+            ),
             Fate::Birth => (fb.clone(), now, vec![]),
         };
         let region = Region {
@@ -488,8 +559,17 @@ pub fn recompute_regions(
                     size_before: prev.members.len() as u32,
                     size_after: members.len() as u32,
                     jaccard: jac,
-                    keywords_gained: keywords[j].iter().filter(|k| !before.contains(k)).cloned().collect(),
-                    keywords_lost: prev.keywords.iter().filter(|k| !after.contains(k)).cloned().collect(),
+                    keywords_gained: keywords[j]
+                        .iter()
+                        .filter(|k| !before.contains(k))
+                        .cloned()
+                        .collect(),
+                    keywords_lost: prev
+                        .keywords
+                        .iter()
+                        .filter(|k| !after.contains(k))
+                        .cloned()
+                        .collect(),
                 });
             }
             _ => needs_label.push(region.id.clone()),
@@ -529,7 +609,10 @@ pub fn recompute_regions(
         match *kind {
             "merge" => {
                 transitions.push(RegionTransition::Merge {
-                    from: olds.iter().map(|&o| previous.regions[o].region.id.clone()).collect(),
+                    from: olds
+                        .iter()
+                        .map(|&o| previous.regions[o].region.id.clone())
+                        .collect(),
                     into: new_ids[news[0]].clone(),
                 });
                 retired.extend(olds.iter().map(|&o| retire(o)));
@@ -545,14 +628,20 @@ pub fn recompute_regions(
     }
     for (j, f) in new_fate.iter().enumerate() {
         match f {
-            Fate::Survive(_) => transitions.push(RegionTransition::Survive { region: new_ids[j].clone() }),
-            Fate::Birth => transitions.push(RegionTransition::Birth { region: new_ids[j].clone() }),
+            Fate::Survive(_) => transitions.push(RegionTransition::Survive {
+                region: new_ids[j].clone(),
+            }),
+            Fate::Birth => transitions.push(RegionTransition::Birth {
+                region: new_ids[j].clone(),
+            }),
             _ => {}
         }
     }
     for (o, used) in old_used.iter().enumerate() {
         if !used {
-            transitions.push(RegionTransition::Death { region: previous.regions[o].region.id.clone() });
+            transitions.push(RegionTransition::Death {
+                region: previous.regions[o].region.id.clone(),
+            });
             retired.push(retire(o));
         }
     }
@@ -573,7 +662,10 @@ pub fn recompute_regions(
         label_inputs,
         needs_label,
         unsorted: is_unsorted,
-        state: RegionState { run_at: Some(now), regions: snapshots },
+        state: RegionState {
+            run_at: Some(now),
+            regions: snapshots,
+        },
     }
 }
 
@@ -612,8 +704,18 @@ pub fn drift_between(before: &RegionState, after: &RegionState) -> Vec<RegionDri
                 size_before: b.members.len() as u32,
                 size_after: a.members.len() as u32,
                 jaccard: if union > 0.0 { inter / union } else { 0.0 },
-                keywords_gained: a.keywords.iter().filter(|k| !kb.contains(k)).cloned().collect(),
-                keywords_lost: b.keywords.iter().filter(|k| !ka.contains(k)).cloned().collect(),
+                keywords_gained: a
+                    .keywords
+                    .iter()
+                    .filter(|k| !kb.contains(k))
+                    .cloned()
+                    .collect(),
+                keywords_lost: b
+                    .keywords
+                    .iter()
+                    .filter(|k| !ka.contains(k))
+                    .cloned()
+                    .collect(),
             });
         }
     }

@@ -104,9 +104,16 @@ pub struct ExecConnector {
 impl ExecConnector {
     /// Load a plugin from its directory (containing `anamnesis-plugin.json`) or manifest path.
     pub fn load(path: &Path) -> Result<Self> {
-        let manifest_path = if path.is_dir() { path.join(PLUGIN_MANIFEST_FILE) } else { path.to_path_buf() };
+        let manifest_path = if path.is_dir() {
+            path.join(PLUGIN_MANIFEST_FILE)
+        } else {
+            path.to_path_buf()
+        };
         let manifest = Manifest::from_path(&manifest_path)?;
-        let dir = manifest_path.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."));
+        let dir = manifest_path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from("."));
         Self::new(manifest, &dir)
     }
 
@@ -114,15 +121,30 @@ impl ExecConnector {
     pub fn new(manifest: Manifest, dir: &Path) -> Result<Self> {
         manifest.validate_plugin()?;
         if manifest.runtime != Runtime::Exec {
-            return Err(ConnectorError::Unsupported(format!("runtime {:?} is not exec", manifest.runtime)));
+            return Err(ConnectorError::Unsupported(format!(
+                "runtime {:?} is not exec",
+                manifest.runtime
+            )));
         }
         let entry = manifest.entry.clone().unwrap_or_default();
         let p = Path::new(&entry);
-        let program = if p.is_absolute() { p.to_path_buf() } else { dir.join(p) };
+        let program = if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            dir.join(p)
+        };
         if !program.is_file() {
-            return Err(ConnectorError::InvalidManifest(format!("entry {} does not exist", program.display())));
+            return Err(ConnectorError::InvalidManifest(format!(
+                "entry {} does not exist",
+                program.display()
+            )));
         }
-        Ok(ExecConnector { manifest, program, dir: dir.to_path_buf(), timeout: DEFAULT_TIMEOUT })
+        Ok(ExecConnector {
+            manifest,
+            program,
+            dir: dir.to_path_buf(),
+            timeout: DEFAULT_TIMEOUT,
+        })
     }
 
     pub fn with_timeout(mut self, t: Duration) -> Self {
@@ -131,7 +153,13 @@ impl ExecConnector {
     }
 
     async fn call(&self, op: &str, config: &Value, cursor: Option<&str>) -> Result<Vec<Response>> {
-        let req = serde_json::to_string(&Request { op, api_version: API_VERSION, config, cursor }).expect("request serialises");
+        let req = serde_json::to_string(&Request {
+            op,
+            api_version: API_VERSION,
+            config,
+            cursor,
+        })
+        .expect("request serialises");
         let mut child = Command::new(&self.program)
             .current_dir(&self.dir)
             .env("ANAMNESIS_CONNECTOR_API", API_VERSION.to_string())
@@ -171,42 +199,61 @@ impl ExecConnector {
             let mut done = false;
             loop {
                 line.clear();
-                let n = (&mut reader).take(MAX_LINE_BYTES as u64 + 1).read_until(b'\n', &mut line).await
+                let n = (&mut reader)
+                    .take(MAX_LINE_BYTES as u64 + 1)
+                    .read_until(b'\n', &mut line)
+                    .await
                     .map_err(|e| ConnectorError::Plugin(format!("{id}: reading stdout: {e}")))?;
                 if n == 0 {
                     break;
                 }
                 if line.len() > MAX_LINE_BYTES {
-                    return Err(ConnectorError::Plugin(format!("{id}: response line longer than {MAX_LINE_BYTES} bytes")));
+                    return Err(ConnectorError::Plugin(format!(
+                        "{id}: response line longer than {MAX_LINE_BYTES} bytes"
+                    )));
                 }
                 let text = String::from_utf8_lossy(&line);
                 let text = text.trim();
                 if text.is_empty() {
                     continue;
                 }
-                let resp: Response = serde_json::from_str(text)
-                    .map_err(|e| ConnectorError::Plugin(format!("{id}: bad response line ({e}): {}", truncate(text, 200))))?;
+                let resp: Response = serde_json::from_str(text).map_err(|e| {
+                    ConnectorError::Plugin(format!(
+                        "{id}: bad response line ({e}): {}",
+                        truncate(text, 200)
+                    ))
+                })?;
                 match &resp {
                     Response::Log { level, message } => {
                         tracing::info!(plugin = %id, level = level.as_deref().unwrap_or("info"), "{message}");
                         continue;
                     }
-                    Response::Error { message } => return Err(ConnectorError::Plugin(format!("{id}: {message}"))),
+                    Response::Error { message } => {
+                        return Err(ConnectorError::Plugin(format!("{id}: {message}")));
+                    }
                     Response::Done { .. } | Response::Check { .. } => done = true,
                     _ => {}
                 }
                 out.push(resp);
             }
-            let status = child.wait().await.map_err(|e| ConnectorError::Plugin(format!("{id}: wait: {e}")))?;
+            let status = child
+                .wait()
+                .await
+                .map_err(|e| ConnectorError::Plugin(format!("{id}: wait: {e}")))?;
             let err = err_task.await.unwrap_or_default();
             if !err.trim().is_empty() {
                 tracing::debug!(plugin = %id, stderr = %truncate(&err, 2000), "plugin stderr");
             }
             if !status.success() {
-                return Err(ConnectorError::Plugin(format!("{id}: exited with {status}: {}", truncate(err.trim(), 500))));
+                return Err(ConnectorError::Plugin(format!(
+                    "{id}: exited with {status}: {}",
+                    truncate(err.trim(), 500)
+                )));
             }
             if !done {
-                return Err(ConnectorError::Plugin(format!("{id}: exited without a final \"done\" or \"check\" line")));
+                return Err(ConnectorError::Plugin(format!(
+                    "{id}: exited without a final \"done\" or \"check\" line"
+                )));
             }
             Ok(out)
         };
@@ -218,13 +265,20 @@ impl ExecConnector {
     }
 
     fn to_document(&self, d: PluginDocument) -> Document {
-        let mut meta = if d.meta.is_object() { d.meta } else { json!({ "plugin_meta": d.meta }) };
+        let mut meta = if d.meta.is_object() {
+            d.meta
+        } else {
+            json!({ "plugin_meta": d.meta })
+        };
         meta["connector"] = json!(self.manifest.id);
         meta["plugin_version"] = json!(self.manifest.version);
         Document {
             external_id: d.external_id,
             uri: d.uri,
-            kind: d.kind.or(self.manifest.default_kind).unwrap_or(ItemKind::Note),
+            kind: d
+                .kind
+                .or(self.manifest.default_kind)
+                .unwrap_or(ItemKind::Note),
             title: d.title,
             body: d.body,
             origin: d.origin.unwrap_or(self.manifest.default_origin),
@@ -257,7 +311,9 @@ impl Connector for ExecConnector {
     async fn check(&self, config: &Value) -> Result<CheckReport> {
         let out = match self.call("check", config, None).await {
             Ok(o) => o,
-            Err(e @ (ConnectorError::Plugin(_) | ConnectorError::Timeout(_))) => return Ok(CheckReport::failed(e.to_string())),
+            Err(e @ (ConnectorError::Plugin(_) | ConnectorError::Timeout(_))) => {
+                return Ok(CheckReport::failed(e.to_string()));
+            }
             Err(e) => return Err(e),
         };
         for r in out {
@@ -276,7 +332,10 @@ impl Connector for ExecConnector {
                 Response::Upsert { document } => b.upserts.push(self.to_document(document)),
                 Response::Delete { external_id } => b.deletes.push(external_id),
                 Response::Rename { from, to } => b.renames.push(Rename { from, to }),
-                Response::Done { next_cursor, has_more } => {
+                Response::Done {
+                    next_cursor,
+                    has_more,
+                } => {
                     b.next_cursor = next_cursor;
                     b.has_more = has_more;
                 }

@@ -35,7 +35,10 @@ pub enum ConnectorError {
 
 impl ConnectorError {
     pub fn io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
-        ConnectorError::Io { path: path.into(), source }
+        ConnectorError::Io {
+            path: path.into(),
+            source,
+        }
     }
 }
 

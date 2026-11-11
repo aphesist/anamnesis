@@ -116,10 +116,16 @@ impl Manifest {
     pub fn validate(&self) -> Result<()> {
         let mut errs = Vec::new();
         if !valid_id(&self.id) {
-            errs.push(format!("id {:?} must match [a-z0-9][a-z0-9_-]* (max 64)", self.id));
+            errs.push(format!(
+                "id {:?} must match [a-z0-9][a-z0-9_-]* (max 64)",
+                self.id
+            ));
         }
         if !valid_version(&self.version) {
-            errs.push(format!("version {:?} must be major.minor.patch", self.version));
+            errs.push(format!(
+                "version {:?} must be major.minor.patch",
+                self.version
+            ));
         }
         if self.api_version == 0 || self.api_version > API_VERSION {
             errs.push(format!(
@@ -141,7 +147,9 @@ impl Manifest {
         }
         for h in &self.network_hosts {
             if !valid_host_pattern(h) {
-                errs.push(format!("network host {h:?} must be a bare host name (optionally *.domain)"));
+                errs.push(format!(
+                    "network host {h:?} must be a bare host name (optionally *.domain)"
+                ));
             }
         }
         for p in &self.fs_paths {
@@ -152,7 +160,11 @@ impl Manifest {
         if self.capabilities.contains(&Capability::Unknown) {
             tracing::warn!(connector = %self.id, "manifest declares capabilities this build does not know");
         }
-        if errs.is_empty() { Ok(()) } else { Err(ConnectorError::InvalidManifest(errs.join("; "))) }
+        if errs.is_empty() {
+            Ok(())
+        } else {
+            Err(ConnectorError::InvalidManifest(errs.join("; ")))
+        }
     }
 
     /// Validation for third-party plugins: structure, plus no claiming reserved or built-in ids
@@ -160,10 +172,15 @@ impl Manifest {
     pub fn validate_plugin(&self) -> Result<()> {
         self.validate()?;
         if self.runtime == Runtime::Builtin {
-            return Err(ConnectorError::InvalidManifest("plugins cannot use the builtin runtime".into()));
+            return Err(ConnectorError::InvalidManifest(
+                "plugins cannot use the builtin runtime".into(),
+            ));
         }
         if is_reserved_id(&self.id) {
-            return Err(ConnectorError::InvalidManifest(format!("id {:?} is reserved", self.id)));
+            return Err(ConnectorError::InvalidManifest(format!(
+                "id {:?} is reserved",
+                self.id
+            )));
         }
         Ok(())
     }
@@ -176,10 +193,18 @@ impl Manifest {
             .iter_errors(config)
             .map(|e| {
                 let path = e.instance_path().to_string();
-                if path.is_empty() { e.to_string() } else { format!("{path}: {e}") }
+                if path.is_empty() {
+                    e.to_string()
+                } else {
+                    format!("{path}: {e}")
+                }
             })
             .collect();
-        if errs.is_empty() { Ok(()) } else { Err(ConnectorError::InvalidConfig(errs)) }
+        if errs.is_empty() {
+            Ok(())
+        } else {
+            Err(ConnectorError::InvalidConfig(errs))
+        }
     }
 }
 
@@ -193,14 +218,18 @@ fn valid_id(id: &str) -> bool {
     !b.is_empty()
         && b.len() <= 64
         && (b[0].is_ascii_lowercase() || b[0].is_ascii_digit())
-        && b.iter().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-' || *c == b'_')
+        && b.iter()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-' || *c == b'_')
 }
 
 fn valid_version(v: &str) -> bool {
     // major.minor.patch with an optional -pre / +build suffix.
     let core = v.split(['-', '+']).next().unwrap_or("");
     let parts: Vec<&str> = core.split('.').collect();
-    parts.len() == 3 && parts.iter().all(|p| !p.is_empty() && p.bytes().all(|c| c.is_ascii_digit()))
+    parts.len() == 3
+        && parts
+            .iter()
+            .all(|p| !p.is_empty() && p.bytes().all(|c| c.is_ascii_digit()))
 }
 
 /// `<config.url host>`-style placeholders: the value depends on the source config.
@@ -216,9 +245,8 @@ fn valid_host_pattern(h: &str) -> bool {
     !h.is_empty()
         && !h.contains("://")
         && !h.contains('/')
-        && h.split('.').all(|l| {
-            !l.is_empty() && l.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
-        })
+        && h.split('.')
+            .all(|l| !l.is_empty() && l.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-'))
 }
 
 #[cfg(test)]
@@ -288,7 +316,9 @@ mod tests {
         let m = plugin();
         m.validate_config(&json!({"dir": "/x"})).unwrap();
         match m.validate_config(&json!({"dir": 3})) {
-            Err(ConnectorError::InvalidConfig(errs)) => assert!(errs[0].contains("/dir"), "{errs:?}"),
+            Err(ConnectorError::InvalidConfig(errs)) => {
+                assert!(errs[0].contains("/dir"), "{errs:?}")
+            }
             other => panic!("{other:?}"),
         }
         assert!(m.validate_config(&json!({})).is_err());

@@ -1,7 +1,10 @@
 mod support;
 
 use anamnesis_core::Id;
-use anamnesis_mind::resurface::{Arm, Engagement, Rating, ReviewInfo, ReviewParams, ReviewReason, Scheduler, SrsCard, daily_review};
+use anamnesis_mind::resurface::{
+    Arm, Engagement, Rating, ReviewInfo, ReviewParams, ReviewReason, Scheduler, SrsCard,
+    daily_review,
+};
 use anamnesis_mind::rng::Rng;
 use chrono::{Duration, TimeZone, Utc};
 use support::*;
@@ -32,9 +35,15 @@ fn fsrs_intervals_grow_and_lapse() {
     let good = s.review(&card, Rating::Good, now).stability;
     let easy = s.review(&card, Rating::Easy, now).stability;
     let hard = s.review(&card, Rating::Hard, now).stability;
-    assert!(easy > good && good > hard && hard > before * 0.99, "{hard} {good} {easy} vs {before}");
+    assert!(
+        easy > good && good > hard && hard > before * 0.99,
+        "{hard} {good} {easy} vs {before}"
+    );
     // lower desired retention → longer intervals
-    let loose = Scheduler { desired_retention: 0.8, ..Default::default() };
+    let loose = Scheduler {
+        desired_retention: 0.8,
+        ..Default::default()
+    };
     assert!(loose.interval_days(10.0) > 10.0);
     // "never" suspends
     assert!(s.engage(&card, Engagement::Never, now).suspended);
@@ -51,11 +60,19 @@ fn pool(now: chrono::DateTime<Utc>) -> (Vec<Id>, Vec<Vec<f32>>, Vec<ReviewInfo>,
     let mut info = vec![];
     for i in 0..60 {
         let near_topic = i < 10;
-        vs.push(if near_topic { around(&mut r, &topic, 0.3) } else { unit(&mut r, d) });
+        vs.push(if near_topic {
+            around(&mut r, &topic, 0.3)
+        } else {
+            unit(&mut r, d)
+        });
         let card = if (10..14).contains(&i) {
             // seeds: due in the past
             let mut c = SrsCard::new(now - Duration::days(30));
-            c = Scheduler::default().review(&c, Rating::Good, now - Duration::days(30 - i as i64 + 10));
+            c = Scheduler::default().review(
+                &c,
+                Rating::Good,
+                now - Duration::days(30 - i as i64 + 10),
+            );
             Some(c)
         } else {
             None
@@ -78,7 +95,10 @@ fn review_mix_is_reproducible_and_sensible() {
     let now = Utc.with_ymd_and_hms(2026, 6, 1, 8, 0, 0).unwrap();
     let (ids, vs, info, recent) = pool(now);
     let sched = Scheduler::default();
-    let all_algo = ReviewParams { random_arm_probability: 0.0, ..Default::default() };
+    let all_algo = ReviewParams {
+        random_arm_probability: 0.0,
+        ..Default::default()
+    };
     let a = daily_review(&ids, &vs, &info, &recent, &[], now, &all_algo, &sched, 1);
     let b = daily_review(&ids, &vs, &info, &recent, &[], now, &all_algo, &sched, 1);
     assert_eq!(a, b);
@@ -114,12 +134,25 @@ fn review_mix_is_reproducible_and_sensible() {
         assert_eq!(x, y);
         random += x.iter().filter(|q| q.arm == Arm::Random).count();
         total += x.len();
-        assert!(x.iter().all(|q| (q.arm == Arm::Random) == (q.reason == ReviewReason::Random)));
+        assert!(
+            x.iter()
+                .all(|q| (q.arm == Arm::Random) == (q.reason == ReviewReason::Random))
+        );
     }
     let share = random as f64 / total as f64;
     assert!((share - 0.5).abs() < 0.1, "{share}");
     assert_eq!(Arm::Random.as_str(), "random");
     // recently touched items are excluded
-    let ex = daily_review(&ids, &vs, &info, &recent, &ids[..30], now, &all_algo, &sched, 1);
+    let ex = daily_review(
+        &ids,
+        &vs,
+        &info,
+        &recent,
+        &ids[..30],
+        now,
+        &all_algo,
+        &sched,
+        1,
+    );
     assert!(ex.iter().all(|q| !ids[..30].contains(&q.item_id)));
 }

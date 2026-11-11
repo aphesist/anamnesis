@@ -141,8 +141,9 @@ static LIKELY: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 const DROP_TAGS: &[&str] = &[
-    "script", "style", "noscript", "template", "iframe", "form", "button", "input", "select", "textarea", "nav",
-    "footer", "aside", "svg", "canvas", "object", "embed", "dialog", "head", "link", "meta",
+    "script", "style", "noscript", "template", "iframe", "form", "button", "input", "select",
+    "textarea", "nav", "footer", "aside", "svg", "canvas", "object", "embed", "dialog", "head",
+    "link", "meta",
 ];
 const VOID: &[&str] = &["img", "br", "hr", "wbr", "source", "col"];
 const KEEP_ATTRS: &[&str] = &["href", "src", "alt", "title"];
@@ -153,14 +154,21 @@ fn sel(s: &str) -> Selector {
 
 fn class_id(e: &ElementRef) -> String {
     let v = e.value();
-    format!("{} {}", v.attr("class").unwrap_or(""), v.attr("id").unwrap_or(""))
+    format!(
+        "{} {}",
+        v.attr("class").unwrap_or(""),
+        v.attr("id").unwrap_or("")
+    )
 }
 
 fn is_unlikely(e: &ElementRef) -> bool {
     let ci = class_id(e);
     let role = e.value().attr("role").unwrap_or("");
     (UNLIKELY.is_match(&ci) && !LIKELY.is_match(&ci))
-        || matches!(role, "navigation" | "banner" | "contentinfo" | "complementary" | "dialog")
+        || matches!(
+            role,
+            "navigation" | "banner" | "contentinfo" | "complementary" | "dialog"
+        )
         || e.value().attr("aria-hidden") == Some("true")
         || e.value().attr("hidden").is_some()
 }
@@ -168,7 +176,12 @@ fn is_unlikely(e: &ElementRef) -> bool {
 fn meta_content(doc: &Html, selectors: &[&str]) -> Option<String> {
     for s in selectors {
         if let Some(e) = doc.select(&sel(s)).next() {
-            let v = e.value().attr("content").or_else(|| e.value().attr("href")).map(str::trim).unwrap_or("");
+            let v = e
+                .value()
+                .attr("content")
+                .or_else(|| e.value().attr("href"))
+                .map(str::trim)
+                .unwrap_or("");
             if !v.is_empty() {
                 return Some(v.to_string());
             }
@@ -221,7 +234,13 @@ fn escape(s: &str, attr: bool) -> String {
     o
 }
 
-fn serialise_clean(e: &ElementRef, base: &Url, out: &mut String, links: &mut Vec<String>, is_root: bool) {
+fn serialise_clean(
+    e: &ElementRef,
+    base: &Url,
+    out: &mut String,
+    links: &mut Vec<String>,
+    is_root: bool,
+) {
     let name = e.value().name();
     if !is_root && (DROP_TAGS.contains(&name) || is_unlikely(e)) {
         return;
@@ -236,7 +255,8 @@ fn serialise_clean(e: &ElementRef, base: &Url, out: &mut String, links: &mut Vec
             match base.join(v) {
                 Ok(u) => {
                     if k == "href" && matches!(u.scheme(), "http" | "https") {
-                        let s = crate::url_norm::normalize_url(u.as_str()).unwrap_or_else(|_| u.to_string());
+                        let s = crate::url_norm::normalize_url(u.as_str())
+                            .unwrap_or_else(|_| u.to_string());
                         if !links.contains(&s) {
                             links.push(s);
                         }
@@ -275,7 +295,10 @@ fn best_candidate<'a>(doc: &'a Html) -> Option<ElementRef<'a>> {
     let mut scores: HashMap<NodeId, f64> = HashMap::new();
     let para = sel("p, pre, blockquote, li, td, h2, h3");
     for p in doc.select(&para) {
-        if p.ancestors().filter_map(ElementRef::wrap).any(|a| DROP_TAGS.contains(&a.value().name()) || is_unlikely(&a)) {
+        if p.ancestors()
+            .filter_map(ElementRef::wrap)
+            .any(|a| DROP_TAGS.contains(&a.value().name()) || is_unlikely(&a))
+        {
             continue;
         }
         let t = text_of(&p);
@@ -296,7 +319,9 @@ fn best_candidate<'a>(doc: &'a Html) -> Option<ElementRef<'a>> {
     }
     let mut best: Option<(ElementRef<'a>, f64)> = None;
     for (id, s) in scores {
-        let Some(e) = doc.tree.get(id).and_then(ElementRef::wrap) else { continue };
+        let Some(e) = doc.tree.get(id).and_then(ElementRef::wrap) else {
+            continue;
+        };
         if matches!(e.value().name(), "html" | "body") {
             continue;
         }
@@ -305,7 +330,8 @@ fn best_candidate<'a>(doc: &'a Html) -> Option<ElementRef<'a>> {
         if LIKELY.is_match(&ci) {
             score *= 1.25;
         }
-        if matches!(e.value().name(), "article" | "main") || e.value().attr("role") == Some("main") {
+        if matches!(e.value().name(), "article" | "main") || e.value().attr("role") == Some("main")
+        {
             score *= 1.5;
         }
         score *= 1.0 - link_density(&e);
@@ -317,30 +343,76 @@ fn best_candidate<'a>(doc: &'a Html) -> Option<ElementRef<'a>> {
     // A paragraph-heavy element inside an <article> is usually the article minus its header:
     // widen to the article when it is not much larger (keeps headings and lede).
     if let Some(b) = best {
-        if let Some(art) = b.ancestors().filter_map(ElementRef::wrap).find(|a| a.value().name() == "article") {
+        if let Some(art) = b
+            .ancestors()
+            .filter_map(ElementRef::wrap)
+            .find(|a| a.value().name() == "article")
+        {
             return Some(art);
         }
         return Some(b);
     }
-    doc.select(&sel("article, main, [role=main]")).next().or_else(|| doc.select(&sel("body")).next())
+    doc.select(&sel("article, main, [role=main]"))
+        .next()
+        .or_else(|| doc.select(&sel("body")).next())
 }
 
 /// Extract metadata and main content from a page fetched from `base`.
 pub fn extract(html: &str, base: &Url) -> Extracted {
     let doc = Html::parse_document(html);
     let mut x = Extracted {
-        title: meta_content(&doc, &["meta[property='og:title']", "meta[name='twitter:title']"]).or_else(|| {
-            doc.select(&sel("title")).next().map(|t| text_of(&t)).filter(|s| !s.is_empty())
+        title: meta_content(
+            &doc,
+            &["meta[property='og:title']", "meta[name='twitter:title']"],
+        )
+        .or_else(|| {
+            doc.select(&sel("title"))
+                .next()
+                .map(|t| text_of(&t))
+                .filter(|s| !s.is_empty())
         }),
-        author: meta_content(&doc, &["meta[name='author']", "meta[property='article:author']"]).or_else(|| {
-            doc.select(&sel("[rel=author], .byline, .author")).next().map(|e| text_of(&e)).filter(|s| !s.is_empty())
+        author: meta_content(
+            &doc,
+            &["meta[name='author']", "meta[property='article:author']"],
+        )
+        .or_else(|| {
+            doc.select(&sel("[rel=author], .byline, .author"))
+                .next()
+                .map(|e| text_of(&e))
+                .filter(|s| !s.is_empty())
         }),
         site_name: meta_content(&doc, &["meta[property='og:site_name']"]),
-        published: meta_content(&doc, &["meta[property='article:published_time']", "meta[name='date']", "meta[itemprop='datePublished']"])
-            .or_else(|| doc.select(&sel("time[datetime]")).next().and_then(|t| t.value().attr("datetime").map(str::to_string))),
-        modified: meta_content(&doc, &["meta[property='article:modified_time']", "meta[itemprop='dateModified']"]),
-        description: meta_content(&doc, &["meta[property='og:description']", "meta[name='description']"]),
-        lang: doc.select(&sel("html")).next().and_then(|h| h.value().attr("lang").map(str::to_string)),
+        published: meta_content(
+            &doc,
+            &[
+                "meta[property='article:published_time']",
+                "meta[name='date']",
+                "meta[itemprop='datePublished']",
+            ],
+        )
+        .or_else(|| {
+            doc.select(&sel("time[datetime]"))
+                .next()
+                .and_then(|t| t.value().attr("datetime").map(str::to_string))
+        }),
+        modified: meta_content(
+            &doc,
+            &[
+                "meta[property='article:modified_time']",
+                "meta[itemprop='dateModified']",
+            ],
+        ),
+        description: meta_content(
+            &doc,
+            &[
+                "meta[property='og:description']",
+                "meta[name='description']",
+            ],
+        ),
+        lang: doc
+            .select(&sel("html"))
+            .next()
+            .and_then(|h| h.value().attr("lang").map(str::to_string)),
         og_type: meta_content(&doc, &["meta[property='og:type']"]),
         canonical: meta_content(&doc, &["link[rel='canonical']", "meta[property='og:url']"])
             .and_then(|c| base.join(&c).ok())
@@ -352,7 +424,8 @@ pub fn extract(html: &str, base: &Url) -> Extracted {
     {
         x.title = None;
     }
-    x.is_article = x.og_type.as_deref() == Some("article") || doc.select(&sel("article")).next().is_some();
+    x.is_article =
+        x.og_type.as_deref() == Some("article") || doc.select(&sel("article")).next().is_some();
     if let Some(root) = best_candidate(&doc) {
         let mut out = String::new();
         let mut links = Vec::new();
@@ -362,7 +435,11 @@ pub fn extract(html: &str, base: &Url) -> Extracted {
         x.links = links;
     }
     if x.title.is_none() {
-        x.title = doc.select(&sel("h1")).next().map(|h| text_of(&h)).filter(|s| !s.is_empty());
+        x.title = doc
+            .select(&sel("h1"))
+            .next()
+            .map(|h| text_of(&h))
+            .filter(|s| !s.is_empty());
     }
     x
 }
@@ -373,7 +450,9 @@ mod tests {
 
     #[test]
     fn html_to_text_keeps_structure() {
-        let t = html_to_text("<h1>Title</h1><p>Hello <b>world</b> and <a href='x'>a link</a>.</p><ul><li>one</li><li>two</li></ul>");
+        let t = html_to_text(
+            "<h1>Title</h1><p>Hello <b>world</b> and <a href='x'>a link</a>.</p><ul><li>one</li><li>two</li></ul>",
+        );
         assert!(t.contains("# Title"), "{t}");
         assert!(t.contains("Hello **world** and a link."), "{t}");
         assert!(t.contains("one") && t.contains("two"), "{t}");

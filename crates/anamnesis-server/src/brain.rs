@@ -17,8 +17,8 @@ use std::sync::{Arc, Mutex};
 use anamnesis_core::{Store, Timestamp};
 use anamnesis_mind::{LayoutViews, MindState};
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 /// Bookkeeping for the background jobs. A cache: losing it only means some work is redone.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -123,7 +123,9 @@ impl Brain {
     }
     pub fn views(&self) -> Option<LayoutViews> {
         let p = self.dir.join("views.json");
-        std::fs::read(p).ok().and_then(|b| serde_json::from_slice(&b).ok())
+        std::fs::read(p)
+            .ok()
+            .and_then(|b| serde_json::from_slice(&b).ok())
     }
     pub fn save_views(&self, v: &LayoutViews) -> Result<()> {
         self.write_json("views.json", v)

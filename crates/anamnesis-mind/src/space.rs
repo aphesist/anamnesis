@@ -16,7 +16,10 @@ pub struct SpaceParams {
 
 impl Default for SpaceParams {
     fn default() -> Self {
-        SpaceParams { reduce_to: 48, k: 15 }
+        SpaceParams {
+            reduce_to: 48,
+            k: 15,
+        }
     }
 }
 
@@ -42,7 +45,12 @@ impl Space {
         let pca = Pca::fit(&normed, k);
         let reduced = pca.transform(&normed);
         let knn = knn_graph(&reduced, params.k);
-        Space { normed, reduced, pca, knn }
+        Space {
+            normed,
+            reduced,
+            pca,
+            knn,
+        }
     }
 
     pub fn len(&self) -> usize {

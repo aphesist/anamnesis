@@ -38,16 +38,25 @@ async fn setup() -> Env {
     app.brain()
         .with_store(|s| Ok(s.set_setting("mind_params", serde_json::to_value(p)?)?))
         .unwrap();
-    let r = importer::import_path(&app.brain(), &fixture()).await.unwrap();
+    let r = importer::import_path(&app.brain(), &fixture())
+        .await
+        .unwrap();
     match r {
         importer::ImportReport::Folder { sync, .. } => assert_eq!(sync.created, 11, "{sync:?}"),
         other => panic!("{other:?}"),
     }
     let rep = jobs::run_jobs_once(&app).await.unwrap();
     assert!(rep.embedded >= 11, "{rep:?}");
-    assert!(rep.mind.as_ref().is_some_and(|m| m.full && m.items == 11), "{rep:?}");
+    assert!(
+        rep.mind.as_ref().is_some_and(|m| m.full && m.items == 11),
+        "{rep:?}"
+    );
     let router = api::router(app.clone());
-    Env { _dir: dir, app, router }
+    Env {
+        _dir: dir,
+        app,
+        router,
+    }
 }
 
 async fn call(r: &Router, method: &str, uri: &str, body: Option<Value>) -> (StatusCode, Value) {
@@ -62,7 +71,8 @@ async fn call(r: &Router, method: &str, uri: &str, body: Option<Value>) -> (Stat
     let res = r.clone().oneshot(b.body(body).unwrap()).await.unwrap();
     let status = res.status();
     let bytes = res.into_body().collect().await.unwrap().to_bytes();
-    let v = serde_json::from_slice(&bytes).unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&bytes).into()));
+    let v = serde_json::from_slice(&bytes)
+        .unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&bytes).into()));
     (status, v)
 }
 
@@ -73,7 +83,12 @@ async fn get(r: &Router, uri: &str) -> Value {
 }
 
 fn id_by_title(cloud: &Value, title: &str) -> String {
-    let i = cloud["titles"].as_array().unwrap().iter().position(|t| t == title).unwrap_or_else(|| panic!("no {title}"));
+    let i = cloud["titles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|t| t == title)
+        .unwrap_or_else(|| panic!("no {title}"));
     cloud["ids"][i].as_str().unwrap().to_string()
 }
 
@@ -98,7 +113,13 @@ async fn cloud_items_search_timeline_lineage() {
     assert!(links.len() >= 5, "{links:?}");
     assert!(links.iter().all(|l| l[2] == "written"));
     // positions are not all at the origin
-    assert!(cloud["xyz"].as_array().unwrap().iter().any(|x| x.as_f64().unwrap().abs() > 1e-3));
+    assert!(
+        cloud["xyz"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|x| x.as_f64().unwrap().abs() > 1e-3)
+    );
     let regions = cloud["regions"].as_array().unwrap();
     assert!(!regions.is_empty(), "regions formed: {cloud}");
     assert!(regions[0]["label"].as_str().is_some_and(|l| !l.is_empty()));
@@ -112,7 +133,10 @@ async fn cloud_items_search_timeline_lineage() {
     let item = get(r, &format!("/api/items/{att}")).await;
     assert_eq!(item["item"]["title"], "attention");
     assert!(item["links_out"].as_array().unwrap().len() >= 2);
-    assert!(!item["threads"].as_array().unwrap().is_empty(), "rule threads: {item}");
+    assert!(
+        !item["threads"].as_array().unwrap().is_empty(),
+        "rule threads: {item}"
+    );
     let (s, _) = call(r, "GET", "/api/items/01NOPE", None).await;
     assert_eq!(s, StatusCode::NOT_FOUND);
 
@@ -126,7 +150,12 @@ async fn cloud_items_search_timeline_lineage() {
     // timeline
     let tl = get(r, "/api/timeline").await;
     assert!(!tl["months"].as_array().unwrap().is_empty());
-    let total: u64 = tl["days"].as_array().unwrap().iter().map(|d| d["count"].as_u64().unwrap()).sum();
+    let total: u64 = tl["days"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| d["count"].as_u64().unwrap())
+        .sum();
     assert_eq!(total, 11);
     assert!(tl["threads_by_month"]["decision"].is_array());
 
@@ -139,7 +168,13 @@ async fn cloud_items_search_timeline_lineage() {
     let th = th["threads"].as_array().unwrap();
     assert!(!th.is_empty());
     let tid = th[0]["id"].as_str().unwrap();
-    let (s, t) = call(r, "POST", &format!("/api/threads/{tid}"), Some(json!({ "status": "resolved" }))).await;
+    let (s, t) = call(
+        r,
+        "POST",
+        &format!("/api/threads/{tid}"),
+        Some(json!({ "status": "resolved" })),
+    )
+    .await;
     assert_eq!(s, StatusCode::OK, "{t}");
     assert_eq!(t["status"], "resolved");
     let (s, _) = call(r, "GET", "/api/threads?kind=nonsense", None).await;
@@ -162,7 +197,13 @@ async fn editor_suggestions_review_eval() {
     assert_eq!(s, StatusCode::OK, "{item}");
     assert_eq!(item["origin"], "owner_written");
     let mid = item["id"].as_str().unwrap().to_string();
-    let (s, upd) = call(r, "PUT", &format!("/api/items/{mid}"), Some(json!({ "title": "mulch and straw" }))).await;
+    let (s, upd) = call(
+        r,
+        "PUT",
+        &format!("/api/items/{mid}"),
+        Some(json!({ "title": "mulch and straw" })),
+    )
+    .await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(upd["title"], "mulch and straw");
     // incremental jobs place the new item without a full rerun
@@ -172,7 +213,11 @@ async fn editor_suggestions_review_eval() {
     assert_eq!(cloud["ids"].as_array().unwrap().len(), 12);
 
     // suggestions: only the shown arm is listed; accept one, dismiss one
-    let all = env.app.brain().with_store(|s| Ok(s.all_suggestions()?)).unwrap();
+    let all = env
+        .app
+        .brain()
+        .with_store(|s| Ok(s.all_suggestions()?))
+        .unwrap();
     assert!(!all.is_empty());
     let shown = all.iter().filter(|s| s.shown).count();
     assert!(shown > 0 && shown <= all.len());
@@ -180,23 +225,49 @@ async fn editor_suggestions_review_eval() {
     let sg = get(r, &format!("/api/suggestions?item={from}")).await;
     let sg = sg["suggestions"].as_array().unwrap().clone();
     assert!(!sg.is_empty());
-    let held: Vec<String> = all.iter().filter(|s| !s.shown).map(|s| s.id.0.clone()).collect();
+    let held: Vec<String> = all
+        .iter()
+        .filter(|s| !s.shown)
+        .map(|s| s.id.0.clone())
+        .collect();
     for x in &sg {
         assert!(!held.contains(&x["suggestion_id"].as_str().unwrap().to_string()));
         assert!(x["to"]["title"].is_string());
     }
     let sid = sg[0]["suggestion_id"].as_str().unwrap();
-    let (s, d) = call(r, "POST", &format!("/api/suggestions/{sid}"), Some(json!({ "accept": true }))).await;
+    let (s, d) = call(
+        r,
+        "POST",
+        &format!("/api/suggestions/{sid}"),
+        Some(json!({ "accept": true })),
+    )
+    .await;
     assert_eq!(s, StatusCode::OK, "{d}");
     assert_eq!(d["status"], "accepted");
     if let Some(x) = sg.get(1) {
         let sid = x["suggestion_id"].as_str().unwrap();
-        let (_, d) = call(r, "POST", &format!("/api/suggestions/{sid}"), Some(json!({ "accept": false }))).await;
+        let (_, d) = call(
+            r,
+            "POST",
+            &format!("/api/suggestions/{sid}"),
+            Some(json!({ "accept": false })),
+        )
+        .await;
         assert_eq!(d["status"], "dismissed");
     }
     if let Some(h) = held.first() {
-        let (s, _) = call(r, "POST", &format!("/api/suggestions/{h}"), Some(json!({ "accept": true }))).await;
-        assert_eq!(s, StatusCode::NOT_FOUND, "held-out suggestions cannot be decided");
+        let (s, _) = call(
+            r,
+            "POST",
+            &format!("/api/suggestions/{h}"),
+            Some(json!({ "accept": true })),
+        )
+        .await;
+        assert_eq!(
+            s,
+            StatusCode::NOT_FOUND,
+            "held-out suggestions cannot be decided"
+        );
     }
 
     // a manual link
@@ -209,14 +280,29 @@ async fn editor_suggestions_review_eval() {
     // review: items with reasons; rate one
     let rv = get(r, "/api/review").await;
     let items = rv["items"].as_array().unwrap();
-    assert!(!items.is_empty(), "the fixture is old enough to resurface: {rv}");
+    assert!(
+        !items.is_empty(),
+        "the fixture is old enough to resurface: {rv}"
+    );
     let rid = items[0]["resurface_id"].as_str().unwrap();
     assert!(items[0]["reason"].is_string());
-    let (s, _) = call(r, "POST", &format!("/api/review/{rid}"), Some(json!({ "useful": true }))).await;
+    let (s, _) = call(
+        r,
+        "POST",
+        &format!("/api/review/{rid}"),
+        Some(json!({ "useful": true })),
+    )
+    .await;
     assert_eq!(s, StatusCode::OK);
 
     // eval: label a query, read the report
-    let (s, _) = call(r, "POST", "/api/eval/label", Some(json!({ "query": "compost", "item_id": id_by_title(&cloud, "compost"), "grade": 3 }))).await;
+    let (s, _) = call(
+        r,
+        "POST",
+        "/api/eval/label",
+        Some(json!({ "query": "compost", "item_id": id_by_title(&cloud, "compost"), "grade": 3 })),
+    )
+    .await;
     assert_eq!(s, StatusCode::OK);
     let ev = get(r, "/api/eval").await;
     for k in ["links", "retrieval", "resurfacing", "growth", "honesty"] {
@@ -229,31 +315,63 @@ async fn editor_suggestions_review_eval() {
     let evs = get(r, "/api/events?after=0&limit=5").await;
     assert_eq!(evs["events"].as_array().unwrap().len(), 5);
     assert_eq!(get(r, "/api/egress").await["entries"], json!([]));
-    let (s, st) = call(r, "PUT", "/api/settings", Some(json!({ "theme": "aphesist", "motion": "reduced" }))).await;
+    let (s, st) = call(
+        r,
+        "PUT",
+        "/api/settings",
+        Some(json!({ "theme": "aphesist", "motion": "reduced" })),
+    )
+    .await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(st["theme"], "aphesist");
     assert_eq!(get(r, "/api/settings").await["motion"], "reduced");
-    let (s, _) = call(r, "PUT", "/api/settings", Some(json!({ "embedder": { "backend": "nope" } }))).await;
+    let (s, _) = call(
+        r,
+        "PUT",
+        "/api/settings",
+        Some(json!({ "embedder": { "backend": "nope" } })),
+    )
+    .await;
     assert_eq!(s, StatusCode::BAD_REQUEST);
     let be = get(r, "/api/backends").await;
-    assert!(be["backends"].as_array().unwrap().iter().any(|b| b["id"] == "retrieval"));
+    assert!(
+        be["backends"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|b| b["id"] == "retrieval")
+    );
     assert_eq!(be["routing"]["chat"], "retrieval");
     assert_eq!(be["embedder"]["status"], "ready");
     let sn = get(r, "/api/mcp/snippets").await;
-    assert!(sn["snippets"]["claude_code_command"].as_str().unwrap().contains("mcp"));
+    assert!(
+        sn["snippets"]["claude_code_command"]
+            .as_str()
+            .unwrap()
+            .contains("mcp")
+    );
     assert!(sn["token"].as_str().unwrap().len() >= 32);
     assert_eq!(get(r, "/api/skills").await["skills"], json!([]));
 
     // the api refuses foreign host names (dns rebinding)
     let res = r
         .clone()
-        .oneshot(Request::get("/api/status").header(header::HOST, "evil.example:7368").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::get("/api/status")
+                .header(header::HOST, "evil.example:7368")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::FORBIDDEN);
 
     // the chain is intact after all of this
-    let rep = env.app.brain().with_store(|s| Ok(s.verify_chain()?)).unwrap();
+    let rep = env
+        .app
+        .brain()
+        .with_store(|s| Ok(s.verify_chain()?))
+        .unwrap();
     assert!(rep.events > 50);
 }
 
@@ -262,26 +380,52 @@ async fn chat_streams_with_citations_and_stores_turns() {
     let env = setup().await;
     let req = Request::post("/api/chat")
         .header(header::CONTENT_TYPE, "application/json")
-        .body(Body::from(json!({ "message": "what do i know about compost?" }).to_string()))
+        .body(Body::from(
+            json!({ "message": "what do i know about compost?" }).to_string(),
+        ))
         .unwrap();
     let res = env.router.clone().oneshot(req).await.unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    assert!(res.headers()[header::CONTENT_TYPE].to_str().unwrap().starts_with("text/event-stream"));
-    let text = String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
-    for ev in ["event: token", "event: cited", "event: usage", "event: done"] {
+    assert!(
+        res.headers()[header::CONTENT_TYPE]
+            .to_str()
+            .unwrap()
+            .starts_with("text/event-stream")
+    );
+    let text =
+        String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
+    for ev in [
+        "event: token",
+        "event: cited",
+        "event: usage",
+        "event: done",
+    ] {
         assert!(text.contains(ev), "{ev} missing in {text}");
     }
-    let done = text.lines().skip_while(|l| *l != "event: done").nth(1).unwrap();
+    let done = text
+        .lines()
+        .skip_while(|l| *l != "event: done")
+        .nth(1)
+        .unwrap();
     let done: Value = serde_json::from_str(done.trim_start_matches("data: ")).unwrap();
     let chat_id = Id(done["chat_id"].as_str().unwrap().into());
-    let turns = env.app.brain().with_store(|s| Ok(s.chat_turns(&chat_id)?)).unwrap();
+    let turns = env
+        .app
+        .brain()
+        .with_store(|s| Ok(s.chat_turns(&chat_id)?))
+        .unwrap();
     assert_eq!(turns.len(), 2);
     assert_eq!(turns[0].role, "user");
     assert!(!turns[1].cited.is_empty());
     let (user, reply) = env
         .app
         .brain()
-        .with_store(|s| Ok((s.get_item(&turns[0].item_id)?.unwrap(), s.get_item(&turns[1].item_id)?.unwrap())))
+        .with_store(|s| {
+            Ok((
+                s.get_item(&turns[0].item_id)?.unwrap(),
+                s.get_item(&turns[1].item_id)?.unwrap(),
+            ))
+        })
         .unwrap();
     assert_eq!(user.origin, Origin::OwnerInChat);
     assert_eq!(reply.origin, Origin::AiGenerated);
@@ -298,13 +442,20 @@ async fn export_import_roundtrip_and_verify() {
     assert!(m.events > 0);
 
     let dir2 = tempfile::tempdir().unwrap();
-    let app2 = App::open(ServerConfig::for_tests(&dir2.path().join("anamnesis")), false).unwrap();
+    let app2 = App::open(
+        ServerConfig::for_tests(&dir2.path().join("anamnesis")),
+        false,
+    )
+    .unwrap();
     match importer::import_path(&app2.brain(), &file).await.unwrap() {
         importer::ImportReport::Bundle { events } => assert_eq!(events, m.events),
         other => panic!("{other:?}"),
     }
     let (a, b) = (
-        env.app.brain().with_store(|s| Ok(s.verify_chain()?)).unwrap(),
+        env.app
+            .brain()
+            .with_store(|s| Ok(s.verify_chain()?))
+            .unwrap(),
         app2.brain().with_store(|s| Ok(s.verify_chain()?)).unwrap(),
     );
     assert_eq!(a.head, b.head);
@@ -336,9 +487,17 @@ async fn mcp_brain_capture_search_link_threads() {
         .await
         .unwrap();
     assert_eq!(item.origin, Origin::AiGenerated);
-    let src = env.app.brain().with_store(|s| Ok(s.get_source(&item.source_id)?.unwrap())).unwrap();
+    let src = env
+        .app
+        .brain()
+        .with_store(|s| Ok(s.get_source(&item.source_id)?.unwrap()))
+        .unwrap();
     assert_eq!(src.connector, "mcp");
-    let ev = env.app.brain().with_store(|s| Ok(s.events_of_type(&["item_created"], 1)?)).unwrap();
+    let ev = env
+        .app
+        .brain()
+        .with_store(|s| Ok(s.events_of_type(&["item_created"], 1)?))
+        .unwrap();
     assert_eq!(ev[0].actor, actor);
 
     jobs::run_jobs_once(&env.app).await.unwrap();
@@ -347,12 +506,19 @@ async fn mcp_brain_capture_search_link_threads() {
 
     let cloud = get(&env.router, "/api/cloud").await;
     let compost = Id(id_by_title(&cloud, "compost"));
-    let l = brain.link(actor.clone(), &item.id, &compost, None).await.unwrap();
+    let l = brain
+        .link(actor.clone(), &item.id, &compost, None)
+        .await
+        .unwrap();
     assert_eq!(l.kind, anamnesis_core::LinkKind::Manual);
 
     let rel = brain.related(&compost, 3).await.unwrap();
     assert!(!rel.neighbours.is_empty());
-    let all = env.app.brain().with_store(|s| Ok(s.all_suggestions()?)).unwrap();
+    let all = env
+        .app
+        .brain()
+        .with_store(|s| Ok(s.all_suggestions()?))
+        .unwrap();
     for s in &rel.suggestions {
         assert!(all.iter().any(|a| a.id == s.suggestion_id && a.shown));
     }
@@ -361,14 +527,20 @@ async fn mcp_brain_capture_search_link_threads() {
     let threads = brain.list_threads(None, None).await.unwrap();
     assert!(!threads.is_empty());
     let t = threads[0].clone();
-    let up = brain.update_thread(actor.clone(), &t.id, ThreadStatus::Abandoned, None).await.unwrap();
+    let up = brain
+        .update_thread(actor.clone(), &t.id, ThreadStatus::Abandoned, None)
+        .await
+        .unwrap();
     assert_eq!(up.status, ThreadStatus::Abandoned);
     env.app
         .brain()
         .with_store(|s| {
             let mut it = s.get_item(&t.item_id)?.unwrap();
             it.privacy = Privacy::LocalOnly;
-            s.append(Actor::User, anamnesis_core::EventKind::ItemUpdated { item: it })?;
+            s.append(
+                Actor::User,
+                anamnesis_core::EventKind::ItemUpdated { item: it },
+            )?;
             Ok(())
         })
         .unwrap();
@@ -376,12 +548,28 @@ async fn mcp_brain_capture_search_link_threads() {
     assert!(threads2.iter().all(|x| x.item_id != t.item_id));
 
     brain
-        .note_egress(actor, anamnesis_mcp::EgressNote { client: "claude-code".into(), purpose: "search".into(), items: vec![item.id.clone()], chars: 42 })
+        .note_egress(
+            actor,
+            anamnesis_mcp::EgressNote {
+                client: "claude-code".into(),
+                purpose: "search".into(),
+                items: vec![item.id.clone()],
+                chars: 42,
+            },
+        )
         .await
         .unwrap();
     let eg = get(&env.router, "/api/egress").await;
     assert_eq!(eg["entries"][0]["kind"]["provider"], "mcp:claude-code");
-    assert!(brain.recent(1).await.unwrap()[0].id == item.id || brain.recent(3).await.unwrap().iter().any(|x| x.id == item.id));
+    assert!(
+        brain.recent(1).await.unwrap()[0].id == item.id
+            || brain
+                .recent(3)
+                .await
+                .unwrap()
+                .iter()
+                .any(|x| x.id == item.id)
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -398,13 +586,23 @@ async fn sources_and_demo() {
     assert_eq!(s, StatusCode::OK, "{rep}");
     assert_eq!(rep["created"], 0);
     // a bad config is refused
-    let (s, _) = call(r, "POST", "/api/sources", Some(json!({ "connector": "folder", "config": {} }))).await;
+    let (s, _) = call(
+        r,
+        "POST",
+        "/api/sources",
+        Some(json!({ "connector": "folder", "config": {} })),
+    )
+    .await;
     assert_eq!(s, StatusCode::BAD_REQUEST);
 
     // a second folder, then removing it deletes its items
     let extra = env._dir.path().join("extra");
     std::fs::create_dir_all(&extra).unwrap();
-    std::fs::write(extra.join("bees.md"), "# bees\n\nbees pollinate the tomatoes and beans.").unwrap();
+    std::fs::write(
+        extra.join("bees.md"),
+        "# bees\n\nbees pollinate the tomatoes and beans.",
+    )
+    .unwrap();
     let (s, added) = call(
         r,
         "POST",
@@ -418,11 +616,19 @@ async fn sources_and_demo() {
     assert_eq!(rep["created"], 1);
     // a rename keeps the item id
     let src2 = Id(id2.to_string());
-    let bees = env.app.brain().with_store(|s| Ok(s.get_item_by_external_id(&src2, "bees.md")?.unwrap())).unwrap();
+    let bees = env
+        .app
+        .brain()
+        .with_store(|s| Ok(s.get_item_by_external_id(&src2, "bees.md")?.unwrap()))
+        .unwrap();
     std::fs::rename(extra.join("bees.md"), extra.join("pollinators.md")).unwrap();
     let (_, rep) = call(r, "POST", &format!("/api/sources/{id2}/sync"), None).await;
     assert_eq!(rep["renamed"], 1, "{rep}");
-    let moved = env.app.brain().with_store(|s| Ok(s.get_item_by_external_id(&src2, "pollinators.md")?.unwrap())).unwrap();
+    let moved = env
+        .app
+        .brain()
+        .with_store(|s| Ok(s.get_item_by_external_id(&src2, "pollinators.md")?.unwrap()))
+        .unwrap();
     assert_eq!(moved.id, bees.id);
     assert!(!moved.deleted);
     let (s, del) = call(r, "DELETE", &format!("/api/sources/{id2}"), None).await;
@@ -454,15 +660,32 @@ async fn demo_brain_is_separate() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tiny_brains_do_not_break_the_jobs() {
     let dir = tempfile::tempdir().unwrap();
-    let app = App::open(ServerConfig::for_tests(&dir.path().join("anamnesis")), false).unwrap();
+    let app = App::open(
+        ServerConfig::for_tests(&dir.path().join("anamnesis")),
+        false,
+    )
+    .unwrap();
     let r = api::router(app.clone());
     // empty brain
     jobs::run_jobs_once(&app).await.unwrap();
     assert_eq!(get(&r, "/api/cloud").await["ids"], json!([]));
     assert_eq!(get(&r, "/api/review").await["items"], json!([]));
     get(&r, "/api/eval").await;
-    for (i, body) in ["one lonely thought", "a second thought, about thinking", "a third, unrelated: bread"].iter().enumerate() {
-        let (s, _) = call(&r, "POST", "/api/items", Some(json!({ "title": format!("n{i}"), "body": body }))).await;
+    for (i, body) in [
+        "one lonely thought",
+        "a second thought, about thinking",
+        "a third, unrelated: bread",
+    ]
+    .iter()
+    .enumerate()
+    {
+        let (s, _) = call(
+            &r,
+            "POST",
+            "/api/items",
+            Some(json!({ "title": format!("n{i}"), "body": body })),
+        )
+        .await;
         assert_eq!(s, StatusCode::OK);
         jobs::run_jobs_once(&app).await.unwrap();
         let cloud = get(&r, "/api/cloud").await;
@@ -516,10 +739,20 @@ mod fake {
             Availability::ready()
         }
         async fn chat(&self, req: ChatRequest) -> Result<ChatStream> {
-            self.prompts.lock().unwrap().push(req.system.clone().unwrap_or_default());
+            self.prompts
+                .lock()
+                .unwrap()
+                .push(req.system.clone().unwrap_or_default());
             let evs = vec![
-                ChatEvent::Token { text: "from your notes [1]".into() },
-                ChatEvent::Usage(Usage { input: 10, output: 4, estimated: false, reported_cost_usd: None }),
+                ChatEvent::Token {
+                    text: "from your notes [1]".into(),
+                },
+                ChatEvent::Usage(Usage {
+                    input: 10,
+                    output: 4,
+                    estimated: false,
+                    reported_cost_usd: None,
+                }),
                 ChatEvent::Done { stop_reason: None },
             ];
             Ok(Box::pin(futures_util::stream::iter(evs)))
@@ -541,8 +774,13 @@ async fn remote_chat_respects_privacy_and_logs_egress() {
     let env = setup().await;
     let prompts = Arc::new(std::sync::Mutex::new(Vec::new()));
     let router = anamnesis_harness::Router::new(
-        vec![Arc::new(fake::Remote { prompts: prompts.clone() })],
-        anamnesis_harness::RoutingSettings { chat: Some("remote".into()), ..Default::default() },
+        vec![Arc::new(fake::Remote {
+            prompts: prompts.clone(),
+        })],
+        anamnesis_harness::RoutingSettings {
+            chat: Some("remote".into()),
+            ..Default::default()
+        },
         Arc::new(anamnesis_harness::Limits::new(Default::default())),
         Default::default(),
     );
@@ -557,30 +795,53 @@ async fn remote_chat_respects_privacy_and_logs_egress() {
             for (id, p) in [(&compost, Privacy::LocalOnly), (&seeds, Privacy::Ask)] {
                 let mut it = s.get_item(id)?.unwrap();
                 it.privacy = p;
-                s.append(Actor::User, anamnesis_core::EventKind::ItemUpdated { item: it })?;
+                s.append(
+                    Actor::User,
+                    anamnesis_core::EventKind::ItemUpdated { item: it },
+                )?;
             }
             Ok(())
         })
         .unwrap();
 
     // an ask item in the context needs consent first
-    let text = chat_text(&env.router, json!({ "message": "seeds compost garden beds" })).await;
+    let text = chat_text(
+        &env.router,
+        json!({ "message": "seeds compost garden beds" }),
+    )
+    .await;
     assert!(text.contains("event: consent_required"), "{text}");
     assert!(text.contains(&seeds.0));
     assert!(prompts.lock().unwrap().is_empty(), "nothing was sent");
 
     // approved: the call goes out, without the local-only item, and is logged
-    let text = chat_text(&env.router, json!({ "message": "seeds compost garden beds", "approved": [seeds] })).await;
+    let text = chat_text(
+        &env.router,
+        json!({ "message": "seeds compost garden beds", "approved": [seeds] }),
+    )
+    .await;
     assert!(text.contains("event: done"), "{text}");
     assert!(text.contains("\"backend\":\"remote\""), "{text}");
     let sent = prompts.lock().unwrap().last().cloned().unwrap();
-    assert!(!sent.contains("turn the compost every week"), "local-only text left the machine");
-    assert!(sent.contains("save seeds"), "approved item is in the prompt");
+    assert!(
+        !sent.contains("turn the compost every week"),
+        "local-only text left the machine"
+    );
+    assert!(
+        sent.contains("save seeds"),
+        "approved item is in the prompt"
+    );
     let eg = get(&env.router, "/api/egress").await;
     let e = &eg["entries"][0]["kind"];
     assert_eq!(e["provider"], "example");
     assert_eq!(e["purpose"], "chat");
-    assert!(!e["items"].as_array().unwrap().iter().any(|i| i == &json!(compost.0)));
+    assert!(
+        !e["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|i| i == &json!(compost.0))
+    );
     assert!(e["chars"].as_u64().unwrap() > 0);
     let be = get(&env.router, "/api/backends").await;
     assert_eq!(be["routing"]["chat"], "remote");

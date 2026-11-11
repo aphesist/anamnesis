@@ -13,28 +13,297 @@ use crate::linalg::{Rows, dot};
 /// function words out of region keywords.
 const STOPWORDS: &[&str] = &[
     // english
-    "the", "and", "for", "are", "but", "not", "you", "all", "any", "can", "had", "her", "was", "one", "our", "out", "day",
-    "get", "has", "him", "his", "how", "man", "new", "now", "old", "see", "two", "way", "who", "boy", "did", "its", "let",
-    "put", "say", "she", "too", "use", "that", "with", "have", "this", "will", "your", "from", "they", "know", "want",
-    "been", "good", "much", "some", "time", "very", "when", "come", "here", "just", "like", "long", "make", "many",
-    "more", "only", "over", "such", "take", "than", "them", "well", "were", "what", "into", "also", "about", "after",
-    "again", "being", "could", "would", "should", "there", "their", "these", "those", "which", "while", "where", "other",
-    "because", "then", "thing", "things", "really", "maybe", "even", "still", "each", "most", "does", "doing", "done",
-    "dont", "don", "isn", "it's", "i'm", "ive", "i've", "yes", "yet", "own", "same", "both", "few", "off", "why", "under",
-    "until", "upon", "via", "per", "within", "without", "through", "between", "into", "onto", "might", "must", "shall",
-    "may", "had", "having", "itself", "myself", "yourself", "ourselves", "themselves", "every", "whom", "whose",
-    "http", "https", "www", "com", "org", "html", "png", "jpg", "pdf", "md",
+    "the",
+    "and",
+    "for",
+    "are",
+    "but",
+    "not",
+    "you",
+    "all",
+    "any",
+    "can",
+    "had",
+    "her",
+    "was",
+    "one",
+    "our",
+    "out",
+    "day",
+    "get",
+    "has",
+    "him",
+    "his",
+    "how",
+    "man",
+    "new",
+    "now",
+    "old",
+    "see",
+    "two",
+    "way",
+    "who",
+    "boy",
+    "did",
+    "its",
+    "let",
+    "put",
+    "say",
+    "she",
+    "too",
+    "use",
+    "that",
+    "with",
+    "have",
+    "this",
+    "will",
+    "your",
+    "from",
+    "they",
+    "know",
+    "want",
+    "been",
+    "good",
+    "much",
+    "some",
+    "time",
+    "very",
+    "when",
+    "come",
+    "here",
+    "just",
+    "like",
+    "long",
+    "make",
+    "many",
+    "more",
+    "only",
+    "over",
+    "such",
+    "take",
+    "than",
+    "them",
+    "well",
+    "were",
+    "what",
+    "into",
+    "also",
+    "about",
+    "after",
+    "again",
+    "being",
+    "could",
+    "would",
+    "should",
+    "there",
+    "their",
+    "these",
+    "those",
+    "which",
+    "while",
+    "where",
+    "other",
+    "because",
+    "then",
+    "thing",
+    "things",
+    "really",
+    "maybe",
+    "even",
+    "still",
+    "each",
+    "most",
+    "does",
+    "doing",
+    "done",
+    "dont",
+    "don",
+    "isn",
+    "it's",
+    "i'm",
+    "ive",
+    "i've",
+    "yes",
+    "yet",
+    "own",
+    "same",
+    "both",
+    "few",
+    "off",
+    "why",
+    "under",
+    "until",
+    "upon",
+    "via",
+    "per",
+    "within",
+    "without",
+    "through",
+    "between",
+    "into",
+    "onto",
+    "might",
+    "must",
+    "shall",
+    "may",
+    "had",
+    "having",
+    "itself",
+    "myself",
+    "yourself",
+    "ourselves",
+    "themselves",
+    "every",
+    "whom",
+    "whose",
+    "http",
+    "https",
+    "www",
+    "com",
+    "org",
+    "html",
+    "png",
+    "jpg",
+    "pdf",
+    "md",
     // portuguese
-    "que", "não", "nao", "uma", "para", "com", "por", "mais", "como", "mas", "foi", "ele", "ela", "das", "dos", "tem",
-    "seu", "sua", "ser", "quando", "muito", "nos", "já", "eu", "também", "tambem", "só", "pelo", "pela", "até", "isso",
-    "entre", "era", "depois", "sem", "mesmo", "aos", "ter", "seus", "quem", "nas", "esse", "eles", "estão", "você",
-    "voce", "tinha", "foram", "essa", "num", "nem", "suas", "meu", "minha", "têm", "numa", "pelos", "elas", "havia",
-    "seja", "qual", "será", "nós", "tenho", "lhe", "deles", "essas", "esses", "pelas", "este", "fosse", "dele", "vocês",
-    "vos", "lhes", "meus", "minhas", "teu", "tua", "teus", "tuas", "nosso", "nossa", "nossos", "nossas", "dela", "delas",
-    "esta", "estes", "estas", "aquele", "aquela", "aqueles", "aquelas", "isto", "aquilo", "estou", "está", "esta",
-    "estamos", "estava", "sobre", "onde", "porque", "então", "entao", "ainda", "sim", "aqui", "ali", "cada", "outro",
-    "outra", "outros", "outras", "todo", "toda", "todos", "todas", "coisa", "coisas", "pode", "fazer", "vai", "vou",
-    "acho", "talvez", "bem", "assim", "agora", "sempre", "nunca", "algo", "alguma", "algum", "quase", "dia",
+    "que",
+    "não",
+    "nao",
+    "uma",
+    "para",
+    "com",
+    "por",
+    "mais",
+    "como",
+    "mas",
+    "foi",
+    "ele",
+    "ela",
+    "das",
+    "dos",
+    "tem",
+    "seu",
+    "sua",
+    "ser",
+    "quando",
+    "muito",
+    "nos",
+    "já",
+    "eu",
+    "também",
+    "tambem",
+    "só",
+    "pelo",
+    "pela",
+    "até",
+    "isso",
+    "entre",
+    "era",
+    "depois",
+    "sem",
+    "mesmo",
+    "aos",
+    "ter",
+    "seus",
+    "quem",
+    "nas",
+    "esse",
+    "eles",
+    "estão",
+    "você",
+    "voce",
+    "tinha",
+    "foram",
+    "essa",
+    "num",
+    "nem",
+    "suas",
+    "meu",
+    "minha",
+    "têm",
+    "numa",
+    "pelos",
+    "elas",
+    "havia",
+    "seja",
+    "qual",
+    "será",
+    "nós",
+    "tenho",
+    "lhe",
+    "deles",
+    "essas",
+    "esses",
+    "pelas",
+    "este",
+    "fosse",
+    "dele",
+    "vocês",
+    "vos",
+    "lhes",
+    "meus",
+    "minhas",
+    "teu",
+    "tua",
+    "teus",
+    "tuas",
+    "nosso",
+    "nossa",
+    "nossos",
+    "nossas",
+    "dela",
+    "delas",
+    "esta",
+    "estes",
+    "estas",
+    "aquele",
+    "aquela",
+    "aqueles",
+    "aquelas",
+    "isto",
+    "aquilo",
+    "estou",
+    "está",
+    "esta",
+    "estamos",
+    "estava",
+    "sobre",
+    "onde",
+    "porque",
+    "então",
+    "entao",
+    "ainda",
+    "sim",
+    "aqui",
+    "ali",
+    "cada",
+    "outro",
+    "outra",
+    "outros",
+    "outras",
+    "todo",
+    "toda",
+    "todos",
+    "todas",
+    "coisa",
+    "coisas",
+    "pode",
+    "fazer",
+    "vai",
+    "vou",
+    "acho",
+    "talvez",
+    "bem",
+    "assim",
+    "agora",
+    "sempre",
+    "nunca",
+    "algo",
+    "alguma",
+    "algum",
+    "quase",
+    "dia",
 ];
 
 /// Lowercase word tokens of length ≥ 3, minus stopwords and pure numbers.
@@ -102,14 +371,28 @@ pub fn fallback_label(keywords: &[String]) -> String {
     if keywords.is_empty() {
         return "unnamed region".to_string();
     }
-    keywords.iter().take(3).map(|k| k.to_lowercase()).collect::<Vec<_>>().join(" · ")
+    keywords
+        .iter()
+        .take(3)
+        .map(|k| k.to_lowercase())
+        .collect::<Vec<_>>()
+        .join(" · ")
 }
 
 /// Representatives of a region: the `n_central` members closest to the
 /// centroid, then `n_diverse` picked by maximal marginal relevance so the
 /// model also sees the region's edges. Returns member positions.
-pub fn representatives(x: &Rows, members: &[usize], centroid: &[f32], n_central: usize, n_diverse: usize) -> Vec<usize> {
-    let mut scored: Vec<(usize, f32)> = members.iter().map(|&i| (i, dot(x.row(i), centroid))).collect();
+pub fn representatives(
+    x: &Rows,
+    members: &[usize],
+    centroid: &[f32],
+    n_central: usize,
+    n_diverse: usize,
+) -> Vec<usize> {
+    let mut scored: Vec<(usize, f32)> = members
+        .iter()
+        .map(|&i| (i, dot(x.row(i), centroid)))
+        .collect();
     scored.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
     let mut chosen: Vec<usize> = scored.iter().take(n_central).map(|&(i, _)| i).collect();
     for _ in 0..n_diverse {
@@ -118,7 +401,10 @@ pub fn representatives(x: &Rows, members: &[usize], centroid: &[f32], n_central:
             if chosen.contains(&i) {
                 continue;
             }
-            let red = chosen.iter().map(|&j| dot(x.row(i), x.row(j))).fold(f32::MIN, f32::max);
+            let red = chosen
+                .iter()
+                .map(|&j| dot(x.row(i), x.row(j)))
+                .fold(f32::MIN, f32::max);
             let mmr = 0.3 * rel - 0.7 * red;
             if best.is_none_or(|(_, b)| mmr > b) {
                 best = Some((i, mmr));
@@ -180,7 +466,10 @@ pub fn label_schema() -> serde_json::Value {
 
 /// Build the labelling prompt. `snippet` maps a representative id to a short
 /// text (title + first lines); ids without a snippet are skipped.
-pub fn label_prompt(inputs: &[RegionLabelInput], snippet: &dyn Fn(&Id) -> Option<String>) -> LabelPrompt {
+pub fn label_prompt(
+    inputs: &[RegionLabelInput],
+    snippet: &dyn Fn(&Id) -> Option<String>,
+) -> LabelPrompt {
     let system = "you name regions of a personal knowledge base. each region is a cluster of notes. \
         answer with a short, concrete, lowercase name (2–5 words) in the language the notes are mostly written in. \
         if a previous label is given, keep it unless the content clearly changed. never invent topics that are not in the snippets. \
@@ -203,7 +492,11 @@ pub fn label_prompt(inputs: &[RegionLabelInput], snippet: &dyn Fn(&Id) -> Option
         }
         user.push('\n');
     }
-    LabelPrompt { system, user, schema: label_schema() }
+    LabelPrompt {
+        system,
+        user,
+        schema: label_schema(),
+    }
 }
 
 /// Parse a labelling answer into `region id → label`, lowercasing and
@@ -212,7 +505,10 @@ pub fn parse_labels(answer: &serde_json::Value) -> HashMap<Id, String> {
     let mut out = HashMap::new();
     if let Some(arr) = answer.get("labels").and_then(|v| v.as_array()) {
         for e in arr {
-            let (Some(id), Some(label)) = (e.get("region_id").and_then(|v| v.as_str()), e.get("label").and_then(|v| v.as_str())) else {
+            let (Some(id), Some(label)) = (
+                e.get("region_id").and_then(|v| v.as_str()),
+                e.get("label").and_then(|v| v.as_str()),
+            ) else {
                 continue;
             };
             let l = label.trim().to_lowercase();
@@ -231,8 +527,16 @@ mod tests {
 
     #[test]
     fn keywords_separate_classes() {
-        let a = vec!["the ethics of attention", "attention and care, ethics", "attention economy ethics"];
-        let b = vec!["sourdough bread recipe", "bread hydration and sourdough starter", "pão de fermentação natural, sourdough"];
+        let a = vec![
+            "the ethics of attention",
+            "attention and care, ethics",
+            "attention economy ethics",
+        ];
+        let b = vec![
+            "sourdough bread recipe",
+            "bread hydration and sourdough starter",
+            "pão de fermentação natural, sourdough",
+        ];
         let kw = c_tf_idf(&[a, b], 3);
         assert!(kw[0].iter().any(|(w, _)| w == "attention"));
         assert!(kw[1].iter().any(|(w, _)| w == "sourdough"));

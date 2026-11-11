@@ -3,7 +3,9 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use anamnesis_connectors::{Batch, ConnectorError, Rename, builtin, list_all, validated_check, validated_list};
+use anamnesis_connectors::{
+    Batch, ConnectorError, Rename, builtin, list_all, validated_check, validated_list,
+};
 use anamnesis_core::{Document, ItemKind, Origin};
 use serde_json::json;
 
@@ -23,14 +25,23 @@ fn copy_dir(from: &Path, to: &Path) {
 fn fixture_vault() -> (tempfile::TempDir, PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().join("vault");
-    copy_dir(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/vault"), &root);
+    copy_dir(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/vault"),
+        &root,
+    );
     (tmp, root)
 }
 
 fn doc<'a>(b: &'a Batch, id: &str) -> &'a Document {
-    b.upserts.iter().find(|d| d.external_id == id).unwrap_or_else(|| {
-        panic!("{id} not in {:?}", b.upserts.iter().map(|d| &d.external_id).collect::<Vec<_>>())
-    })
+    b.upserts
+        .iter()
+        .find(|d| d.external_id == id)
+        .unwrap_or_else(|| {
+            panic!(
+                "{id} not in {:?}",
+                b.upserts.iter().map(|d| &d.external_id).collect::<Vec<_>>()
+            )
+        })
 }
 
 #[tokio::test]
@@ -46,15 +57,29 @@ async fn obsidian_vault_full_then_incremental_with_rename() {
     let mut ids: Vec<_> = b.upserts.iter().map(|d| d.external_id.as_str()).collect();
     ids.sort();
     // .obsidian/ and .trash/ ignored; attachments are not documents.
-    assert_eq!(ids, vec!["2024-03-05.md", "Meno.md", "Recollection.md", "folder/Deep Note.md"]);
+    assert_eq!(
+        ids,
+        vec![
+            "2024-03-05.md",
+            "Meno.md",
+            "Recollection.md",
+            "folder/Deep Note.md"
+        ]
+    );
     assert!(b.deletes.is_empty() && b.renames.is_empty());
 
     let r = doc(&b, "Recollection.md");
     assert_eq!(r.title, "On Recollection");
     assert_eq!(r.kind, ItemKind::Note);
     assert_eq!(r.origin, Origin::OwnerWritten);
-    assert_eq!(r.tags, vec!["philosophy", "plato", "idea", "memory/long-term"]);
-    assert_eq!(r.created_at.unwrap().to_rfc3339(), "2024-03-05T09:30:00+00:00");
+    assert_eq!(
+        r.tags,
+        vec!["philosophy", "plato", "idea", "memory/long-term"]
+    );
+    assert_eq!(
+        r.created_at.unwrap().to_rfc3339(),
+        "2024-03-05T09:30:00+00:00"
+    );
     assert!(r.body.starts_with("# Recollection"), "frontmatter stripped");
     assert_eq!(
         r.refs,
@@ -66,12 +91,23 @@ async fn obsidian_vault_full_then_incremental_with_rename() {
             "https://plato.stanford.edu/entries/meno/",
         ]
     );
-    assert_eq!(r.meta["aliases"], json!(["anamnesis", "learning as remembering"]));
+    assert_eq!(
+        r.meta["aliases"],
+        json!(["anamnesis", "learning as remembering"])
+    );
     let wl = r.meta["wikilinks"].as_array().unwrap();
-    assert_eq!(wl[0], json!({"target": "Meno", "heading": "The slave boy", "alias": "the boy", "embed": false, "resolved": "Meno.md"}));
+    assert_eq!(
+        wl[0],
+        json!({"target": "Meno", "heading": "The slave boy", "alias": "the boy", "embed": false, "resolved": "Meno.md"})
+    );
     assert_eq!(wl[1]["embed"], true);
     assert_eq!(wl[2]["resolved"], serde_json::Value::Null);
-    assert!(r.meta["obsidian_uri"].as_str().unwrap().starts_with("obsidian://open?vault=vault&file=Recollection"));
+    assert!(
+        r.meta["obsidian_uri"]
+            .as_str()
+            .unwrap()
+            .starts_with("obsidian://open?vault=vault&file=Recollection")
+    );
     assert!(r.uri.as_deref().unwrap().starts_with("file://"));
 
     let m = doc(&b, "Meno.md");
@@ -83,30 +119,49 @@ async fn obsidian_vault_full_then_incremental_with_rename() {
     assert_eq!(d.title, "Deep Note");
     assert_eq!(d.kind, ItemKind::Quote, "frontmatter kind");
     assert_eq!(d.tags, vec!["alpha", "beta"]);
-    assert_eq!(d.created_at.unwrap().to_rfc3339(), "2023-12-01T00:00:00+00:00");
+    assert_eq!(
+        d.created_at.unwrap().to_rfc3339(),
+        "2023-12-01T00:00:00+00:00"
+    );
     assert_eq!(d.refs, vec!["Meno.md"], "relative markdown link resolved");
 
     assert_eq!(doc(&b, "2024-03-05.md").kind, ItemKind::Journal);
 
     // Nothing changed → empty batch, same cursor content.
     let cursor = b.next_cursor.clone().unwrap();
-    let b2 = validated_list(c.as_ref(), &config, Some(&cursor)).await.unwrap();
+    let b2 = validated_list(c.as_ref(), &config, Some(&cursor))
+        .await
+        .unwrap();
     assert!(b2.is_empty(), "{b2:?}");
 
     // Rewrite a file with identical content: mtime changes, hash does not → still nothing.
     let meno = std::fs::read(root.join("Meno.md")).unwrap();
     std::thread::sleep(Duration::from_millis(20));
     std::fs::write(root.join("Meno.md"), &meno).unwrap();
-    let b3 = validated_list(c.as_ref(), &config, b2.next_cursor.as_deref()).await.unwrap();
+    let b3 = validated_list(c.as_ref(), &config, b2.next_cursor.as_deref())
+        .await
+        .unwrap();
     assert!(b3.is_empty(), "{b3:?}");
 
     // Move Meno into a folder (same content), edit Deep Note, delete the daily note.
     std::fs::create_dir_all(root.join("Philosophy")).unwrap();
     std::fs::rename(root.join("Meno.md"), root.join("Philosophy/Meno.md")).unwrap();
-    std::fs::write(root.join("folder/Deep Note.md"), "---\ntags: [alpha]\n---\nrewritten, longer than before.\n").unwrap();
+    std::fs::write(
+        root.join("folder/Deep Note.md"),
+        "---\ntags: [alpha]\n---\nrewritten, longer than before.\n",
+    )
+    .unwrap();
     std::fs::remove_file(root.join("2024-03-05.md")).unwrap();
-    let b4 = validated_list(c.as_ref(), &config, b3.next_cursor.as_deref()).await.unwrap();
-    assert_eq!(b4.renames, vec![Rename { from: "Meno.md".into(), to: "Philosophy/Meno.md".into() }]);
+    let b4 = validated_list(c.as_ref(), &config, b3.next_cursor.as_deref())
+        .await
+        .unwrap();
+    assert_eq!(
+        b4.renames,
+        vec![Rename {
+            from: "Meno.md".into(),
+            to: "Philosophy/Meno.md".into()
+        }]
+    );
     assert_eq!(b4.deletes, vec!["2024-03-05.md"]);
     let moved = doc(&b4, "Philosophy/Meno.md");
     assert_eq!(moved.meta["renamed_from"], "Meno.md");
@@ -150,7 +205,9 @@ async fn folder_incremental_cursor_and_ignores() {
     std::fs::write(root.join("a.md"), "# Alpha\n\nfirst, now edited #two").unwrap();
     std::fs::write(root.join("sub/new.md"), "new note").unwrap();
     std::fs::remove_file(root.join("b.txt")).unwrap();
-    let b2 = validated_list(c.as_ref(), &config, b.next_cursor.as_deref()).await.unwrap();
+    let b2 = validated_list(c.as_ref(), &config, b.next_cursor.as_deref())
+        .await
+        .unwrap();
     let mut ids: Vec<_> = b2.upserts.iter().map(|d| d.external_id.as_str()).collect();
     ids.sort();
     assert_eq!(ids, vec!["a.md", "sub/new.md"]);
@@ -161,10 +218,14 @@ async fn folder_incremental_cursor_and_ignores() {
     // Two files with identical content vanish and appear: ambiguous → delete + create.
     std::fs::write(root.join("p.md"), "same").unwrap();
     std::fs::write(root.join("q.md"), "same").unwrap();
-    let b3 = validated_list(c.as_ref(), &config, b2.next_cursor.as_deref()).await.unwrap();
+    let b3 = validated_list(c.as_ref(), &config, b2.next_cursor.as_deref())
+        .await
+        .unwrap();
     std::fs::rename(root.join("p.md"), root.join("p2.md")).unwrap();
     std::fs::rename(root.join("q.md"), root.join("q2.md")).unwrap();
-    let b4 = validated_list(c.as_ref(), &config, b3.next_cursor.as_deref()).await.unwrap();
+    let b4 = validated_list(c.as_ref(), &config, b3.next_cursor.as_deref())
+        .await
+        .unwrap();
     assert!(b4.renames.is_empty());
     assert_eq!(b4.deletes, vec!["p.md", "q.md"]);
     assert_eq!(b4.upserts.len(), 2);
@@ -174,14 +235,18 @@ async fn folder_incremental_cursor_and_ignores() {
 async fn config_is_validated_against_schema() {
     let c = builtin("folder").unwrap();
     match validated_list(c.as_ref(), &json!({ "path": 3 }), None).await {
-        Err(ConnectorError::InvalidConfig(e)) => assert!(e.iter().any(|m| m.contains("/path")), "{e:?}"),
+        Err(ConnectorError::InvalidConfig(e)) => {
+            assert!(e.iter().any(|m| m.contains("/path")), "{e:?}")
+        }
         other => panic!("{other:?}"),
     }
     assert!(matches!(
         validated_list(c.as_ref(), &json!({ "path": "/x", "bogus": true }), None).await,
         Err(ConnectorError::InvalidConfig(_))
     ));
-    let missing = validated_check(c.as_ref(), &json!({ "path": "/definitely/not/here" })).await.unwrap();
+    let missing = validated_check(c.as_ref(), &json!({ "path": "/definitely/not/here" }))
+        .await
+        .unwrap();
     assert!(!missing.ok);
     assert!(matches!(
         validated_list(c.as_ref(), &json!({ "path": "/x" }), Some("not json")).await,
@@ -193,8 +258,14 @@ async fn config_is_validated_against_schema() {
 async fn folder_watch_reports_changes() {
     let tmp = tempfile::tempdir().unwrap();
     let c = builtin("folder").unwrap();
-    let mut w = c.watch(&json!({ "path": tmp.path().to_str().unwrap() })).unwrap().expect("folder can watch");
+    let mut w = c
+        .watch(&json!({ "path": tmp.path().to_str().unwrap() }))
+        .unwrap()
+        .expect("folder can watch");
     std::fs::write(tmp.path().join("new.md"), "hello").unwrap();
-    let n = tokio::time::timeout(Duration::from_secs(5), w.notices.recv()).await.expect("a notice").unwrap();
+    let n = tokio::time::timeout(Duration::from_secs(5), w.notices.recv())
+        .await
+        .expect("a notice")
+        .unwrap();
     assert_eq!(n.external_id.as_deref(), Some("new.md"));
 }

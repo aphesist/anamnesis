@@ -135,14 +135,26 @@ fn open(data: &DataArgs, mut cfg: ServerConfig, demo: bool) -> Result<Arc<App>> 
 
 fn init_tracing() {
     use tracing_subscriber::EnvFilter;
-    let filter = EnvFilter::try_from_env("ANAMNESIS_LOG").unwrap_or_else(|_| EnvFilter::new("info"));
-    let _ = tracing_subscriber::fmt().with_env_filter(filter).with_writer(std::io::stderr).try_init();
+    let filter =
+        EnvFilter::try_from_env("ANAMNESIS_LOG").unwrap_or_else(|_| EnvFilter::new("info"));
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .try_init();
 }
 
 pub async fn run(cli: Cli) -> Result<()> {
     init_tracing();
     match cli.command {
-        Command::Serve { data, port, open: open_browser, ui_dir, demo, demo_bundle, no_detect } => {
+        Command::Serve {
+            data,
+            port,
+            open: open_browser,
+            ui_dir,
+            demo,
+            demo_bundle,
+            no_detect,
+        } => {
             let mut cfg = config(&data, port);
             cfg.ui_dir = crate::ui::locate_ui_dir(ui_dir);
             cfg.demo_bundle = demo_bundle;
@@ -161,8 +173,9 @@ pub async fn run(cli: Cli) -> Result<()> {
                 let app = app.clone();
                 tokio::spawn(async move { app.load_embedder().await });
             }
-            let server = anamnesis_mcp::McpServer::new(crate::mcp_brain::StoreBrain::new(app.clone()))
-                .with_fallback_client("stdio");
+            let server =
+                anamnesis_mcp::McpServer::new(crate::mcp_brain::StoreBrain::new(app.clone()))
+                    .with_fallback_client("stdio");
             anamnesis_mcp::serve_stdio(server).await
         }
         Command::Import { data, path } => {
@@ -170,7 +183,10 @@ pub async fn run(cli: Cli) -> Result<()> {
             let r = crate::importer::import_path(&app.brain(), &path).await?;
             eprintln!("imported: {}", serde_json::to_string(&r)?);
             let j = crate::jobs::run_jobs_once(&app).await?;
-            println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "import": r, "jobs": j }))?);
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({ "import": r, "jobs": j }))?
+            );
             Ok(())
         }
         Command::Export { data, file } => {
@@ -191,12 +207,24 @@ pub async fn run(cli: Cli) -> Result<()> {
             println!("jobs: {}", serde_json::to_string(&j)?);
             Ok(())
         }
-        Command::AddSource { data, connector, name, config: cfg_json } => {
+        Command::AddSource {
+            data,
+            connector,
+            name,
+            config: cfg_json,
+        } => {
             let app = open(&data, config(&data, 7368), false)?;
-            let config: serde_json::Value = serde_json::from_str(&cfg_json).context("--config is not json")?;
+            let config: serde_json::Value =
+                serde_json::from_str(&cfg_json).context("--config is not json")?;
             let src = crate::api::add_source_checked(
                 &app,
-                crate::api::NewSourceArgs { connector, name, config, default_origin: None, default_privacy: None },
+                crate::api::NewSourceArgs {
+                    connector,
+                    name,
+                    config,
+                    default_origin: None,
+                    default_privacy: None,
+                },
             )
             .await
             .map_err(|e| anyhow::anyhow!("{}", e.message()))?;
@@ -208,7 +236,11 @@ pub async fn run(cli: Cli) -> Result<()> {
         Command::Verify { data } => {
             let app = open(&data, config(&data, 7368), false)?;
             let r = app.brain().db(|s| Ok(s.verify_chain()?)).await?;
-            println!("chain ok: {} events, head {}", r.events, r.head.as_deref().unwrap_or("-"));
+            println!(
+                "chain ok: {} events, head {}",
+                r.events,
+                r.head.as_deref().unwrap_or("-")
+            );
             Ok(())
         }
         Command::Eval { data, json } => {
@@ -235,7 +267,10 @@ async fn serve(app: Arc<App>, open_browser: bool) -> Result<()> {
         Some(d) => tracing::info!("ui from {}", d.display()),
         None => tracing::info!("ui: embedded copy (or placeholder)"),
     }
-    tracing::info!("anamnesis listening on {url} (brain: {})", app.brain().dir.display());
+    tracing::info!(
+        "anamnesis listening on {url} (brain: {})",
+        app.brain().dir.display()
+    );
     crate::start_background(&app);
     if open_browser {
         open_url(&url);

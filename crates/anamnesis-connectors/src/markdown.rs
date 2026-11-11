@@ -59,7 +59,10 @@ static URL_RE: LazyLock<Regex> =
 /// Split `---\n yaml \n---` off the start. Returns (yaml, rest).
 pub fn split_frontmatter(text: &str) -> (Option<&str>, &str) {
     let t = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let Some(after) = t.strip_prefix("---\n").or_else(|| t.strip_prefix("---\r\n")) else {
+    let Some(after) = t
+        .strip_prefix("---\n")
+        .or_else(|| t.strip_prefix("---\r\n"))
+    else {
         return (None, text);
     };
     // Find a closing line that is exactly `---` (or `...`).
@@ -80,12 +83,21 @@ pub fn split_frontmatter(text: &str) -> (Option<&str>, &str) {
 /// YAML ints/floats/bools.
 pub fn yaml_to_json(src: &str) -> Result<Value, String> {
     let docs = YamlLoader::load_from_str(src).map_err(|e| e.to_string())?;
-    Ok(docs.into_iter().next().map(|y| conv(&y)).unwrap_or(Value::Null))
+    Ok(docs
+        .into_iter()
+        .next()
+        .map(|y| conv(&y))
+        .unwrap_or(Value::Null))
 }
 
 fn conv(y: &Yaml) -> Value {
     match y {
-        Yaml::Real(s) => s.parse::<f64>().ok().and_then(serde_json::Number::from_f64).map(Value::Number).unwrap_or(Value::String(s.clone())),
+        Yaml::Real(s) => s
+            .parse::<f64>()
+            .ok()
+            .and_then(serde_json::Number::from_f64)
+            .map(Value::Number)
+            .unwrap_or(Value::String(s.clone())),
         Yaml::Integer(i) => Value::from(*i),
         Yaml::String(s) => Value::String(s.clone()),
         Yaml::Boolean(b) => Value::Bool(*b),
@@ -117,7 +129,12 @@ pub fn parse_date(s: &str) -> Option<Timestamp> {
     if let Ok(t) = chrono::DateTime::parse_from_rfc2822(s) {
         return Some(t.with_timezone(&Utc));
     }
-    for f in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"] {
+    for f in [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M",
+    ] {
         if let Ok(t) = NaiveDateTime::parse_from_str(s, f) {
             return Some(Utc.from_utc_datetime(&t));
         }
@@ -172,7 +189,10 @@ fn push_unique(v: &mut Vec<String>, s: String) {
 /// Split `note#heading` into (note, heading).
 fn split_heading(dest: &str) -> (String, Option<String>) {
     match dest.split_once('#') {
-        Some((t, h)) => (t.trim().to_string(), Some(h.trim().to_string()).filter(|h| !h.is_empty())),
+        Some((t, h)) => (
+            t.trim().to_string(),
+            Some(h.trim().to_string()).filter(|h| !h.is_empty()),
+        ),
         None => (dest.trim().to_string(), None),
     }
 }
@@ -181,13 +201,20 @@ pub fn inline_tags(text: &str) -> impl Iterator<Item = String> + '_ {
     TAG_RE.captures_iter(text).filter_map(|c| {
         let t = c.get(1)?.as_str().trim_end_matches(['/', '-']);
         // Obsidian: a tag needs at least one non-digit.
-        if t.is_empty() || t.chars().all(|c| c.is_ascii_digit()) { None } else { Some(t.to_string()) }
+        if t.is_empty() || t.chars().all(|c| c.is_ascii_digit()) {
+            None
+        } else {
+            Some(t.to_string())
+        }
     })
 }
 
 pub fn parse(text: &str) -> Parsed {
     let (yaml, body) = split_frontmatter(text);
-    let mut p = Parsed { body: body.to_string(), ..Default::default() };
+    let mut p = Parsed {
+        body: body.to_string(),
+        ..Default::default()
+    };
     if let Some(y) = yaml {
         match yaml_to_json(y) {
             Ok(v @ Value::Object(_)) => p.frontmatter = v,
@@ -197,13 +224,26 @@ pub fn parse(text: &str) -> Parsed {
         }
     }
     let fm = p.frontmatter.as_object().cloned().unwrap_or_default();
-    p.title = fm.get("title").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+    p.title = fm
+        .get("title")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
     p.aliases = string_list(fm.get("aliases").or_else(|| fm.get("alias")), false);
     for t in string_list(fm.get("tags").or_else(|| fm.get("tag")), true) {
         push_unique(&mut p.tags, t.trim_start_matches('#').to_string());
     }
-    p.created = value_date(fm.get("created").or_else(|| fm.get("date")).or_else(|| fm.get("created_at")));
-    p.modified = value_date(fm.get("modified").or_else(|| fm.get("updated")).or_else(|| fm.get("updated_at")));
+    p.created = value_date(
+        fm.get("created")
+            .or_else(|| fm.get("date"))
+            .or_else(|| fm.get("created_at")),
+    );
+    p.modified = value_date(
+        fm.get("modified")
+            .or_else(|| fm.get("updated"))
+            .or_else(|| fm.get("updated_at")),
+    );
 
     let opts = Options::ENABLE_WIKILINKS
         | Options::ENABLE_TABLES
@@ -219,31 +259,74 @@ pub fn parse(text: &str) -> Parsed {
         match ev {
             Event::Start(Tag::CodeBlock(_)) => in_code += 1,
             Event::End(TagEnd::CodeBlock) => in_code = in_code.saturating_sub(1),
-            Event::Start(Tag::Heading { level: HeadingLevel::H1, .. }) if h1.is_none() => {
+            Event::Start(Tag::Heading {
+                level: HeadingLevel::H1,
+                ..
+            }) if h1.is_none() => {
                 in_h1 = true;
                 h1 = Some(String::new());
             }
             Event::End(TagEnd::Heading(HeadingLevel::H1)) => in_h1 = false,
-            Event::Start(Tag::Link { link_type: LinkType::WikiLink { has_pothole }, dest_url, .. }) => {
+            Event::Start(Tag::Link {
+                link_type: LinkType::WikiLink { has_pothole },
+                dest_url,
+                ..
+            }) => {
                 let (target, heading) = split_heading(&dest_url);
-                wl = Some((WikiLink { target, heading, alias: None, embed: false }, has_pothole, String::new()));
+                wl = Some((
+                    WikiLink {
+                        target,
+                        heading,
+                        alias: None,
+                        embed: false,
+                    },
+                    has_pothole,
+                    String::new(),
+                ));
             }
-            Event::Start(Tag::Image { link_type: LinkType::WikiLink { has_pothole }, dest_url, .. }) => {
+            Event::Start(Tag::Image {
+                link_type: LinkType::WikiLink { has_pothole },
+                dest_url,
+                ..
+            }) => {
                 let (target, heading) = split_heading(&dest_url);
-                wl = Some((WikiLink { target, heading, alias: None, embed: true }, has_pothole, String::new()));
+                wl = Some((
+                    WikiLink {
+                        target,
+                        heading,
+                        alias: None,
+                        embed: true,
+                    },
+                    has_pothole,
+                    String::new(),
+                ));
             }
             Event::End(TagEnd::Link) | Event::End(TagEnd::Image) if wl.is_some() => {
                 let (mut link, piped, text) = wl.take().unwrap();
                 if piped && !text.trim().is_empty() {
                     link.alias = Some(text.trim().to_string());
                 }
-                if (!link.target.is_empty() || link.heading.is_some()) && !p.wikilinks.contains(&link) {
+                if (!link.target.is_empty() || link.heading.is_some())
+                    && !p.wikilinks.contains(&link)
+                {
                     p.wikilinks.push(link);
                 }
             }
-            Event::Start(Tag::Link { dest_url, link_type, .. }) | Event::Start(Tag::Image { dest_url, link_type, .. }) => {
+            Event::Start(Tag::Link {
+                dest_url,
+                link_type,
+                ..
+            })
+            | Event::Start(Tag::Image {
+                dest_url,
+                link_type,
+                ..
+            }) => {
                 let d = dest_url.trim();
-                let skip = d.is_empty() || d.starts_with('#') || matches!(link_type, LinkType::Email) || d.starts_with("mailto:");
+                let skip = d.is_empty()
+                    || d.starts_with('#')
+                    || matches!(link_type, LinkType::Email)
+                    || d.starts_with("mailto:");
                 if !skip {
                     push_unique(&mut p.links, d.to_string());
                 }
@@ -295,7 +378,18 @@ mod tests {
         assert_eq!(p.tags, vec!["philosophy", "plato", "idea", "nested/tag"]);
         assert_eq!(p.created.unwrap().to_rfc3339(), "2024-03-05T00:00:00+00:00");
         assert!(p.body.starts_with("# Heading"));
-        let targets: Vec<_> = p.wikilinks.iter().map(|w| (w.target.as_str(), w.heading.as_deref(), w.alias.as_deref(), w.embed)).collect();
+        let targets: Vec<_> = p
+            .wikilinks
+            .iter()
+            .map(|w| {
+                (
+                    w.target.as_str(),
+                    w.heading.as_deref(),
+                    w.alias.as_deref(),
+                    w.embed,
+                )
+            })
+            .collect();
         assert_eq!(
             targets,
             vec![
@@ -305,7 +399,13 @@ mod tests {
                 ("folder/Other Note", None, None, false),
             ]
         );
-        assert_eq!(p.links, vec!["https://example.com/a", "https://plato.stanford.edu/entries/plato"]);
+        assert_eq!(
+            p.links,
+            vec![
+                "https://example.com/a",
+                "https://plato.stanford.edu/entries/plato"
+            ]
+        );
     }
 
     #[test]

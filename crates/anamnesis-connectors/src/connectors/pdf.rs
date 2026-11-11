@@ -56,7 +56,12 @@ pub fn pdf_manifest() -> Manifest {
                 "max_file_bytes": {"type": "integer", "minimum": 1}
             }
         }),
-        capabilities: vec![Capability::Check, Capability::Incremental, Capability::Deletes, Capability::Renames],
+        capabilities: vec![
+            Capability::Check,
+            Capability::Incremental,
+            Capability::Deletes,
+            Capability::Renames,
+        ],
         network_hosts: vec![],
         fs_paths: vec!["<config.path>".into()],
         default_origin: Origin::External,
@@ -91,16 +96,20 @@ fn info_string(doc: &pdf_extract::Document, key: &[u8]) -> Option<String> {
         pdf_extract::Object::Reference(id) => doc.get_object(*id).ok()?,
         v => v,
     };
-    pdf_extract::decode_text_string(v).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    pdf_extract::decode_text_string(v)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 /// Extract per-page text and document info. Never panics: pdf-extract can panic on
 /// malformed input, which is caught and turned into an error.
 pub fn extract_pdf(bytes: &[u8]) -> Result<PdfText> {
     let owned = bytes.to_vec();
-    let pages = std::panic::catch_unwind(move || pdf_extract::extract_text_from_mem_by_pages(&owned))
-        .map_err(|_| ConnectorError::Parse("pdf extractor panicked on this file".into()))?
-        .map_err(|e| ConnectorError::Parse(format!("pdf: {e}")))?;
+    let pages =
+        std::panic::catch_unwind(move || pdf_extract::extract_text_from_mem_by_pages(&owned))
+            .map_err(|_| ConnectorError::Parse("pdf extractor panicked on this file".into()))?
+            .map_err(|e| ConnectorError::Parse(format!("pdf: {e}")))?;
     let mut body = String::new();
     let mut spans = Vec::with_capacity(pages.len());
     for (i, p) in pages.iter().enumerate() {
@@ -146,7 +155,8 @@ fn normalise_page(p: &str) -> String {
 
 impl PdfConnector {
     fn cfg(config: &Value) -> Result<PdfConfig> {
-        serde_json::from_value(config.clone()).map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
+        serde_json::from_value(config.clone())
+            .map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
     }
 
     fn options(cfg: &PdfConfig) -> ScanOptions {
@@ -193,11 +203,17 @@ impl Connector for PdfConnector {
             let mut scanned = scan::scan(&opts, &prev)?;
             let mut upserts = Vec::new();
             for f in &scanned.changed {
-                let stem = Path::new(&f.rel).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+                let stem = Path::new(&f.rel)
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_default();
                 let (body, mut meta, title) = match extract_pdf(&f.bytes) {
                     Ok(t) => {
-                        let pages: Vec<Value> =
-                            t.pages.iter().map(|(n, s, e)| json!({"page": n, "start": s, "end": e})).collect();
+                        let pages: Vec<Value> = t
+                            .pages
+                            .iter()
+                            .map(|(n, s, e)| json!({"page": n, "start": s, "end": e}))
+                            .collect();
                         let meta = json!({
                             "pages": pages,
                             "page_count": t.page_count,
@@ -211,7 +227,11 @@ impl Connector for PdfConnector {
                     Err(e) => {
                         // Keep the document so the user sees it; record why it is empty.
                         tracing::warn!(path = %f.rel, error = %e, "pdf text extraction failed");
-                        (String::new(), json!({"extract_error": e.to_string(), "text_layer": false}), stem)
+                        (
+                            String::new(),
+                            json!({"extract_error": e.to_string(), "text_layer": false}),
+                            stem,
+                        )
                     }
                 };
                 meta["path"] = json!(f.rel);

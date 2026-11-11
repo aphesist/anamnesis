@@ -92,7 +92,8 @@ pub fn clip_html(page: &str, fetched_url: &str, cfg: &WebConfig) -> Result<Docum
     let base = Url::parse(fetched_url).map_err(|e| ConnectorError::Parse(format!("url: {e}")))?;
     let mut x = html::extract(page, &base);
     if let Some(s) = &cfg.selector {
-        let selector = scraper::Selector::parse(s).map_err(|e| ConnectorError::InvalidConfig(vec![format!("selector: {e}")]))?;
+        let selector = scraper::Selector::parse(s)
+            .map_err(|e| ConnectorError::InvalidConfig(vec![format!("selector: {e}")]))?;
         let doc = scraper::Html::parse_document(page);
         if let Some(el) = doc.select(&selector).next() {
             x.content_html = el.html();
@@ -107,7 +108,11 @@ pub fn clip_html(page: &str, fetched_url: &str, cfg: &WebConfig) -> Result<Docum
         .filter(|c| c.host_str() == base.host_str())
         .and_then(|c| normalize_url(c.as_str()).ok())
         .unwrap_or_else(|| fetched_norm.clone());
-    let kind = cfg.kind.unwrap_or(if x.is_article { ItemKind::Article } else { ItemKind::Clip });
+    let kind = cfg.kind.unwrap_or(if x.is_article {
+        ItemKind::Article
+    } else {
+        ItemKind::Clip
+    });
     let title = x.title.clone().unwrap_or_else(|| canonical.clone());
     let meta = json!({
         "canonical_url": canonical,
@@ -138,7 +143,8 @@ pub fn clip_html(page: &str, fetched_url: &str, cfg: &WebConfig) -> Result<Docum
 
 impl WebConnector {
     fn cfg(config: &Value) -> Result<WebConfig> {
-        serde_json::from_value(config.clone()).map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
+        serde_json::from_value(config.clone())
+            .map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
     }
 }
 
@@ -150,9 +156,19 @@ impl Connector for WebConnector {
 
     async fn check(&self, config: &Value) -> Result<CheckReport> {
         let cfg = Self::cfg(config)?;
-        let f = match http::get(&cfg.url, &[], Duration::from_secs(cfg.timeout_secs.unwrap_or(30))).await {
+        let f = match http::get(
+            &cfg.url,
+            &[],
+            Duration::from_secs(cfg.timeout_secs.unwrap_or(30)),
+        )
+        .await
+        {
             Ok(f) => f,
-            Err(e) => return Ok(CheckReport::failed(format!("could not reach the page: {e}"))),
+            Err(e) => {
+                return Ok(CheckReport::failed(format!(
+                    "could not reach the page: {e}"
+                )));
+            }
         };
         Ok(match http::ensure_ok(&f, false) {
             Ok(()) => CheckReport::ok(format!("page answered ({} bytes)", f.bytes.len())),
@@ -163,17 +179,33 @@ impl Connector for WebConnector {
     async fn list(&self, config: &Value, cursor: Option<&str>) -> Result<Batch> {
         let cfg = Self::cfg(config)?;
         let prev: Option<WebCursor> = match cursor {
-            Some(c) => Some(serde_json::from_str(c).map_err(|e| ConnectorError::BadCursor(e.to_string()))?),
+            Some(c) => Some(
+                serde_json::from_str(c).map_err(|e| ConnectorError::BadCursor(e.to_string()))?,
+            ),
             None => None,
         };
         if prev.is_some() && !cfg.refetch {
-            return Ok(Batch { next_cursor: cursor.map(str::to_owned), ..Default::default() });
+            return Ok(Batch {
+                next_cursor: cursor.map(str::to_owned),
+                ..Default::default()
+            });
         }
-        let f = http::get(&cfg.url, &[("accept".to_string(), "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5".to_string())], Duration::from_secs(cfg.timeout_secs.unwrap_or(30))).await?;
+        let f = http::get(
+            &cfg.url,
+            &[(
+                "accept".to_string(),
+                "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5".to_string(),
+            )],
+            Duration::from_secs(cfg.timeout_secs.unwrap_or(30)),
+        )
+        .await?;
         http::ensure_ok(&f, false)?;
         let ct = f.header("content-type").unwrap_or_default();
         if !ct.is_empty() && !ct.contains("html") && !ct.contains("text/") {
-            return Err(ConnectorError::Unsupported(format!("{} is {ct}, not a web page", cfg.url)));
+            return Err(ConnectorError::Unsupported(format!(
+                "{} is {ct}, not a web page",
+                cfg.url
+            )));
         }
         let page = String::from_utf8_lossy(&f.bytes);
         let mut doc = clip_html(&page, &f.final_url, &cfg)?;
@@ -181,7 +213,11 @@ impl Connector for WebConnector {
             doc.external_id = p.external_id.clone();
         }
         let hash = sha256_hex(doc.body.as_bytes());
-        let next = WebCursor { v: 1, external_id: doc.external_id.clone(), hash: hash.clone() };
+        let next = WebCursor {
+            v: 1,
+            external_id: doc.external_id.clone(),
+            hash: hash.clone(),
+        };
         let changed = prev.as_ref().is_none_or(|p| p.hash != hash);
         Ok(Batch {
             upserts: if changed { vec![doc] } else { vec![] },
@@ -227,19 +263,43 @@ mod tests {
 
     #[test]
     fn extracts_main_content() {
-        let d = clip_html(PAGE, "https://garden.example/essays/recollection?fbclid=1", &WebConfig::default()).unwrap();
+        let d = clip_html(
+            PAGE,
+            "https://garden.example/essays/recollection?fbclid=1",
+            &WebConfig::default(),
+        )
+        .unwrap();
         assert_eq!(d.external_id, "https://garden.example/essays/recollection");
         assert_eq!(d.title, "On Recollection");
         assert_eq!(d.kind, ItemKind::Article);
         assert_eq!(d.origin, Origin::External);
-        assert!(d.body.contains("learning is a kind of recollection"), "{}", d.body);
+        assert!(
+            d.body.contains("learning is a kind of recollection"),
+            "{}",
+            d.body
+        );
         assert!(d.body.contains("doubling of the square"));
-        for junk in ["should not appear", "color:red", "newsletter", "Copyright", "share this post", "search", "about"] {
-            assert!(!d.body.contains(junk), "body contains {junk:?}:\n{}", d.body);
+        for junk in [
+            "should not appear",
+            "color:red",
+            "newsletter",
+            "Copyright",
+            "share this post",
+            "search",
+            "about",
+        ] {
+            assert!(
+                !d.body.contains(junk),
+                "body contains {junk:?}:\n{}",
+                d.body
+            );
         }
         assert_eq!(d.meta["author"], "Ana Mnesis");
         assert_eq!(d.meta["site_name"], "Garden");
-        assert_eq!(d.created_at.unwrap().to_rfc3339(), "2024-03-05T10:00:00+00:00");
+        assert_eq!(
+            d.created_at.unwrap().to_rfc3339(),
+            "2024-03-05T10:00:00+00:00"
+        );
         assert_eq!(d.refs, vec!["https://garden.example/essays/meno"]);
     }
 
@@ -251,7 +311,10 @@ mod tests {
         assert_eq!(d.external_id, "https://site.example/page");
         assert_eq!(d.kind, ItemKind::Clip);
         assert!(d.body.contains("alpha"));
-        let cfg = WebConfig { selector: Some("#b".into()), ..Default::default() };
+        let cfg = WebConfig {
+            selector: Some("#b".into()),
+            ..Default::default()
+        };
         let d = clip_html(page, "https://site.example/page/", &cfg).unwrap();
         assert_eq!(d.body.trim(), "beta");
     }
@@ -259,7 +322,10 @@ mod tests {
     #[tokio::test]
     #[ignore = "network"]
     async fn live_clip() {
-        let b = WebConnector.list(&json!({"url": "https://www.rust-lang.org/"}), None).await.unwrap();
+        let b = WebConnector
+            .list(&json!({"url": "https://www.rust-lang.org/"}), None)
+            .await
+            .unwrap();
         assert_eq!(b.upserts.len(), 1);
     }
 }

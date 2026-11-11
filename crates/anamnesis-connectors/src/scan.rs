@@ -41,11 +41,18 @@ pub struct FileCursor {
 impl FileCursor {
     pub fn parse(s: Option<&str>) -> Result<Self> {
         match s {
-            None => Ok(FileCursor { v: CURSOR_VERSION, files: BTreeMap::new() }),
+            None => Ok(FileCursor {
+                v: CURSOR_VERSION,
+                files: BTreeMap::new(),
+            }),
             Some(s) => {
-                let c: FileCursor = serde_json::from_str(s).map_err(|e| ConnectorError::BadCursor(e.to_string()))?;
+                let c: FileCursor = serde_json::from_str(s)
+                    .map_err(|e| ConnectorError::BadCursor(e.to_string()))?;
                 if c.v != CURSOR_VERSION {
-                    return Err(ConnectorError::BadCursor(format!("cursor version {} unknown", c.v)));
+                    return Err(ConnectorError::BadCursor(format!(
+                        "cursor version {} unknown",
+                        c.v
+                    )));
                 }
                 Ok(c)
             }
@@ -115,16 +122,23 @@ pub fn build_ignore(patterns: &[String]) -> Result<GlobSet> {
             continue;
         }
         let p = p.trim_end_matches('/');
-        let base = if p.contains('/') { p.trim_start_matches('/').to_string() } else { format!("**/{p}") };
+        let base = if p.contains('/') {
+            p.trim_start_matches('/').to_string()
+        } else {
+            format!("**/{p}")
+        };
         for pat in [base.clone(), format!("{base}/**")] {
             let g = GlobBuilder::new(&pat)
                 .literal_separator(true)
                 .build()
-                .map_err(|e| ConnectorError::InvalidConfig(vec![format!("ignore glob {p:?}: {e}")]))?;
+                .map_err(|e| {
+                    ConnectorError::InvalidConfig(vec![format!("ignore glob {p:?}: {e}")])
+                })?;
             b.add(g);
         }
     }
-    b.build().map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
+    b.build()
+        .map_err(|e| ConnectorError::InvalidConfig(vec![e.to_string()]))
 }
 
 fn to_ts(t: std::io::Result<std::time::SystemTime>) -> Option<Timestamp> {
@@ -141,8 +155,15 @@ fn mtime_ns(m: &std::fs::Metadata) -> i64 {
 
 fn rel_string(root: &Path, p: &Path) -> Option<String> {
     let rel = p.strip_prefix(root).ok()?;
-    let parts: Vec<String> = rel.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
-    if parts.is_empty() { None } else { Some(parts.join("/")) }
+    let parts: Vec<String> = rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("/"))
+    }
 }
 
 /// Blocking: walks the tree and reads changed files. Run it on a blocking thread.
@@ -150,13 +171,25 @@ pub fn scan(opts: &ScanOptions, prev: &FileCursor) -> Result<ScanResult> {
     let root = &opts.root;
     let md = std::fs::metadata(root).map_err(|e| ConnectorError::io(root, e))?;
     if !md.is_dir() {
-        return Err(ConnectorError::InvalidConfig(vec![format!("{} is not a directory", root.display())]));
+        return Err(ConnectorError::InvalidConfig(vec![format!(
+            "{} is not a directory",
+            root.display()
+        )]));
     }
     let ignore = build_ignore(&opts.ignore)?;
-    let mut out = ScanResult { next: FileCursor { v: CURSOR_VERSION, files: BTreeMap::new() }, ..Default::default() };
+    let mut out = ScanResult {
+        next: FileCursor {
+            v: CURSOR_VERSION,
+            files: BTreeMap::new(),
+        },
+        ..Default::default()
+    };
 
     let max_depth = if opts.only.is_some() { 1 } else { usize::MAX };
-    let walker = walkdir::WalkDir::new(root).max_depth(max_depth).follow_links(opts.follow_symlinks).sort_by_file_name();
+    let walker = walkdir::WalkDir::new(root)
+        .max_depth(max_depth)
+        .follow_links(opts.follow_symlinks)
+        .sort_by_file_name();
     let iter = walker.into_iter().filter_entry(|e| {
         if e.depth() == 0 {
             return true;
@@ -181,11 +214,17 @@ pub fn scan(opts: &ScanOptions, prev: &FileCursor) -> Result<ScanResult> {
         if !entry.file_type().is_file() {
             continue;
         }
-        let Some(rel) = rel_string(root, entry.path()) else { continue };
+        let Some(rel) = rel_string(root, entry.path()) else {
+            continue;
+        };
         if opts.only.as_ref().is_some_and(|o| o != &rel) {
             continue;
         }
-        let ext = entry.path().extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+        let ext = entry
+            .path()
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
         if !opts.extensions.iter().any(|x| x == &ext) {
             out.other_paths.push(rel);
             continue;
@@ -223,7 +262,14 @@ pub fn scan(opts: &ScanOptions, prev: &FileCursor) -> Result<ScanResult> {
             }
         };
         let hash = sha256_hex(&bytes);
-        out.next.files.insert(rel.clone(), FileState { mtime_ns: state_now.0, size: state_now.1, hash: hash.clone() });
+        out.next.files.insert(
+            rel.clone(),
+            FileState {
+                mtime_ns: state_now.0,
+                size: state_now.1,
+                hash: hash.clone(),
+            },
+        );
         out.all_paths.push(rel.clone());
         if old.is_some_and(|o| o.hash == hash) {
             continue;
@@ -233,28 +279,46 @@ pub fn scan(opts: &ScanOptions, prev: &FileCursor) -> Result<ScanResult> {
             abs: entry.path().to_path_buf(),
             bytes,
             hash,
-            meta: FileMeta { size: meta.len(), modified: to_ts(meta.modified()), created: to_ts(meta.created()) },
+            meta: FileMeta {
+                size: meta.len(),
+                modified: to_ts(meta.modified()),
+                created: to_ts(meta.created()),
+            },
             is_new: old.is_none(),
         });
     }
 
-    let mut deleted: Vec<String> = prev.files.keys().filter(|k| !out.next.files.contains_key(*k)).cloned().collect();
+    let mut deleted: Vec<String> = prev
+        .files
+        .keys()
+        .filter(|k| !out.next.files.contains_key(*k))
+        .cloned()
+        .collect();
 
     // Rename detection: unique hash match between a vanished file and a new file.
     let mut new_by_hash: HashMap<&str, Vec<&str>> = HashMap::new();
     for c in out.changed.iter().filter(|c| c.is_new) {
-        new_by_hash.entry(c.hash.as_str()).or_default().push(c.rel.as_str());
+        new_by_hash
+            .entry(c.hash.as_str())
+            .or_default()
+            .push(c.rel.as_str());
     }
     let mut gone_by_hash: HashMap<&str, Vec<&str>> = HashMap::new();
     for d in &deleted {
-        gone_by_hash.entry(prev.files[d].hash.as_str()).or_default().push(d.as_str());
+        gone_by_hash
+            .entry(prev.files[d].hash.as_str())
+            .or_default()
+            .push(d.as_str());
     }
     let mut renames = Vec::new();
     for (hash, gone) in &gone_by_hash {
         if let (1, Some(new)) = (gone.len(), new_by_hash.get(hash))
             && new.len() == 1
         {
-            renames.push(Rename { from: gone[0].to_string(), to: new[0].to_string() });
+            renames.push(Rename {
+                from: gone[0].to_string(),
+                to: new[0].to_string(),
+            });
         }
     }
     renames.sort_by(|a, b| a.from.cmp(&b.from));
@@ -277,7 +341,9 @@ pub struct Resolver {
 
 fn stem_of(p: &str) -> &str {
     let name = p.rsplit('/').next().unwrap_or(p);
-    name.strip_suffix(".md").or_else(|| name.strip_suffix(".markdown")).unwrap_or(name)
+    name.strip_suffix(".md")
+        .or_else(|| name.strip_suffix(".markdown"))
+        .unwrap_or(name)
 }
 
 impl Resolver {
@@ -288,13 +354,23 @@ impl Resolver {
             r.by_path.insert(low.clone(), p.clone());
             let is_note = low.ends_with(".md") || low.ends_with(".markdown");
             if is_note {
-                r.by_path_noext.insert(stem_path(&low).to_string(), p.clone());
+                r.by_path_noext
+                    .insert(stem_path(&low).to_string(), p.clone());
             }
-            let name = if is_note { stem_of(&low).to_string() } else { low.rsplit('/').next().unwrap_or(&low).to_string() };
+            let name = if is_note {
+                stem_of(&low).to_string()
+            } else {
+                low.rsplit('/').next().unwrap_or(&low).to_string()
+            };
             r.by_name.entry(name).or_default().push(p.clone());
         }
         for v in r.by_name.values_mut() {
-            v.sort_by(|a, b| a.matches('/').count().cmp(&b.matches('/').count()).then(a.cmp(b)));
+            v.sort_by(|a, b| {
+                a.matches('/')
+                    .count()
+                    .cmp(&b.matches('/').count())
+                    .then(a.cmp(b))
+            });
         }
         r
     }
@@ -322,7 +398,11 @@ impl Resolver {
         }
         let cands = self.by_name.get(&t)?;
         let dir = from.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
-        cands.iter().find(|c| c.rsplit_once('/').map(|(d, _)| d).unwrap_or("") == dir).or_else(|| cands.first()).cloned()
+        cands
+            .iter()
+            .find(|c| c.rsplit_once('/').map(|(d, _)| d).unwrap_or("") == dir)
+            .or_else(|| cands.first())
+            .cloned()
     }
 
     /// A relative markdown link (`../a/b.md`, percent-encoded) from note `from`.
@@ -335,7 +415,9 @@ impl Resolver {
         let mut parts: Vec<&str> = if dest.starts_with('/') {
             Vec::new()
         } else {
-            from.rsplit_once('/').map(|(d, _)| d.split('/').collect()).unwrap_or_default()
+            from.rsplit_once('/')
+                .map(|(d, _)| d.split('/').collect())
+                .unwrap_or_default()
         };
         for seg in dest.split('/') {
             match seg {
@@ -351,12 +433,17 @@ impl Resolver {
             .get(&joined)
             .or_else(|| self.by_path_noext.get(&joined))
             .cloned()
-            .or_else(|| self.resolve_wikilink(&dest, from).filter(|_| !dest.contains('/')))
+            .or_else(|| {
+                self.resolve_wikilink(&dest, from)
+                    .filter(|_| !dest.contains('/'))
+            })
     }
 }
 
 fn stem_path(p: &str) -> &str {
-    p.strip_suffix(".md").or_else(|| p.strip_suffix(".markdown")).unwrap_or(p)
+    p.strip_suffix(".md")
+        .or_else(|| p.strip_suffix(".markdown"))
+        .unwrap_or(p)
 }
 
 fn percent_decode(s: &str) -> String {
@@ -366,7 +453,8 @@ fn percent_decode(s: &str) -> String {
     while i < b.len() {
         if b[i] == b'%'
             && i + 2 < b.len()
-            && let Ok(v) = u8::from_str_radix(std::str::from_utf8(&b[i + 1..i + 3]).unwrap_or("zz"), 16)
+            && let Ok(v) =
+                u8::from_str_radix(std::str::from_utf8(&b[i + 1..i + 3]).unwrap_or("zz"), 16)
         {
             out.push(v);
             i += 3;
@@ -395,19 +483,47 @@ mod tests {
 
     #[test]
     fn resolver() {
-        let paths: Vec<String> = ["Meno.md", "folder/Other Note.md", "x/Meno.md", "img/diagram.png", "a/b.md"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let paths: Vec<String> = [
+            "Meno.md",
+            "folder/Other Note.md",
+            "x/Meno.md",
+            "img/diagram.png",
+            "a/b.md",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
         let r = Resolver::new(&paths);
-        assert_eq!(r.resolve_wikilink("meno", "z.md").as_deref(), Some("Meno.md"));
-        assert_eq!(r.resolve_wikilink("Meno", "x/y.md").as_deref(), Some("Meno.md"));
-        assert_eq!(r.resolve_wikilink("x/Meno", "z.md").as_deref(), Some("x/Meno.md"));
-        assert_eq!(r.resolve_wikilink("folder/Other Note", "z.md").as_deref(), Some("folder/Other Note.md"));
-        assert_eq!(r.resolve_wikilink("diagram.png", "z.md").as_deref(), Some("img/diagram.png"));
+        assert_eq!(
+            r.resolve_wikilink("meno", "z.md").as_deref(),
+            Some("Meno.md")
+        );
+        assert_eq!(
+            r.resolve_wikilink("Meno", "x/y.md").as_deref(),
+            Some("Meno.md")
+        );
+        assert_eq!(
+            r.resolve_wikilink("x/Meno", "z.md").as_deref(),
+            Some("x/Meno.md")
+        );
+        assert_eq!(
+            r.resolve_wikilink("folder/Other Note", "z.md").as_deref(),
+            Some("folder/Other Note.md")
+        );
+        assert_eq!(
+            r.resolve_wikilink("diagram.png", "z.md").as_deref(),
+            Some("img/diagram.png")
+        );
         assert_eq!(r.resolve_wikilink("nope", "z.md"), None);
-        assert_eq!(r.resolve_relative("../folder/Other%20Note.md", "a/b.md").as_deref(), Some("folder/Other Note.md"));
-        assert_eq!(r.resolve_relative("b.md#h", "a/c.md").as_deref(), Some("a/b.md"));
+        assert_eq!(
+            r.resolve_relative("../folder/Other%20Note.md", "a/b.md")
+                .as_deref(),
+            Some("folder/Other Note.md")
+        );
+        assert_eq!(
+            r.resolve_relative("b.md#h", "a/c.md").as_deref(),
+            Some("a/b.md")
+        );
         assert_eq!(r.resolve_relative("https://x.org/a.md", "a/c.md"), None);
     }
 }

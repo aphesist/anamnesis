@@ -84,12 +84,16 @@ fn mind_params(store: &Store) -> MindParams {
 
 /// Embed every chunk that has no vector for the current embedder yet.
 pub async fn run_embeddings(app: &Arc<App>, brain: &Arc<Brain>) -> Result<usize> {
-    let Some(emb) = app.embedder() else { return Ok(0) };
+    let Some(emb) = app.embedder() else {
+        return Ok(0);
+    };
     let model = emb.id().to_string();
     let mut total = 0;
     loop {
         let m = model.clone();
-        let chunks = brain.db(move |s| Ok(s.chunks_missing_embedding(&m, EMBED_BATCH)?)).await?;
+        let chunks = brain
+            .db(move |s| Ok(s.chunks_missing_embedding(&m, EMBED_BATCH)?))
+            .await?;
         if chunks.is_empty() {
             break;
         }
@@ -102,7 +106,9 @@ pub async fn run_embeddings(app: &Arc<App>, brain: &Arc<Brain>) -> Result<usize>
         })
         .await??;
         let m = model.clone();
-        let stored = brain.db(move |s| Ok(s.put_embeddings(&m, &entries)?)).await?;
+        let stored = brain
+            .db(move |s| Ok(s.put_embeddings(&m, &entries)?))
+            .await?;
         total += stored;
         if stored == 0 || n < EMBED_BATCH {
             break;
@@ -134,7 +140,9 @@ pub async fn run_mind(
     force_full: bool,
     min_interval: Duration,
 ) -> Result<Option<MindReport>> {
-    let Some(emb) = app.embedder() else { return Ok(None) };
+    let Some(emb) = app.embedder() else {
+        return Ok(None);
+    };
     let model = emb.id().to_string();
     let model_changed = brain.job_state().mind_model.as_deref() != Some(model.as_str());
     let force_full = force_full || model_changed;
@@ -146,10 +154,22 @@ pub async fn run_mind(
             let by_id: HashMap<&Id, &Item> = items.iter().map(|i| (&i.id, i)).collect();
             let texts = ids
                 .iter()
-                .map(|id| by_id.get(id).map(|i| format!("{}\n{}", i.title, i.body)).unwrap_or_default())
+                .map(|id| {
+                    by_id
+                        .get(id)
+                        .map(|i| format!("{}\n{}", i.title, i.body))
+                        .unwrap_or_default()
+                })
                 .collect();
             let privacy = items.iter().map(|i| (i.id.clone(), i.privacy)).collect();
-            Ok(MindInput { ids, vecs, texts, placements: s.placements()?, params: mind_params(s), privacy })
+            Ok(MindInput {
+                ids,
+                vecs,
+                texts,
+                placements: s.placements()?,
+                params: mind_params(s),
+                privacy,
+            })
         })
         .await?;
     if input.ids.is_empty() {
@@ -159,8 +179,18 @@ pub async fn run_mind(
     let mut jobs = brain.job_state();
     let live: HashSet<&Id> = input.ids.iter().collect();
     let in_layout: HashSet<&Id> = state.layout.ids.iter().collect();
-    let new_ids: Vec<Id> = input.ids.iter().filter(|i| !in_layout.contains(i)).cloned().collect();
-    let removed = state.layout.ids.iter().filter(|i| !live.contains(i)).count();
+    let new_ids: Vec<Id> = input
+        .ids
+        .iter()
+        .filter(|i| !in_layout.contains(i))
+        .cloned()
+        .collect();
+    let removed = state
+        .layout
+        .ids
+        .iter()
+        .filter(|i| !live.contains(i))
+        .count();
     let placed: HashSet<&Id> = input.placements.iter().map(|p| &p.item_id).collect();
     let unplaced = input.ids.iter().filter(|i| !placed.contains(i)).count();
     if new_ids.is_empty() && removed == 0 && unplaced == 0 && !force_full {
@@ -179,7 +209,14 @@ pub async fn run_mind(
     }
 
     if full {
-        let MindInput { ids, vecs, texts, params, privacy, .. } = input;
+        let MindInput {
+            ids,
+            vecs,
+            texts,
+            params,
+            privacy,
+            ..
+        } = input;
         let prev = state.clone();
         let mut run = tokio::task::spawn_blocking(move || {
             let at = now();
@@ -217,7 +254,10 @@ pub async fn run_mind(
         jobs.last_full_run = Some(now());
         jobs.mind_model = Some(model.clone());
         brain.save_job_state(&jobs)?;
-        tracing::info!("mind: full run over {} items, {n_regions} regions", ids.len());
+        tracing::info!(
+            "mind: full run over {} items, {n_regions} regions",
+            ids.len()
+        );
         return Ok(Some(MindReport {
             full: true,
             items: ids.len(),
@@ -237,13 +277,22 @@ pub async fn run_mind(
     let existing: Vec<Vec<f32>> = state.layout.ids.iter().map(|i| vec_of[i].clone()).collect();
     let new_vecs: Vec<Vec<f32>> = new_ids.iter().map(|i| vec_of[i].clone()).collect();
     let params = input.params;
-    let old_region: HashMap<Id, Option<Id>> =
-        input.placements.iter().map(|p| (p.item_id.clone(), p.region_id.clone())).collect();
+    let old_region: HashMap<Id, Option<Id>> = input
+        .placements
+        .iter()
+        .map(|p| (p.item_id.clone(), p.region_id.clone()))
+        .collect();
     let n_new = new_ids.len();
     let (state, placements, lv) = tokio::task::spawn_blocking(move || {
         let mut state = state;
         let assigned = state.regions.assign(&new_vecs);
-        place_new(&mut state.layout, &existing, &new_ids, &new_vecs, &params.layout);
+        place_new(
+            &mut state.layout,
+            &existing,
+            &new_ids,
+            &new_vecs,
+            &params.layout,
+        );
         let new_region: HashMap<&Id, Option<Id>> = new_ids.iter().zip(assigned).collect();
         let assignment: Vec<Option<Id>> = state
             .layout
@@ -308,7 +357,10 @@ async fn tiny_layout(brain: &Arc<Brain>, ids: &[Id], model: &str) -> Result<Mind
             [0.3 * a.cos(), 0.3 * a.sin(), 0.0]
         })
         .collect();
-    let layout = anamnesis_mind::Layout { ids: ids.to_vec(), xyz };
+    let layout = anamnesis_mind::Layout {
+        ids: ids.to_vec(),
+        xyz,
+    };
     let assignment = vec![None; n];
     let placements = layout.placements(&assignment);
     let lv = views(&layout, &assignment);
@@ -321,15 +373,29 @@ async fn tiny_layout(brain: &Arc<Brain>, ids: &[Id], model: &str) -> Result<Mind
     brain.save_views(&anamnesis_mind::LayoutViews {
         ids: layout.ids.clone(),
         layout: layout.xyz.clone(),
-        anatomy: if lv.anatomy.iter().flatten().all(|c| c.is_finite()) { lv.anatomy } else { layout.xyz.clone() },
-        spheres: if lv.spheres.iter().flatten().all(|c| c.is_finite()) { lv.spheres } else { layout.xyz.clone() },
+        anatomy: if lv.anatomy.iter().flatten().all(|c| c.is_finite()) {
+            lv.anatomy
+        } else {
+            layout.xyz.clone()
+        },
+        spheres: if lv.spheres.iter().flatten().all(|c| c.is_finite()) {
+            lv.spheres
+        } else {
+            layout.xyz.clone()
+        },
     })?;
     // the next real run starts fresh
     brain.save_mind_state(&MindState::default())?;
     let mut js = brain.job_state();
     js.mind_model = Some(model.to_string());
     brain.save_job_state(&js)?;
-    Ok(MindReport { full: true, items: n, placed_new: 0, regions: 0, labelled_by: None })
+    Ok(MindReport {
+        full: true,
+        items: n,
+        placed_new: 0,
+        regions: 0,
+        labelled_by: None,
+    })
 }
 
 /// Ask the label route to name regions that need a label. Never runs on subscription
@@ -357,7 +423,11 @@ async fn label_regions(
         return None;
     }
     let text_of: HashMap<&Id, &String> = ids.iter().zip(texts).collect();
-    let snippet = |id: &Id| text_of.get(id).map(|t| t.chars().take(400).collect::<String>());
+    let snippet = |id: &Id| {
+        text_of
+            .get(id)
+            .map(|t| t.chars().take(400).collect::<String>())
+    };
     let prompt = anamnesis_mind::labels::label_prompt(&inputs, &snippet);
     let items: Vec<(Id, Privacy)> = inputs
         .iter()
@@ -368,7 +438,15 @@ async fn label_regions(
     req.json_schema = Some(prompt.schema);
     req.temperature = Some(0.2);
     let routed = match router
-        .chat(Task::Label, req, CallContext { items, approved: vec![], backend: None })
+        .chat(
+            Task::Label,
+            req,
+            CallContext {
+                items,
+                approved: vec![],
+                backend: None,
+            },
+        )
         .await
     {
         Ok(r) => r,
@@ -381,7 +459,9 @@ async fn label_regions(
     if let Some(eg) = routed.egress {
         let kind = eg.into_event_kind();
         let b = backend.clone();
-        let _ = brain.db(move |s| Ok(s.append(Actor::Model(b), kind)?)).await;
+        let _ = brain
+            .db(move |s| Ok(s.append(Actor::Model(b), kind)?))
+            .await;
     }
     let mut text = String::new();
     let mut stream = routed.stream;
@@ -442,7 +522,9 @@ fn extract_json(s: &str) -> &str {
 /// Suggest links for items that have none computed yet: top suggestions are split into a
 /// shown arm and a held-out control arm (seeded, ~20% held out), all recorded as events.
 pub async fn run_suggestions(app: &Arc<App>, brain: &Arc<Brain>) -> Result<usize> {
-    let Some(emb) = app.embedder() else { return Ok(0) };
+    let Some(emb) = app.embedder() else {
+        return Ok(0);
+    };
     let model = emb.id().to_string();
     let done = brain.job_state().suggested;
     let (n, newly) = brain
@@ -451,15 +533,23 @@ pub async fn run_suggestions(app: &Arc<App>, brain: &Arc<Brain>) -> Result<usize
             if ids.len() < 2 {
                 return Ok((0, Vec::new()));
             }
-            let todo: Vec<Id> = ids.iter().filter(|i| !done.contains(&i.0)).cloned().collect();
+            let todo: Vec<Id> = ids
+                .iter()
+                .filter(|i| !done.contains(&i.0))
+                .cloned()
+                .collect();
             if todo.is_empty() {
                 return Ok((0, Vec::new()));
             }
             let seed = seed_setting(s, "holdout_seed")?;
             let items = s.list_item_summaries(&ItemFilter::default())?;
-            let meta_of: HashMap<&Id, &anamnesis_core::ItemSummary> = items.iter().map(|i| (&i.id, i)).collect();
-            let region_of: HashMap<Id, Option<Id>> =
-                s.placements()?.into_iter().map(|p| (p.item_id, p.region_id)).collect();
+            let meta_of: HashMap<&Id, &anamnesis_core::ItemSummary> =
+                items.iter().map(|i| (&i.id, i)).collect();
+            let region_of: HashMap<Id, Option<Id>> = s
+                .placements()?
+                .into_iter()
+                .map(|p| (p.item_id, p.region_id))
+                .collect();
             let meta: Vec<ItemMeta> = ids
                 .iter()
                 .map(|id| ItemMeta {
@@ -471,14 +561,25 @@ pub async fn run_suggestions(app: &Arc<App>, brain: &Arc<Brain>) -> Result<usize
                 .collect();
             let links = s.all_links()?;
             let sugg = LinkSuggester::new(&ids, &vecs, &links, &meta);
-            let params = LinkParams { top_k: 5, ..Default::default() };
+            let params = LinkParams {
+                top_k: 5,
+                ..Default::default()
+            };
             let tag = format!("links-v1/{model}");
             let mut n = 0;
             for id in &todo {
                 let armed = split_for_holdout(sugg.suggest(id, &params), HOLDOUT_RATE, seed);
                 for a in armed {
                     let x = &a.suggestion;
-                    s.record_suggestion(&x.from, &x.to, x.score, x.rank, a.shown, &tag, sys("mind:links"))?;
+                    s.record_suggestion(
+                        &x.from,
+                        &x.to,
+                        x.score,
+                        x.rank,
+                        a.shown,
+                        &tag,
+                        sys("mind:links"),
+                    )?;
                     n += 1;
                 }
             }
@@ -510,7 +611,10 @@ pub async fn run_threads(brain: &Arc<Brain>) -> Result<usize> {
                     continue;
                 }
                 if it.origin.is_owner() {
-                    let existing = s.threads(&ThreadFilter { item_id: Some(it.id.clone()), ..Default::default() })?;
+                    let existing = s.threads(&ThreadFilter {
+                        item_id: Some(it.id.clone()),
+                        ..Default::default()
+                    })?;
                     let quotes: HashSet<&str> = existing.iter().map(|t| t.quote.as_str()).collect();
                     for t in extract_rules(&it.id, &it.body, it.created_at) {
                         if quotes.contains(t.quote.as_str()) {
@@ -539,7 +643,9 @@ pub async fn run_threads(brain: &Arc<Brain>) -> Result<usize> {
 /// Draw today's review once per day (micro-randomised: each slot goes to the algorithm or
 /// to a random pick) and record each shown item with its arm.
 pub async fn run_review(app: &Arc<App>, brain: &Arc<Brain>, force: bool) -> Result<usize> {
-    let Some(emb) = app.embedder() else { return Ok(0) };
+    let Some(emb) = app.embedder() else {
+        return Ok(0);
+    };
     let today = now().date_naive().to_string();
     let js = brain.job_state();
     if !force && js.review_day.as_deref() == Some(today.as_str()) {
@@ -554,7 +660,8 @@ pub async fn run_review(app: &Arc<App>, brain: &Arc<Brain>, force: bool) -> Resu
             }
             let seed = seed_setting(s, "review_seed")?;
             let items = s.list_item_summaries(&ItemFilter::default())?;
-            let created: HashMap<&Id, Timestamp> = items.iter().map(|i| (&i.id, i.created_at)).collect();
+            let created: HashMap<&Id, Timestamp> =
+                items.iter().map(|i| (&i.id, i.created_at)).collect();
             let mut last_seen: HashMap<Id, (Timestamp, u32)> = HashMap::new();
             for r in s.resurfacings(false)? {
                 let e = last_seen.entry(r.item_id).or_insert((r.shown_at, 0));
@@ -611,7 +718,10 @@ pub async fn run_review(app: &Arc<App>, brain: &Arc<Brain>, force: bool) -> Resu
             let mut out = Vec::new();
             for p in picks {
                 let rid = s.record_resurface(&p.item_id, p.arm.as_str(), sys("mind:review"))?;
-                let reason = serde_json::to_value(p.reason)?.as_str().unwrap_or("").to_string();
+                let reason = serde_json::to_value(p.reason)?
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 out.push((rid.0, reason));
             }
             Ok(out)
@@ -636,7 +746,10 @@ pub async fn run_jobs_once(app: &Arc<App>) -> Result<JobsReport> {
     }
     let brain = app.brain();
     let _g = brain.jobs_lock.lock().await;
-    let mut r = JobsReport { embedded: run_embeddings(app, &brain).await?, ..Default::default() };
+    let mut r = JobsReport {
+        embedded: run_embeddings(app, &brain).await?,
+        ..Default::default()
+    };
     r.threads = run_threads(&brain).await?;
     r.mind = run_mind(app, &brain, true, Duration::ZERO).await?;
     r.suggestions = run_suggestions(app, &brain).await?;
@@ -646,7 +759,9 @@ pub async fn run_jobs_once(app: &Arc<App>) -> Result<JobsReport> {
 }
 
 async fn mark_seen(brain: &Arc<Brain>) -> Result<()> {
-    let head = brain.db(|s| Ok(s.head()?.map(|h| h.0).unwrap_or(0))).await?;
+    let head = brain
+        .db(|s| Ok(s.head()?.map(|h| h.0).unwrap_or(0)))
+        .await?;
     let mut js = brain.job_state();
     if js.seen_head != head {
         js.seen_head = head;
@@ -658,7 +773,10 @@ async fn mark_seen(brain: &Arc<Brain>) -> Result<()> {
 /// Minutes between full mind recomputes (setting `mind_interval_minutes`, default 10).
 async fn mind_interval(brain: &Arc<Brain>) -> Duration {
     let m = brain
-        .db(|s| Ok(s.get_setting("mind_interval_minutes")?.and_then(|v| v.as_u64())))
+        .db(|s| {
+            Ok(s.get_setting("mind_interval_minutes")?
+                .and_then(|v| v.as_u64()))
+        })
         .await
         .ok()
         .flatten()
@@ -690,7 +808,9 @@ pub async fn jobs_loop(app: Arc<App>) {
 async fn jobs_pass(app: &Arc<App>) -> Result<()> {
     let brain = app.brain();
     let _g = brain.jobs_lock.lock().await;
-    let head = brain.db(|s| Ok(s.head()?.map(|h| h.0).unwrap_or(0))).await?;
+    let head = brain
+        .db(|s| Ok(s.head()?.map(|h| h.0).unwrap_or(0)))
+        .await?;
     let today = now().date_naive().to_string();
     let js = brain.job_state();
     let changed = js.seen_head != head;

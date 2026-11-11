@@ -6,7 +6,9 @@ use std::path::Path;
 use std::time::Duration;
 
 use anamnesis_connectors::connectors::exec::ExecConnector;
-use anamnesis_connectors::{Connector, ConnectorError, Rename, load_plugin, validated_check, validated_list};
+use anamnesis_connectors::{
+    Connector, ConnectorError, Rename, load_plugin, validated_check, validated_list,
+};
 use anamnesis_core::{ItemKind, Origin};
 use serde_json::json;
 
@@ -67,10 +69,15 @@ async fn exec_plugin_check_and_list() {
     assert!(check.ok);
     assert_eq!(check.message, "toy plugin ready");
 
-    let b = validated_list(c.as_ref(), &json!({"greeting": "hi"}), None).await.unwrap();
+    let b = validated_list(c.as_ref(), &json!({"greeting": "hi"}), None)
+        .await
+        .unwrap();
     assert_eq!(b.upserts.len(), 2);
     let a = &b.upserts[0];
-    assert_eq!((a.external_id.as_str(), a.title.as_str(), a.body.as_str()), ("a", "A", "alpha"));
+    assert_eq!(
+        (a.external_id.as_str(), a.title.as_str(), a.body.as_str()),
+        ("a", "A", "alpha")
+    );
     assert_eq!(a.kind, ItemKind::Note, "manifest default kind");
     assert_eq!(a.origin, Origin::OwnerWritten, "manifest default origin");
     assert_eq!(a.meta["n"], 1);
@@ -81,9 +88,17 @@ async fn exec_plugin_check_and_list() {
     assert!(bdoc.created_at.is_some());
     assert_eq!(b.next_cursor.as_deref(), Some("c1"));
 
-    let b2 = validated_list(c.as_ref(), &json!({}), Some("c1")).await.unwrap();
+    let b2 = validated_list(c.as_ref(), &json!({}), Some("c1"))
+        .await
+        .unwrap();
     assert_eq!(b2.deletes, vec!["gone"]);
-    assert_eq!(b2.renames, vec![Rename { from: "a".into(), to: "a2".into() }]);
+    assert_eq!(
+        b2.renames,
+        vec![Rename {
+            from: "a".into(),
+            to: "a2".into()
+        }]
+    );
     assert_eq!(b2.next_cursor.as_deref(), Some("c2"));
 
     // Config is validated against the plugin's schema before the process runs.
@@ -97,15 +112,31 @@ async fn exec_plugin_check_and_list() {
 async fn exec_plugin_failures() {
     let tmp = tempfile::tempdir().unwrap();
 
-    let slow = write_plugin(tmp.path(), "slow", "#!/bin/sh\nread -r req\nexec sleep 10\n");
-    let c = ExecConnector::load(&slow).unwrap().with_timeout(Duration::from_millis(300));
+    let slow = write_plugin(
+        tmp.path(),
+        "slow",
+        "#!/bin/sh\nread -r req\nexec sleep 10\n",
+    );
+    let c = ExecConnector::load(&slow)
+        .unwrap()
+        .with_timeout(Duration::from_millis(300));
     let t0 = std::time::Instant::now();
-    assert!(matches!(c.list(&json!({}), None).await, Err(ConnectorError::Timeout(_))));
+    assert!(matches!(
+        c.list(&json!({}), None).await,
+        Err(ConnectorError::Timeout(_))
+    ));
     assert!(t0.elapsed() < Duration::from_secs(5));
     let check = c.check(&json!({})).await.unwrap();
-    assert!(!check.ok, "a timed-out check is a failed check, not an error");
+    assert!(
+        !check.ok,
+        "a timed-out check is a failed check, not an error"
+    );
 
-    let err = write_plugin(tmp.path(), "err", "#!/bin/sh\necho '{\"type\":\"error\",\"message\":\"token expired\"}'\n");
+    let err = write_plugin(
+        tmp.path(),
+        "err",
+        "#!/bin/sh\necho '{\"type\":\"error\",\"message\":\"token expired\"}'\n",
+    );
     let c = ExecConnector::load(&err).unwrap();
     match c.list(&json!({}), None).await {
         Err(ConnectorError::Plugin(m)) => assert!(m.contains("token expired"), "{m}"),
@@ -113,18 +144,41 @@ async fn exec_plugin_failures() {
     }
 
     let crash = write_plugin(tmp.path(), "crash", "#!/bin/sh\necho boom >&2\nexit 3\n");
-    match ExecConnector::load(&crash).unwrap().list(&json!({}), None).await {
+    match ExecConnector::load(&crash)
+        .unwrap()
+        .list(&json!({}), None)
+        .await
+    {
         Err(ConnectorError::Plugin(m)) => assert!(m.contains("boom"), "{m}"),
         other => panic!("{other:?}"),
     }
 
-    let nodone = write_plugin(tmp.path(), "nodone", "#!/bin/sh\necho '{\"type\":\"delete\",\"external_id\":\"x\"}'\n");
-    assert!(matches!(ExecConnector::load(&nodone).unwrap().list(&json!({}), None).await, Err(ConnectorError::Plugin(_))));
+    let nodone = write_plugin(
+        tmp.path(),
+        "nodone",
+        "#!/bin/sh\necho '{\"type\":\"delete\",\"external_id\":\"x\"}'\n",
+    );
+    assert!(matches!(
+        ExecConnector::load(&nodone)
+            .unwrap()
+            .list(&json!({}), None)
+            .await,
+        Err(ConnectorError::Plugin(_))
+    ));
 
     let garbage = write_plugin(tmp.path(), "garbage", "#!/bin/sh\necho 'not json'\n");
-    assert!(matches!(ExecConnector::load(&garbage).unwrap().list(&json!({}), None).await, Err(ConnectorError::Plugin(_))));
+    assert!(matches!(
+        ExecConnector::load(&garbage)
+            .unwrap()
+            .list(&json!({}), None)
+            .await,
+        Err(ConnectorError::Plugin(_))
+    ));
 
     // Reserved and built-in ids cannot be claimed by plugins.
     let reserved = write_plugin(tmp.path(), "obsidian", PLUGIN);
-    assert!(matches!(load_plugin(&reserved), Err(ConnectorError::InvalidManifest(_))));
+    assert!(matches!(
+        load_plugin(&reserved),
+        Err(ConnectorError::InvalidManifest(_))
+    ));
 }

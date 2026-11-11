@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anamnesis_connectors::{Batch, Connector, builtin, validated_list, RESERVED_CONNECTOR_IDS};
+use anamnesis_connectors::{Batch, Connector, RESERVED_CONNECTOR_IDS, builtin, validated_list};
 use anamnesis_core::{Actor, EventKind, Id, Source, UpsertOutcome, canon::canonical_json};
 use anyhow::{Context, Result};
 use serde::Serialize;
@@ -66,7 +66,12 @@ pub fn connector_for(source: &Source) -> Result<Option<Box<dyn Connector>>> {
 
 /// Apply one batch: renames (re-keyed in place, so the item keeps its id, links and
 /// history), then upserts, then deletes.
-fn apply_batch(store: &anamnesis_core::Store, source: &Source, batch: Batch, r: &mut SyncReport) -> Result<()> {
+fn apply_batch(
+    store: &anamnesis_core::Store,
+    source: &Source,
+    batch: Batch,
+    r: &mut SyncReport,
+) -> Result<()> {
     let actor = Actor::Connector(source.connector.clone());
     for rn in &batch.renames {
         if let Some(mut item) = store.get_item_by_external_id(&source.id, &rn.from)? {
@@ -133,7 +138,11 @@ pub async fn sync_source(brain: &Arc<Brain>, source_id: &Id) -> Result<SyncRepor
     if report.changed() {
         tracing::info!(
             "synced {}: +{} ~{} -{} renamed {}",
-            source.name, report.created, report.updated, report.deleted, report.renamed
+            source.name,
+            report.created,
+            report.updated,
+            report.deleted,
+            report.renamed
         );
     }
     Ok(report)
@@ -194,7 +203,9 @@ pub async fn reconcile(app: &Arc<App>) -> Result<()> {
     // drop tasks for removed sources, changed configs or another brain
     tasks.retain(|id, t| {
         let keep = t.brain_dir == brain.dir
-            && sources.iter().any(|s| &s.id.0 == id && canonical_json(&s.config) == t.config);
+            && sources
+                .iter()
+                .any(|s| &s.id.0 == id && canonical_json(&s.config) == t.config);
         if !keep {
             t.cancel.cancel();
         }
@@ -204,7 +215,9 @@ pub async fn reconcile(app: &Arc<App>) -> Result<()> {
         if tasks.contains_key(&src.id.0) {
             continue;
         }
-        let Ok(Some(conn)) = connector_for(&src) else { continue };
+        let Ok(Some(conn)) = connector_for(&src) else {
+            continue;
+        };
         let poll = conn
             .manifest()
             .poll_interval_secs
@@ -240,7 +253,11 @@ async fn source_loop(
     let mut watch = match conn.watch(&src.config) {
         Ok(w) => w,
         Err(e) => {
-            tracing::debug!("{}: no watch ({e}); polling every {}s", src.name, poll.as_secs());
+            tracing::debug!(
+                "{}: no watch ({e}); polling every {}s",
+                src.name,
+                poll.as_secs()
+            );
             None
         }
     };

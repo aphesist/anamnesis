@@ -19,18 +19,38 @@ pub struct BuiltinConnector {
 
 impl std::fmt::Debug for BuiltinConnector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BuiltinConnector").field("id", &self.manifest.id).finish()
+        f.debug_struct("BuiltinConnector")
+            .field("id", &self.manifest.id)
+            .finish()
     }
 }
 
 pub fn builtin_connectors() -> Vec<BuiltinConnector> {
     vec![
-        BuiltinConnector { manifest: files::folder_manifest(), create: || Box::new(files::FilesConnector::folder()) },
-        BuiltinConnector { manifest: files::obsidian_manifest(), create: || Box::new(files::FilesConnector::obsidian()) },
-        BuiltinConnector { manifest: pdf::pdf_manifest(), create: || Box::new(pdf::PdfConnector) },
-        BuiltinConnector { manifest: rss::rss_manifest(), create: || Box::new(rss::RssConnector) },
-        BuiltinConnector { manifest: web::web_manifest(), create: || Box::new(web::WebConnector) },
-        BuiltinConnector { manifest: json_api::json_api_manifest(), create: || Box::new(json_api::JsonApiConnector) },
+        BuiltinConnector {
+            manifest: files::folder_manifest(),
+            create: || Box::new(files::FilesConnector::folder()),
+        },
+        BuiltinConnector {
+            manifest: files::obsidian_manifest(),
+            create: || Box::new(files::FilesConnector::obsidian()),
+        },
+        BuiltinConnector {
+            manifest: pdf::pdf_manifest(),
+            create: || Box::new(pdf::PdfConnector),
+        },
+        BuiltinConnector {
+            manifest: rss::rss_manifest(),
+            create: || Box::new(rss::RssConnector),
+        },
+        BuiltinConnector {
+            manifest: web::web_manifest(),
+            create: || Box::new(web::WebConnector),
+        },
+        BuiltinConnector {
+            manifest: json_api::json_api_manifest(),
+            create: || Box::new(json_api::JsonApiConnector),
+        },
     ]
 }
 
@@ -38,7 +58,9 @@ pub fn builtin_connectors() -> Vec<BuiltinConnector> {
 /// connector: the server writes those items directly.
 pub fn builtin(id: &str) -> Result<Box<dyn Connector>> {
     if RESERVED_CONNECTOR_IDS.contains(&id) {
-        return Err(ConnectorError::Unsupported(format!("{id:?} items are written by the server, not a connector")));
+        return Err(ConnectorError::Unsupported(format!(
+            "{id:?} items are written by the server, not a connector"
+        )));
     }
     builtin_connectors()
         .into_iter()
@@ -49,13 +71,20 @@ pub fn builtin(id: &str) -> Result<Box<dyn Connector>> {
 
 /// Load a plugin from its directory or manifest file.
 pub fn load_plugin(path: &Path) -> Result<Box<dyn Connector>> {
-    let manifest_path =
-        if path.is_dir() { path.join(crate::manifest::PLUGIN_MANIFEST_FILE) } else { path.to_path_buf() };
+    let manifest_path = if path.is_dir() {
+        path.join(crate::manifest::PLUGIN_MANIFEST_FILE)
+    } else {
+        path.to_path_buf()
+    };
     let m = Manifest::from_path(&manifest_path)?;
     match m.runtime {
         Runtime::Exec => Ok(Box::new(ExecConnector::load(&manifest_path)?)),
-        Runtime::Wasm => Err(ConnectorError::Unsupported("the wasm plugin runtime is not implemented yet".into())),
-        Runtime::Builtin => Err(ConnectorError::InvalidManifest("plugins cannot use the builtin runtime".into())),
+        Runtime::Wasm => Err(ConnectorError::Unsupported(
+            "the wasm plugin runtime is not implemented yet".into(),
+        )),
+        Runtime::Builtin => Err(ConnectorError::InvalidManifest(
+            "plugins cannot use the builtin runtime".into(),
+        )),
     }
 }
 
@@ -66,9 +95,16 @@ mod tests {
     #[test]
     fn builtins_are_valid_and_match_ids() {
         let all = builtin_connectors();
-        assert_eq!(all.iter().map(|b| b.manifest.id.as_str()).collect::<Vec<_>>(), BUILTIN_IDS);
+        assert_eq!(
+            all.iter()
+                .map(|b| b.manifest.id.as_str())
+                .collect::<Vec<_>>(),
+            BUILTIN_IDS
+        );
         for b in &all {
-            b.manifest.validate().unwrap_or_else(|e| panic!("{}: {e}", b.manifest.id));
+            b.manifest
+                .validate()
+                .unwrap_or_else(|e| panic!("{}: {e}", b.manifest.id));
             assert_eq!(b.manifest.runtime, Runtime::Builtin);
             assert_eq!((b.create)().manifest().id, b.manifest.id);
         }
@@ -76,6 +112,9 @@ mod tests {
             assert!(!BUILTIN_IDS.contains(r));
             assert!(builtin(r).is_err());
         }
-        assert!(matches!(builtin("nope"), Err(ConnectorError::UnknownConnector(_))));
+        assert!(matches!(
+            builtin("nope"),
+            Err(ConnectorError::UnknownConnector(_))
+        ));
     }
 }

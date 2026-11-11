@@ -35,15 +35,45 @@ pub struct FullRun {
 
 /// Recompute regions and layout for the whole corpus. `texts` (title + body
 /// per item) feed region keywords; pass `None` to skip them.
-pub fn full_run(ids: &[Id], vectors: &[Vec<f32>], texts: Option<&[String]>, previous: &MindState, now: Timestamp, params: &MindParams) -> FullRun {
+pub fn full_run(
+    ids: &[Id],
+    vectors: &[Vec<f32>],
+    texts: Option<&[String]>,
+    previous: &MindState,
+    now: Timestamp,
+    params: &MindParams,
+) -> FullRun {
     let space = Space::new(vectors, params.space);
-    let prev_layout = if previous.layout.ids.is_empty() { None } else { Some(&previous.layout) };
+    let prev_layout = if previous.layout.ids.is_empty() {
+        None
+    } else {
+        Some(&previous.layout)
+    };
     let lay = layout_full(ids, &space, prev_layout, &params.layout);
     let warp = AnatomyWarp::fit(&lay.layout.xyz);
     let anatomy_xyz: Vec<[f32; 3]> = lay.layout.xyz.iter().map(|p| warp.apply(*p)).collect();
-    let regions = recompute_regions(ids, &space, &previous.regions, now, &params.regions, RegionExtras { texts, anatomy_xyz: Some(&anatomy_xyz) });
+    let regions = recompute_regions(
+        ids,
+        &space,
+        &previous.regions,
+        now,
+        &params.regions,
+        RegionExtras {
+            texts,
+            anatomy_xyz: Some(&anatomy_xyz),
+        },
+    );
     let views = views(&lay.layout, &regions.assignment);
     let placements = lay.layout.placements(&regions.assignment);
-    let state = MindState { layout: lay.layout, regions: regions.state.clone() };
-    FullRun { regions, views, placements, procrustes_residual: lay.procrustes_residual, state }
+    let state = MindState {
+        layout: lay.layout,
+        regions: regions.state.clone(),
+    };
+    FullRun {
+        regions,
+        views,
+        placements,
+        procrustes_residual: lay.procrustes_residual,
+        state,
+    }
 }
