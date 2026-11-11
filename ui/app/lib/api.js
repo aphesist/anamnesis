@@ -12,7 +12,15 @@ async function req(method, path, body) {
     init.body = JSON.stringify(body);
   }
   const res = await fetch(API_BASE + path, init);
-  if (!res.ok) throw new Error(`${method} ${path}: ${res.status}`);
+  if (!res.ok) {
+    // errors are { error: "message" } (docs/contracts.md); keep the message for the ui
+    let msg = '';
+    try { msg = (await res.json()).error || ''; } catch { /* not json */ }
+    const e = new Error(msg || `${method} ${path}: ${res.status}`);
+    e.status = res.status;
+    e.serverMessage = msg;
+    throw e;
+  }
   const ct = res.headers.get('content-type') || '';
   return ct.includes('json') ? res.json() : res.text();
 }
@@ -38,6 +46,13 @@ export const api = {
   eval: () => req('GET', '/api/eval'),
   skills: () => req('GET', '/api/skills'),
   backends: () => req('GET', '/api/backends'),
+  setPrivacy: (id, privacy) => req('PUT', '/api/items/' + encodeURIComponent(id), { privacy }),
+  link: (from, to) => req('POST', '/api/links', { from, to }),
+  label: (query, item_id, grade) => req('POST', '/api/eval/label', { query, item_id, grade }),
+  egress: (limit = 200) => req('GET', '/api/egress?limit=' + limit),
+  demo: () => req('GET', '/api/demo'),
+  setDemo: (enabled) => req('POST', '/api/demo', { enabled }),
+  status: () => req('GET', '/api/status'),
 };
 
 // POST /api/chat and parse the text/event-stream response.
