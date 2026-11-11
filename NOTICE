@@ -17,21 +17,20 @@ Special Elite (font)
              (ui/theme/fonts/LICENSE-SpecialElite.txt)
 
 -------------------------------------------------------------------------------
-Assets that are NOT part of this distribution
+Aphesis theme assets (included, under their own terms)
 -------------------------------------------------------------------------------
 
-The default "aphesis" theme can use the aphes.ist identity assets: the
-Aphesis Script typeface, the phi mark and the wordmark. They are not included
-in this repository or in builds made from it, and they are not covered by the
-Apache License. They are fetched at install time into
-ui/theme/themes/aphesis/assets/ by ui/theme/scripts/fetch-aphesis-assets.mjs.
+The default "aphesis" theme ships the aphes.ist identity assets in
+ui/theme/themes/aphesis/assets/. They are not covered by the Apache License.
 
-  Aphesis Script  to be licensed by its author under the SIL Open Font
-                  License 1.1 with the Reserved Font Name "Aphesis Script";
-                  until that licence is published it is all rights reserved
-                  and must not be redistributed.
-  phi mark and    trademarks of the owner of aphes.ist. The Apache License
-  wordmark        grants no trademark rights (section 6).
+  Aphesis Script  Copyright (c) 2026, aphesist (https://aphes.ist), with
+                  Reserved Font Name "Aphesis Script". Licensed under the
+                  SIL Open Font License, Version 1.1
+                  (ui/theme/themes/aphesis/assets/OFL.txt).
+  phi mark and    trademarks of aphesist, the author of aphes.ist
+  wordmark        (https://github.com/aphesist/aphesis/blob/design-system/TRADEMARKS.md).
+                  The Apache License grants no trademark rights (section 6);
+                  forks must not use them to identify their product.
 
 Without them the theme falls back to Special Elite and a placeholder stipple
 mark (ui/theme/marks/), both Apache-2.0. Forks should set their own mark and

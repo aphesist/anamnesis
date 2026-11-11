@@ -178,4 +178,4 @@ contributing: [CONTRIBUTING.md](CONTRIBUTING.md). security: [SECURITY.md](SECURI
 
 apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)). the bundled Special Elite font is apache-2.0, © 2010 Astigmatic.
 
-the default theme's identity assets (the Aphesis Script typeface, the φ mark and the wordmark) are **not** part of this repository or its licence: they are fetched at install time, the typeface is pending an SIL OFL 1.1 release by its author, and the marks are trademarks. without them the theme falls back to Special Elite and a placeholder mark. forks should use their own mark and display face. see [docs/theming.md](docs/theming.md#the-aphesis-theme-and-its-assets).
+the default theme ships the aphes.ist identity assets under their own terms: the Aphesis Script typeface under the [SIL Open Font License 1.1](ui/theme/themes/aphesis/assets/OFL.txt) (reserved font name "Aphesis Script"), and the φ mark and wordmark as trademarks of their owner, not licensed for use by forks. forks should set their own mark (the theme falls back to a placeholder φ without it). see [docs/theming.md](docs/theming.md#the-aphesis-theme-and-its-assets).

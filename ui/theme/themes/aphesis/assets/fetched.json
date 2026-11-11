@@ -1,1 +1,14 @@
-{}
+{
+  "AphesisScript-VF.woff2": {
+    "source": "https://raw.githubusercontent.com/aphesist/aphesis/design-system/system/fonts/AphesisScript-VF.woff2",
+    "sha256": "955dcbb972a30de57d2d0a7edb940b6b9b6bd3ae95e4e8e354fbca49ec45e303",
+    "bytes": 209352,
+    "fetched": "2026-11-11T20:45:31.633Z"
+  },
+  "phi.svg": {
+    "source": "https://raw.githubusercontent.com/aphesist/aphesis/mark/art/phi.svg",
+    "sha256": "4f76e7e864f7c4661b40b4428dec99f7963512137dfc354cc4b8153dfd21cb7b",
+    "bytes": 7235,
+    "fetched": "2026-11-11T20:45:31.778Z"
+  }
+}

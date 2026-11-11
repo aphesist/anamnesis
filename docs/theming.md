@@ -49,13 +49,13 @@ panels are placed by a layout object (`ui/theme/layouts/default.json`, schema in
 
 the default theme reproduces the aphes.ist design system: a dark oklch neutral scale, rubedo as the single accent, lowercase, brush strokes and stipple, a difference-blend cursor disc and hidden scrollbars, fibonacci spacing and one settling easing.
 
-its identity assets are **not part of this repository and not under the apache licence**:
+its identity assets ship in `ui/theme/themes/aphesis/assets/` under their own terms, **not** the apache licence:
 
-| asset | status |
+| asset | terms |
 |---|---|
-| Aphesis Script (the display face) | to be released by its author under the SIL Open Font License 1.1 with the reserved font name "Aphesis Script". until that licence is published it is all rights reserved: it is fetched at install time, never committed, never bundled. |
-| the φ mark and the wordmark | trademarks of the owner of aphes.ist. the apache licence grants no trademark rights. |
+| Aphesis Script (the display face) | SIL Open Font License 1.1, reserved font name "Aphesis Script" ([OFL.txt](../ui/theme/themes/aphesis/assets/OFL.txt)): use, embed and modify freely; a modified version must be renamed. |
+| the φ mark and the wordmark | trademarks of the owner of aphes.ist ([TRADEMARKS.md](https://github.com/aphesist/aphesis/blob/design-system/TRADEMARKS.md)). the apache licence and the ofl grant no trademark rights. |
 
-`npm install` in `ui/theme` (or `node ui/theme/scripts/fetch-aphesis-assets.mjs`) fetches them into `ui/theme/themes/aphesis/assets/`, which git ignores; `ANAMNESIS_SKIP_ASSET_FETCH=1` skips it. without them the theme still works: the display face falls back to **Special Elite** (apache-2.0, © 2010 Astigmatic, bundled in `ui/theme/fonts/`) and then the system serif, and the mark falls back to a stipple φ placeholder drawn for anamnesis.
+`node ui/theme/scripts/fetch-aphesis-assets.mjs --force` refreshes them from the owner's repository and records their sha256 in `fetched.json`. if you remove them, the theme still works: the display face falls back to **Special Elite** (apache-2.0, © 2010 Astigmatic, bundled in `ui/theme/fonts/`) and then the system serif, and the mark falls back to a stipple φ placeholder drawn for anamnesis.
 
 **if you fork anamnesis**, set your own `--mark`, `--wordmark` and `--font-display`, and do not ship the aphesis assets under that name. details: [ui/theme/themes/aphesis/assets/NOTICE.md](../ui/theme/themes/aphesis/assets/NOTICE.md) and [NOTICE](../NOTICE).

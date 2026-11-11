@@ -8,8 +8,7 @@
   "scripts": {
     "build": "node scripts/build-tokens.mjs",
     "check": "node scripts/build-tokens.mjs --check",
-    "fetch-assets": "node scripts/fetch-aphesis-assets.mjs",
-    "postinstall": "node scripts/fetch-aphesis-assets.mjs --quiet",
+    "fetch-assets": "node scripts/fetch-aphesis-assets.mjs --force",
     "test": "node --test test/*.test.mjs"
   },
   "engines": { "node": ">=18" }
