@@ -251,6 +251,9 @@ input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 0; bo
 .timebar .mark { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 9.5px; color: var(--ink-soft); white-space: nowrap; pointer-events: auto; }
 .timebar .mark::after { content: ""; display: block; width: 1px; height: 6px; margin: 1px auto 0; background: var(--accent); opacity: 0.7; }
 .timebar .mark.past { color: var(--ink); }
+.timebar .mark.end { transform: translateX(-85%); }
+.timebar .mark.start { transform: translateX(-15%); }
+.timebar .mark.cluster { padding: 0 4px; border: 1px solid var(--line); border-bottom: 0; border-radius: 2px 2px 0 0; letter-spacing: 0.04em; }
 
 /* ---------- charts ---------- */
 .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: var(--space-3) var(--space-5); }
