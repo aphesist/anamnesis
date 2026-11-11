@@ -7,6 +7,7 @@ function inline(s) {
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[\s(])\*([^*]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '<a href="#" class="wikilink" data-title="$1">$2</a>')
     .replace(/\[\[([^\]]+)\]\]/g, '<a href="#" class="wikilink" data-title="$1">$1</a>')
     .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" rel="noopener noreferrer" target="_blank">$1</a>');
 }
