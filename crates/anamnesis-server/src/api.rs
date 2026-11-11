@@ -865,8 +865,11 @@ async fn backends(State(app): S) -> ApiResult {
         // shown before a backend is enabled (its row may not exist yet)
         "notices": {
             "claude_cli": anamnesis_harness::adapters::claude_cli::NOTICE,
+            "claude_cli_relabel": anamnesis_harness::adapters::claude_cli::RELABEL_NOTICE,
             "chatgpt": anamnesis_harness::adapters::chatgpt::NOTICE,
         },
+        // false once the project withdraws relabelling; the ui then hides the option
+        "claude_cli_relabel_offered": !anamnesis_harness::adapters::claude_cli::RELABEL_WITHDRAWN,
     }))
 }
 

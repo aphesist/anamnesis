@@ -76,12 +76,20 @@ the installed-cli route is off until you turn it on, and shows this notice where
 
 > uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this and could restrict it at any time; the safest routes are the mcp server and an api key. anamnesis never reads your credentials.
 
+### optional, grey: label requests as anamnesis
+
+off by default. when you turn it on (settings → connections → claude cli · relabel), requests from the installed claude cli are labelled `anamnesis` instead of the cli's own label, which changes how they are likely to be metered against your plan. other tools do the same (openbot; nous research's hermes plugin). anthropic has not documented the weighting or said whether third-party apps may do this, so it could be treated as getting around your plan's limits; it affects only your own account. the project removes the option the moment anthropic says it is not allowed. you see this before it turns on:
+
+> label requests as "anamnesis" instead of the cli's own label. claude code meters requests differently depending on how they say they were made; scripted (agent sdk) requests have been reported to count about twice as heavily against your plan limits. with this on, anamnesis's requests identify themselves as coming from anamnesis rather than as agent sdk calls, so they are likely to be metered like interactive use. anthropic has not documented this weighting or said whether third-party apps may do this. it is a grey area: it could be treated as getting around your plan's limits, and anthropic can restrict or suspend accounts without notice. it affects only your own account. anamnesis turns this off for everyone if anthropic says it is not allowed.
+
+the cli route also cleans its environment (no stray api key, endpoint or cloud-provider switch can move it off your login) and, by default, keeps your own claude code setup (CLAUDE.md, auto memory, hooks, skills, slash commands) out of anamnesis chats.
+
 ### what anamnesis will not do
 
 - read your credentials (the claude cli's login, codex's or gemini's auth files, another app's keychain entries)
 - copy tokens: the only token it holds is its own, from openai's sign-in
 - rotate between accounts or fail over from one plan to another
-- relabel traffic: it never sets attribution or entrypoint variables or poses as another client
+- relabel traffic without asking: the claude cli's own request label is left alone unless you turn on the optional "label requests as anamnesis" switch (see above), and anamnesis never poses as another client
 - run background jobs (labelling, extraction, anything scheduled) on a subscription
 
 ## privacy

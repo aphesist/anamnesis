@@ -166,11 +166,24 @@ these are the provider rules anamnesis is designed around, summarised from the p
 
 free-tier api keys may come with different data-use terms than paid ones; read google's terms for unpaid services before sending your notes through one.
 
+## optional, grey: relabelling claude cli requests
+
+`settings.harness.claude_cli.relabel_traffic` (off by default; settings → connections → claude cli · relabel) sets `CLAUDE_CODE_ENTRYPOINT=anamnesis` on the cli child, so requests identify themselves as coming from anamnesis rather than with the cli's own label. claude code has been reported to weigh scripted (agent sdk) requests about twice as heavily against plan limits; anthropic has not documented this. the same technique ships in openbot and in nous research's hermes "claude subscription directsdk" plugin. it is a grey area: anthropic's legal page says plan limits "assume ordinary, individual usage" and that it may enforce "without prior notice". it affects only the user's own account.
+
+two kill switches: `relabel_disabled_by_policy` in settings (per install), and `RELABEL_WITHDRAWN` in `crates/anamnesis-harness/src/adapters/claude_cli.rs` (project-wide; set it to `true` and release when anthropic says third-party apps may not do this — the ui then hides the option). the notice shown before it turns on:
+
+> label requests as "anamnesis" instead of the cli's own label. claude code meters requests differently depending on how they say they were made; scripted (agent sdk) requests have been reported to count about twice as heavily against your plan limits. with this on, anamnesis's requests identify themselves as coming from anamnesis rather than as agent sdk calls, so they are likely to be metered like interactive use. anthropic has not documented this weighting or said whether third-party apps may do this. it is a grey area: it could be treated as getting around your plan's limits, and anthropic can restrict or suspend accounts without notice. it affects only your own account. anamnesis turns this off for everyone if anthropic says it is not allowed.
+
+### hygiene on the cli route
+
+- **clean environment.** the child never inherits `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, the foundry keys, `CLAUDE_CODE_USE_BEDROCK|VERTEX|FOUNDRY|MANTLE|ANTHROPIC_AWS` or `CLAUDE_CODE_SIMPLE`, any of which would silently move it off your subscription login (to a per-token key, another endpoint or a cloud provider). `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_CONFIG_DIR` are yours and are left alone.
+- **isolation** (`settings.harness.claude_cli.isolate`, on by default): `--disable-slash-commands`, `--settings '{"disableAllHooks":true,"autoMemoryEnabled":false}'`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` and `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`, plus the existing `--tools ""`, `--strict-mcp-config`, `--no-session-persistence` and an empty working directory. your CLAUDE.md, memory, hooks, skills and slash commands stay out of anamnesis chats. values in the `env` block of your own claude code `settings.json` still apply; check it if you set an api key or endpoint there.
+
 ## what anamnesis will not do
 
 - **read your credentials.** not the claude cli's login, not codex's or gemini's auth files, not another app's keychain entries.
 - **copy tokens.** the only token it holds is its own, from openai's sign-in for open-source apps.
 - **rotate accounts** or fail over from one plan to another.
-- **relabel traffic.** it never sets or overrides attribution or entrypoint variables, and never presents itself as another client.
+- **relabel traffic without asking.** the claude cli's own request label is left alone unless you turn on the optional relabel switch (below); anamnesis never presents itself as another client.
 - **run background jobs on a subscription.** labelling, extraction and anything scheduled run locally (or on an api key only if you opted in or named it), never on a chatgpt or claude plan.
 - **fall back silently** to a paid backend.

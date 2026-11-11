@@ -15,7 +15,7 @@ const errText = (e) => (e && (e.serverMessage || e.message)) || 'something went 
 
 // The harness's notice for the installed claude cli, shown before it can be enabled when
 // the server does not send one (the backend row carries it once detection has run).
-const CLAUDE_CLI_NOTICE = "uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this; it could change. anamnesis never reads your credentials.";
+const CLAUDE_CLI_NOTICE = "uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this and could restrict it at any time; the safest routes are the mcp server and an api key. anamnesis never reads your credentials.";
 
 const KIND_WORDS = {
   openai_compatible: 'openai-compatible endpoint',
@@ -210,6 +210,28 @@ export async function mountConnections(el, ctx) {
     };
     draw(false);
     el.append(sect('claude cli', wrap));
+
+    // optional, grey area: relabel requests as anamnesis (off by default; notice first)
+    if (enabled && resp.claude_cli_relabel_offered !== false) {
+      const relabel = !!settings?.harness?.claude_cli?.relabel_traffic;
+      const rnotice = resp.notices?.claude_cli_relabel || '';
+      const rwrap = h('div.cx-cli');
+      const rdraw = (askFirst) => {
+        clear(rwrap);
+        const t = h('button.toggle', { type: 'button', role: 'switch', 'aria-checked': String(relabel) }, h('span.tick', { 'aria-hidden': 'true' }), h('span', 'label requests as anamnesis'));
+        t.addEventListener('click', async () => {
+          if (!relabel && !askFirst) { rdraw(true); return; }
+          if (relabel) { try { await patchSettings(api, { harness: { claude_cli: { relabel_traffic: false } } }); ctx.toast('requests use the cli\'s own label again.'); setTimeout(reload, 600); } catch (e) { ctx.toast(errText(e)); } }
+        });
+        rwrap.append(t, meta(relabel ? 'on. grey area, your account only.' : 'off.'));
+        if (askFirst || relabel) rwrap.append(h('p.notice', rnotice));
+        if (askFirst && !relabel) rwrap.append(h('div.btnrow',
+          h('button.textbtn.strong', { type: 'button', onclick: async () => { try { await patchSettings(api, { harness: { claude_cli: { relabel_traffic: true } } }); ctx.toast('relabelling on, at your request.'); setTimeout(reload, 900); } catch (e) { ctx.toast(errText(e)); } } }, 'i understand the risk, turn it on'),
+          h('button.textbtn', { type: 'button', onclick: () => rdraw(false) }, 'not now')));
+      };
+      rdraw(false);
+      el.append(sect('claude cli · relabel', rwrap));
+    }
   }
 
   // ----- routing
