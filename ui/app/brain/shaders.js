@@ -125,7 +125,7 @@ void main() {
 
 export const LINK_VS = COMMON + /* glsl */ `
 layout(location = 0) in float aT;
-layout(location = 1) in ivec3 aLink;   // from, to, kind (0 written, 1 manual, 2 accepted)
+layout(location = 1) in ivec4 aLink;   // from, to, kind (0 written, 1 manual, 2 accepted), degree of the busier end
 uniform vec3 cThread, cHot;
 uniform float uLinkAlpha;
 out float vT, vAlpha, vSeed, vKind;
@@ -144,13 +144,15 @@ void main() {
   vec4 mv = uView * vec4(p, 1.0);
   gl_Position = uProj * mv;
   float fogf = smoothstep(uNear, uFar, -mv.z);
-  bool lit = ((sa | sb) & 126u) != 0u;
+  bool lit = ((sa | sb) & 126u) != 0u;   // hovered, selected, cited, searched or open
   bool off = ((sa | sb) & 1u) != 0u;
   float inTime = step(ta, uTmax + 1e-5) * step(tb, uTmax + 1e-5) * step(uTmin - 1e-5, max(ta, tb));
-  float alpha = uLinkAlpha * (aLink.z == 0 ? 0.7 : 1.15) * mix(1.0, 0.35, fogf);
+  // by default threads are faint, and the more threads share a hub the fainter each one
+  float hub = inversesqrt(max(1.0, float(aLink.w) / 3.0));
+  float alpha = uLinkAlpha * (aLink.z == 0 ? 0.7 : 1.15) * mix(1.0, 0.35, fogf) * hub;
   vCol = cThread;
-  if (uAnyLit > 0.5) alpha *= lit ? 6.0 : 0.35;
-  if (lit) vCol = mix(cThread, cHot, 0.7);
+  if (lit) { alpha = uLinkAlpha * (aLink.z == 0 ? 5.0 : 7.0) * mix(1.0, 0.5, fogf); vCol = mix(cThread, cHot, 0.7); }
+  else if (uAnyLit > 0.5) alpha *= 0.3;
   if (off) alpha = 0.0;
   vAlpha = alpha * inTime;
   vT = t; vSeed = s0 + s1; vKind = float(aLink.z);

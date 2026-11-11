@@ -3,7 +3,7 @@
 import { OrbitCamera } from './camera.js';
 import { POINT_VS, POINT_FS, LINK_VS, LINK_FS, SHELL_VS, SHELL_FS } from './shaders.js';
 import { normalise, anatomy, groupsFor, spheres, split, hash, shell } from './layouts.js';
-import { store, on, emit, BIT, LIT, groupKey, regionOf } from '../lib/store.js';
+import { store, on, emit, BIT, LIT, groupKey, regionOf, fromNorm } from '../lib/store.js';
 import { theme, onTheme } from '../lib/tokens.js';
 import { h } from '../lib/dom.js';
 
@@ -151,8 +151,12 @@ export class Brain {
     const kindIdx = { written: 0, manual: 1, accepted_suggestion: 2 };
     const lb = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, lb);
-    gl.bufferData(gl.ARRAY_BUFFER, Int32Array.from(links.flatMap((l) => [l[0], l[1], kindIdx[l[2]] ?? 0])), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(1); gl.vertexAttribIPointer(1, 3, gl.INT, 0, 0); gl.vertexAttribDivisor(1, 1);
+    // the busier end of each link: threads converging on a hub note are thinned so they do not
+    // drown the view (the shader brings a hovered or lit item's own threads back up)
+    const deg = new Uint16Array(n);
+    for (const l of links) { deg[l[0]]++; deg[l[1]]++; }
+    gl.bufferData(gl.ARRAY_BUFFER, Int32Array.from(links.flatMap((l) => [l[0], l[1], kindIdx[l[2]] ?? 0, Math.max(deg[l[0]], deg[l[1]])])), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(1); gl.vertexAttribIPointer(1, 4, gl.INT, 0, 0); gl.vertexAttribDivisor(1, 1);
     gl.bindVertexArray(null);
     this.dirty = true;
     this.buildLabels();
@@ -290,7 +294,7 @@ export class Brain {
   updateLabels(w, hgt) {
     const MAX_LABELS = w < 700 ? 8 : 12, PAD = 6, EDGE = 8;
     const vp = this.cam.viewProj, m = this.morph;
-    const tmax = store.tMin + (store.tMax - store.tMin) * store.view.time[1];
+    const tmax = fromNorm(store.view.time[1]);
     const obstacles = [];
     const cr = this.canvas.getBoundingClientRect();
     for (const sel of ['#slot-bottom-left', '#slot-bottom', '.stage-views', '.lit-bar:not([hidden])', '.peek:not([hidden])', '.demo-banner:not([hidden])', '.float:not([hidden])', '.sheet:not([hidden])', '#caption']) {
@@ -546,7 +550,7 @@ export class Brain {
     if (store.view.filaments && this.nLinks) {
       gl.useProgram(this.lnk.p);
       this.setUniforms(this.lnk, hgt);
-      gl.uniform1f(this.lnk.u.uLinkAlpha, this.light ? 0.06 : 0.05);
+      gl.uniform1f(this.lnk.u.uLinkAlpha, this.light ? 0.05 : 0.04);
       gl.bindVertexArray(this.linkVao);
       gl.drawArraysInstanced(gl.LINE_STRIP, 0, SEGMENTS + 1, this.nLinks);
     }
