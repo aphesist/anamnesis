@@ -89,7 +89,11 @@ pub struct Anthropic {
 
 impl Anthropic {
     pub fn new(cfg: AnthropicConfig, policy: BackoffPolicy) -> Self {
-        Self { cfg, client: http::client(None), policy }
+        Self {
+            cfg,
+            client: http::client(None),
+            policy,
+        }
     }
 
     pub fn config(&self) -> &AnthropicConfig {
@@ -97,8 +101,14 @@ impl Anthropic {
     }
 
     fn headers(&self, rb: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder> {
-        let key = self.cfg.api_key.as_deref().ok_or_else(|| HarnessError::NotConfigured("anthropic api key".into()))?;
-        Ok(rb.header("x-api-key", key).header("anthropic-version", &self.cfg.anthropic_version))
+        let key = self
+            .cfg
+            .api_key
+            .as_deref()
+            .ok_or_else(|| HarnessError::NotConfigured("anthropic api key".into()))?;
+        Ok(rb
+            .header("x-api-key", key)
+            .header("anthropic-version", &self.cfg.anthropic_version))
     }
 
     pub(crate) fn body(&self, req: &ChatRequest) -> Value {
@@ -147,7 +157,11 @@ impl Backend for Anthropic {
         &self.cfg.chat_model
     }
     fn model_for(&self, task: Task) -> String {
-        if task.is_background() { self.cfg.label_model.clone() } else { self.cfg.chat_model.clone() }
+        if task.is_background() {
+            self.cfg.label_model.clone()
+        } else {
+            self.cfg.chat_model.clone()
+        }
     }
     fn provider(&self) -> &str {
         "anthropic"
@@ -175,9 +189,15 @@ impl Backend for Anthropic {
                     .await
                     .map(|v| super::openai_compatible::parse_model_list(&v))
                     .unwrap_or_default();
-                Availability { available: true, status: "ready".into(), models }
+                Availability {
+                    available: true,
+                    status: "ready".into(),
+                    models,
+                }
             }
-            Ok(r) if r.status().as_u16() == 401 || r.status().as_u16() == 403 => Availability::down("key rejected"),
+            Ok(r) if r.status().as_u16() == 401 || r.status().as_u16() == 403 => {
+                Availability::down("key rejected")
+            }
             Ok(r) => Availability::down(format!("http {}", r.status().as_u16())),
             Err(e) => Availability::down(format!("unreachable: {e}")),
         }
@@ -185,7 +205,11 @@ impl Backend for Anthropic {
     async fn chat(&self, req: ChatRequest) -> Result<ChatStream> {
         let body = self.body(&req);
         let url = join(&self.cfg.base_url, "v1/messages");
-        let key = self.cfg.api_key.clone().ok_or_else(|| HarnessError::NotConfigured("anthropic api key".into()))?;
+        let key = self
+            .cfg
+            .api_key
+            .clone()
+            .ok_or_else(|| HarnessError::NotConfigured("anthropic api key".into()))?;
         let resp = send_with_retry(&self.policy, || {
             self.client
                 .post(&url)
@@ -194,7 +218,10 @@ impl Backend for Anthropic {
                 .json(&body)
         })
         .await?;
-        Ok(decode_sse(resp.bytes_stream(), MessagesDecoder::new(UsageAcc::new(req.estimated_input_tokens()))))
+        Ok(decode_sse(
+            resp.bytes_stream(),
+            MessagesDecoder::new(UsageAcc::new(req.estimated_input_tokens())),
+        ))
     }
 }
 
@@ -212,12 +239,20 @@ impl MessagesDecoder {
 /// Map an anthropic error object (`{"type": "...", "message": "..."}`) to a failure.
 pub(crate) fn anthropic_error(err: &Value) -> ChatEvent {
     let ty = err.get("type").and_then(|t| t.as_str()).unwrap_or("");
-    let message = err.get("message").and_then(|m| m.as_str()).unwrap_or(ty).to_string();
+    let message = err
+        .get("message")
+        .and_then(|m| m.as_str())
+        .unwrap_or(ty)
+        .to_string();
     let failure = match ty {
-        "rate_limit_error" => FailureKind::RateLimited { retry_after_secs: None },
+        "rate_limit_error" => FailureKind::RateLimited {
+            retry_after_secs: None,
+        },
         "overloaded_error" | "api_error" => FailureKind::Unavailable,
         "authentication_error" | "permission_error" => FailureKind::Auth,
-        "invalid_request_error" | "not_found_error" | "request_too_large" => FailureKind::InvalidRequest,
+        "invalid_request_error" | "not_found_error" | "request_too_large" => {
+            FailureKind::InvalidRequest
+        }
         _ => FailureKind::Other,
     };
     ChatEvent::Error { message, failure }
@@ -228,13 +263,21 @@ impl Decoder for MessagesDecoder {
         let Ok(v) = serde_json::from_str::<Value>(&ev.data) else {
             return Vec::new();
         };
-        let ty = v.get("type").and_then(|t| t.as_str()).or(ev.event.as_deref()).unwrap_or("");
+        let ty = v
+            .get("type")
+            .and_then(|t| t.as_str())
+            .or(ev.event.as_deref())
+            .unwrap_or("");
         match ty {
             "message_start" => {
                 if let Some(u) = v.pointer("/message/usage") {
                     let input = u.get("input_tokens").and_then(|x| x.as_u64()).unwrap_or(0)
-                        + u.get("cache_creation_input_tokens").and_then(|x| x.as_u64()).unwrap_or(0)
-                        + u.get("cache_read_input_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+                        + u.get("cache_creation_input_tokens")
+                            .and_then(|x| x.as_u64())
+                            .unwrap_or(0)
+                        + u.get("cache_read_input_tokens")
+                            .and_then(|x| x.as_u64())
+                            .unwrap_or(0);
                     self.acc.input = Some(input);
                     if let Some(o) = u.get("output_tokens").and_then(|x| x.as_u64()) {
                         self.acc.output = Some(o);
@@ -243,9 +286,13 @@ impl Decoder for MessagesDecoder {
                 Vec::new()
             }
             "content_block_delta" => match v.pointer("/delta/text").and_then(|t| t.as_str()) {
-                Some(t) if v.pointer("/delta/type").and_then(|t| t.as_str()) == Some("text_delta") => {
+                Some(t)
+                    if v.pointer("/delta/type").and_then(|t| t.as_str()) == Some("text_delta") =>
+                {
                     self.acc.text(t);
-                    vec![ChatEvent::Token { text: t.to_string() }]
+                    vec![ChatEvent::Token {
+                        text: t.to_string(),
+                    }]
                 }
                 _ => Vec::new(),
             },
@@ -265,6 +312,11 @@ impl Decoder for MessagesDecoder {
     }
 
     fn finish(&mut self) -> Vec<ChatEvent> {
-        vec![ChatEvent::Usage(self.acc.usage()), ChatEvent::Done { stop_reason: self.stop.take() }]
+        vec![
+            ChatEvent::Usage(self.acc.usage()),
+            ChatEvent::Done {
+                stop_reason: self.stop.take(),
+            },
+        ]
     }
 }

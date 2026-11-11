@@ -1,8 +1,8 @@
 //! Request, event and capability types shared by every backend.
 
-use std::pin::Pin;
 use futures_util::Stream;
 use serde::{Deserialize, Serialize};
+use std::pin::Pin;
 
 /// Who said a message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -20,10 +20,16 @@ pub struct Message {
 
 impl Message {
     pub fn user(text: impl Into<String>) -> Self {
-        Self { role: Role::User, content: text.into() }
+        Self {
+            role: Role::User,
+            content: text.into(),
+        }
     }
     pub fn assistant(text: impl Into<String>) -> Self {
-        Self { role: Role::Assistant, content: text.into() }
+        Self {
+            role: Role::Assistant,
+            content: text.into(),
+        }
     }
 }
 
@@ -43,7 +49,10 @@ pub struct ChatRequest {
 
 impl ChatRequest {
     pub fn new(messages: Vec<Message>) -> Self {
-        Self { messages, ..Default::default() }
+        Self {
+            messages,
+            ..Default::default()
+        }
     }
     pub fn with_system(mut self, system: impl Into<String>) -> Self {
         self.system = Some(system.into());
@@ -51,8 +60,16 @@ impl ChatRequest {
     }
     /// Characters that would leave the machine (system + all message bodies).
     pub fn chars(&self) -> u64 {
-        let sys = self.system.as_deref().map(|s| s.chars().count()).unwrap_or(0);
-        let msgs: usize = self.messages.iter().map(|m| m.content.chars().count()).sum();
+        let sys = self
+            .system
+            .as_deref()
+            .map(|s| s.chars().count())
+            .unwrap_or(0);
+        let msgs: usize = self
+            .messages
+            .iter()
+            .map(|m| m.content.chars().count())
+            .sum();
         (sys + msgs) as u64
     }
     /// Very rough token estimate (≈4 chars per token) for backends that report no usage.
@@ -81,7 +98,9 @@ pub enum FailureKind {
     RateLimited { retry_after_secs: Option<u64> },
     /// A subscription plan's usage limit (claude plan window, chatgpt weekly cap).
     /// `resets_at` only when the provider stated it; never inferred.
-    UsageLimit { resets_at: Option<chrono::DateTime<chrono::Utc>> },
+    UsageLimit {
+        resets_at: Option<chrono::DateTime<chrono::Utc>>,
+    },
     /// Credentials missing, expired or rejected.
     Auth,
     /// The request itself was rejected (bad parameter, unsupported feature).
@@ -96,10 +115,17 @@ pub enum FailureKind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatEvent {
-    Token { text: String },
+    Token {
+        text: String,
+    },
     Usage(Usage),
-    Done { stop_reason: Option<String> },
-    Error { message: String, failure: FailureKind },
+    Done {
+        stop_reason: Option<String>,
+    },
+    Error {
+        message: String,
+        failure: FailureKind,
+    },
 }
 
 /// The stream a backend returns. It ends after `Done` or `Error`.
@@ -193,10 +219,18 @@ pub struct Availability {
 
 impl Availability {
     pub fn ready() -> Self {
-        Self { available: true, status: "ready".into(), models: Vec::new() }
+        Self {
+            available: true,
+            status: "ready".into(),
+            models: Vec::new(),
+        }
     }
     pub fn down(status: impl Into<String>) -> Self {
-        Self { available: false, status: status.into(), models: Vec::new() }
+        Self {
+            available: false,
+            status: status.into(),
+            models: Vec::new(),
+        }
     }
 }
 

@@ -31,7 +31,8 @@ pub const CALLBACK_PATH: &str = "/auth/callback";
 /// First-time registration uses this client id; the callback returns the issued `oaiapp_…` id.
 pub const DYNAMIC_CLIENT_ID: &str = "dynamic_agent_client";
 pub const PLAN_SCOPE: &str = "chatgpt.tokens.use.direct";
-pub const SCOPES: &str = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
+pub const SCOPES: &str =
+    "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
 /// Documented endpoints, used only if discovery fails.
 const FALLBACK_AUTHORIZE: &str = "https://auth.openai.com/api/accounts/authorize";
 const FALLBACK_TOKEN: &str = "https://auth.openai.com/api/accounts/oauth/token";
@@ -64,7 +65,10 @@ fn origin(u: &str) -> Option<String> {
 
 /// Fetch `{issuer}/.well-known/openid-configuration`; every endpoint must share the issuer's origin.
 pub async fn discover(client: &reqwest::Client, issuer: &str) -> Result<Discovery> {
-    let url = format!("{}/.well-known/openid-configuration", issuer.trim_end_matches('/'));
+    let url = format!(
+        "{}/.well-known/openid-configuration",
+        issuer.trim_end_matches('/')
+    );
     let d: Discovery = client
         .get(url)
         .timeout(Duration::from_secs(15))
@@ -82,7 +86,9 @@ pub async fn discover(client: &reqwest::Client, issuer: &str) -> Result<Discover
         || d.revocation_endpoint.as_deref().is_some_and(|u| !ok(u))
         || d.jwks_uri.as_deref().is_some_and(|u| !ok(u))
     {
-        return Err(HarnessError::OAuth("discovery endpoints do not match the issuer origin".into()));
+        return Err(HarnessError::OAuth(
+            "discovery endpoints do not match the issuer origin".into(),
+        ));
     }
     Ok(d)
 }
@@ -201,7 +207,10 @@ impl LoopbackListener {
             Err(e) => return Err(e.into()),
         };
         let port = listener.local_addr()?.port();
-        Ok(Self { listener, redirect_uri: format!("http://127.0.0.1:{port}{CALLBACK_PATH}") })
+        Ok(Self {
+            listener,
+            redirect_uri: format!("http://127.0.0.1:{port}{CALLBACK_PATH}"),
+        })
     }
 
     /// Wait for the browser's redirect; answers with a short page. Other requests
@@ -211,9 +220,15 @@ impl LoopbackListener {
             loop {
                 let (mut sock, _) = self.listener.accept().await?;
                 let mut buf = vec![0u8; 8192];
-                let n = tokio::time::timeout(Duration::from_secs(10), sock.read(&mut buf)).await.unwrap_or(Ok(0))?;
+                let n = tokio::time::timeout(Duration::from_secs(10), sock.read(&mut buf))
+                    .await
+                    .unwrap_or(Ok(0))?;
                 let req = String::from_utf8_lossy(&buf[..n]);
-                let target = req.lines().next().and_then(|l| l.split_whitespace().nth(1)).unwrap_or("");
+                let target = req
+                    .lines()
+                    .next()
+                    .and_then(|l| l.split_whitespace().nth(1))
+                    .unwrap_or("");
                 match parse_callback(target) {
                     Some(cb) => {
                         let body = if cb.error.is_some() {
@@ -236,7 +251,9 @@ impl LoopbackListener {
                 }
             }
         };
-        tokio::time::timeout(timeout, fut).await.map_err(|_| HarnessError::OAuth("sign-in timed out".into()))?
+        tokio::time::timeout(timeout, fut)
+            .await
+            .map_err(|_| HarnessError::OAuth("sign-in timed out".into()))?
     }
 }
 
@@ -255,7 +272,11 @@ pub struct TokenResponse {
     pub scope: Option<String>,
 }
 
-async fn token_request(client: &reqwest::Client, endpoint: &str, form: &[(&str, &str)]) -> Result<TokenResponse> {
+async fn token_request(
+    client: &reqwest::Client,
+    endpoint: &str,
+    form: &[(&str, &str)],
+) -> Result<TokenResponse> {
     let resp = client
         .post(endpoint)
         .header("accept", "application/json")
@@ -270,7 +291,11 @@ async fn token_request(client: &reqwest::Client, endpoint: &str, form: &[(&str, 
     let body: Value = resp.json().await.unwrap_or(Value::Null);
     let code = body
         .get("error")
-        .and_then(|e| e.as_str().map(str::to_string).or_else(|| e.get("code").and_then(|c| c.as_str()).map(str::to_string)))
+        .and_then(|e| {
+            e.as_str()
+                .map(str::to_string)
+                .or_else(|| e.get("code").and_then(|c| c.as_str()).map(str::to_string))
+        })
         .unwrap_or_else(|| format!("http {status}"));
     Err(HarnessError::OAuth(code))
 }
@@ -321,18 +346,32 @@ pub fn is_terminal_refresh_error(e: &HarnessError) -> bool {
     matches!(e, HarnessError::OAuth(c) if TERMINAL_REFRESH_ERRORS.contains(&c.as_str()))
 }
 
-pub async fn revoke(client: &reqwest::Client, endpoint: &str, client_id: &str, refresh_token: &str) -> Result<()> {
+pub async fn revoke(
+    client: &reqwest::Client,
+    endpoint: &str,
+    client_id: &str,
+    refresh_token: &str,
+) -> Result<()> {
     let mut last = None;
     for _ in 0..2 {
         match client
             .post(endpoint)
-            .form(&[("token", refresh_token), ("token_type_hint", "refresh_token"), ("client_id", client_id)])
+            .form(&[
+                ("token", refresh_token),
+                ("token_type_hint", "refresh_token"),
+                ("client_id", client_id),
+            ])
             .timeout(Duration::from_secs(10))
             .send()
             .await
         {
             Ok(r) if r.status().is_success() => return Ok(()),
-            Ok(r) => last = Some(HarnessError::OAuth(format!("revoke http {}", r.status().as_u16()))),
+            Ok(r) => {
+                last = Some(HarnessError::OAuth(format!(
+                    "revoke http {}",
+                    r.status().as_u16()
+                )))
+            }
             Err(e) => last = Some(e.into()),
         }
     }
@@ -372,12 +411,20 @@ pub struct IdClaims {
 }
 
 fn decode_part<T: serde::de::DeserializeOwned>(s: &str) -> Result<T> {
-    let bytes = B64.decode(s.trim_end_matches('=')).map_err(|_| HarnessError::OAuth("invalid_id_token".into()))?;
+    let bytes = B64
+        .decode(s.trim_end_matches('='))
+        .map_err(|_| HarnessError::OAuth("invalid_id_token".into()))?;
     serde_json::from_slice(&bytes).map_err(|_| HarnessError::OAuth("invalid_id_token".into()))
 }
 
 /// Check the claims: issuer, audience (= issued client id), expiry (5 s tolerance), nonce.
-pub fn check_claims(claims: &IdClaims, issuer: &str, client_id: &str, nonce: Option<&str>, now: i64) -> Result<()> {
+pub fn check_claims(
+    claims: &IdClaims,
+    issuer: &str,
+    client_id: &str,
+    nonce: Option<&str>,
+    now: i64,
+) -> Result<()> {
     let bad = |why: &str| Err(HarnessError::OAuth(format!("invalid_id_token: {why}")));
     if claims.iss.trim_end_matches('/') != issuer.trim_end_matches('/') {
         return bad("issuer");
@@ -393,10 +440,10 @@ pub fn check_claims(claims: &IdClaims, issuer: &str, client_id: &str, nonce: Opt
     if claims.exp + 5 < now {
         return bad("expired");
     }
-    if let Some(n) = nonce {
-        if claims.nonce.as_deref() != Some(n) {
-            return bad("nonce");
-        }
+    if let Some(n) = nonce
+        && claims.nonce.as_deref() != Some(n)
+    {
+        return bad("nonce");
     }
     Ok(())
 }
@@ -412,21 +459,42 @@ pub fn verify_signature(id_token: &str, jwks: &Value) -> Result<()> {
         return Err(HarnessError::OAuth("invalid_id_token: alg".into()));
     }
     let kid = header.get("kid").and_then(|k| k.as_str());
-    let sig = B64.decode(parts[2]).map_err(|_| HarnessError::OAuth("invalid_id_token".into()))?;
+    let sig = B64
+        .decode(parts[2])
+        .map_err(|_| HarnessError::OAuth("invalid_id_token".into()))?;
     let msg = format!("{}.{}", parts[0], parts[1]);
-    let keys = jwks.get("keys").and_then(|k| k.as_array()).cloned().unwrap_or_default();
-    for k in keys.iter().filter(|k| k.get("kty").and_then(|t| t.as_str()) == Some("RSA")) {
-        if let (Some(want), Some(have)) = (kid, k.get("kid").and_then(|x| x.as_str())) {
-            if want != have {
-                continue;
-            }
+    let keys = jwks
+        .get("keys")
+        .and_then(|k| k.as_array())
+        .cloned()
+        .unwrap_or_default();
+    for k in keys
+        .iter()
+        .filter(|k| k.get("kty").and_then(|t| t.as_str()) == Some("RSA"))
+    {
+        if let (Some(want), Some(have)) = (kid, k.get("kid").and_then(|x| x.as_str()))
+            && want != have
+        {
+            continue;
         }
-        let (Some(n), Some(e)) = (k.get("n").and_then(|x| x.as_str()), k.get("e").and_then(|x| x.as_str())) else {
+        let (Some(n), Some(e)) = (
+            k.get("n").and_then(|x| x.as_str()),
+            k.get("e").and_then(|x| x.as_str()),
+        ) else {
             continue;
         };
-        let (Ok(n), Ok(e)) = (B64.decode(n), B64.decode(e)) else { continue };
+        let (Ok(n), Ok(e)) = (B64.decode(n), B64.decode(e)) else {
+            continue;
+        };
         let pk = ring::signature::RsaPublicKeyComponents { n: &n, e: &e };
-        if pk.verify(&ring::signature::RSA_PKCS1_2048_8192_SHA256, msg.as_bytes(), &sig).is_ok() {
+        if pk
+            .verify(
+                &ring::signature::RSA_PKCS1_2048_8192_SHA256,
+                msg.as_bytes(),
+                &sig,
+            )
+            .is_ok()
+        {
             return Ok(());
         }
     }
@@ -434,7 +502,10 @@ pub fn verify_signature(id_token: &str, jwks: &Value) -> Result<()> {
 }
 
 pub fn decode_claims(id_token: &str) -> Result<IdClaims> {
-    let payload = id_token.split('.').nth(1).ok_or_else(|| HarnessError::OAuth("invalid_id_token".into()))?;
+    let payload = id_token
+        .split('.')
+        .nth(1)
+        .ok_or_else(|| HarnessError::OAuth("invalid_id_token".into()))?;
     decode_part(payload)
 }
 
@@ -465,7 +536,11 @@ mod tests {
             login_hint: None,
             reconsent: false,
         });
-        let q: HashMap<String, String> = url::Url::parse(&u).unwrap().query_pairs().into_owned().collect();
+        let q: HashMap<String, String> = url::Url::parse(&u)
+            .unwrap()
+            .query_pairs()
+            .into_owned()
+            .collect();
         assert_eq!(q["client_id"], DYNAMIC_CLIENT_ID);
         assert_eq!(q["agent_name_hint"], "anamnesis");
         assert_eq!(q["code_challenge_method"], "S256");
@@ -489,7 +564,11 @@ mod tests {
                 reconsent: false,
             }
         });
-        let q: HashMap<String, String> = url::Url::parse(&u).unwrap().query_pairs().into_owned().collect();
+        let q: HashMap<String, String> = url::Url::parse(&u)
+            .unwrap()
+            .query_pairs()
+            .into_owned()
+            .collect();
         assert_eq!(q["client_id"], "oaiapp_1");
         assert!(!q.contains_key("agent_name_hint"));
     }
@@ -534,7 +613,11 @@ mod tests {
 
     #[test]
     fn terminal_refresh_errors() {
-        assert!(is_terminal_refresh_error(&HarnessError::OAuth("invalid_grant".into())));
-        assert!(!is_terminal_refresh_error(&HarnessError::OAuth("http 503".into())));
+        assert!(is_terminal_refresh_error(&HarnessError::OAuth(
+            "invalid_grant".into()
+        )));
+        assert!(!is_terminal_refresh_error(&HarnessError::OAuth(
+            "http 503".into()
+        )));
     }
 }

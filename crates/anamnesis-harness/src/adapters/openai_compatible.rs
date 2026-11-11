@@ -89,7 +89,17 @@ pub struct OpenAiCompatible {
 
 impl OpenAiCompatible {
     pub fn new(cfg: OpenAiCompatibleConfig, policy: BackoffPolicy) -> Self {
-        Self { cfg, client: http::client(None), policy }
+        // loopback servers are never reached through a system proxy
+        let client = if is_local_url(&cfg.base_url) {
+            http::local_client()
+        } else {
+            http::client(None)
+        };
+        Self {
+            cfg,
+            client,
+            policy,
+        }
     }
 
     pub fn config(&self) -> &OpenAiCompatibleConfig {
@@ -159,10 +169,17 @@ impl OpenAiCompatible {
 }
 
 pub(crate) fn parse_model_list(v: &Value) -> Vec<String> {
-    let arr = v.get("data").or_else(|| v.get("models")).and_then(|d| d.as_array());
+    let arr = v
+        .get("data")
+        .or_else(|| v.get("models"))
+        .and_then(|d| d.as_array());
     arr.map(|a| {
         a.iter()
-            .filter_map(|m| m.get("id").or_else(|| m.get("name")).or_else(|| m.get("model")))
+            .filter_map(|m| {
+                m.get("id")
+                    .or_else(|| m.get("name"))
+                    .or_else(|| m.get("model"))
+            })
             .filter_map(|x| x.as_str().map(str::to_string))
             .collect()
     })
@@ -178,7 +195,10 @@ impl Backend for OpenAiCompatible {
         BackendKind::OpenaiCompatible
     }
     fn label(&self) -> String {
-        self.cfg.label.clone().unwrap_or_else(|| self.cfg.provider.clone())
+        self.cfg
+            .label
+            .clone()
+            .unwrap_or_else(|| self.cfg.provider.clone())
     }
     fn default_model(&self) -> &str {
         &self.cfg.model
@@ -187,7 +207,11 @@ impl Backend for OpenAiCompatible {
         &self.cfg.provider
     }
     fn capabilities(&self) -> Capabilities {
-        let mut c = Capabilities::base(if self.cfg.is_local() { CostModel::FreeLocal } else { CostModel::Metered });
+        let mut c = Capabilities::base(if self.cfg.is_local() {
+            CostModel::FreeLocal
+        } else {
+            CostModel::Metered
+        });
         c.tools = self.cfg.tools;
         c.json_schema = self.cfg.json_schema;
         c.max_context = self.cfg.max_context;
@@ -199,7 +223,11 @@ impl Backend for OpenAiCompatible {
     }
     async fn available(&self) -> Availability {
         match self.list_models().await {
-            Ok(models) => Availability { available: true, status: "ready".into(), models },
+            Ok(models) => Availability {
+                available: true,
+                status: "ready".into(),
+                models,
+            },
             Err(HarnessError::Auth(_)) => Availability::down("key rejected"),
             Err(e) => Availability::down(format!("unreachable: {e}")),
         }
@@ -207,9 +235,15 @@ impl Backend for OpenAiCompatible {
     async fn chat(&self, req: ChatRequest) -> Result<ChatStream> {
         let body = self.body(&req);
         let url = join(&self.cfg.base_url, "chat/completions");
-        let resp = send_with_retry(&self.policy, || self.auth(self.client.post(&url)).json(&body)).await?;
+        let resp = send_with_retry(&self.policy, || {
+            self.auth(self.client.post(&url)).json(&body)
+        })
+        .await?;
         let acc = UsageAcc::new(req.estimated_input_tokens());
-        Ok(decode_sse(resp.bytes_stream(), ChatCompletionsDecoder::new(acc)))
+        Ok(decode_sse(
+            resp.bytes_stream(),
+            ChatCompletionsDecoder::new(acc),
+        ))
     }
 }
 
@@ -233,21 +267,35 @@ impl Decoder for ChatCompletionsDecoder {
             return Vec::new();
         };
         if let Some(err) = v.get("error") {
-            let msg = err.get("message").and_then(|m| m.as_str()).unwrap_or("provider error").to_string();
-            let failure = match err.get("code").and_then(|c| c.as_i64().or_else(|| c.as_str()?.parse().ok())) {
-                Some(429) => FailureKind::RateLimited { retry_after_secs: None },
+            let msg = err
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("provider error")
+                .to_string();
+            let failure = match err
+                .get("code")
+                .and_then(|c| c.as_i64().or_else(|| c.as_str()?.parse().ok()))
+            {
+                Some(429) => FailureKind::RateLimited {
+                    retry_after_secs: None,
+                },
                 Some(401 | 403) => FailureKind::Auth,
                 _ => FailureKind::Other,
             };
-            return vec![ChatEvent::Error { message: msg, failure }];
+            return vec![ChatEvent::Error {
+                message: msg,
+                failure,
+            }];
         }
         let mut out = Vec::new();
         if let Some(choice) = v.get("choices").and_then(|c| c.get(0)) {
-            if let Some(t) = choice.pointer("/delta/content").and_then(|t| t.as_str()) {
-                if !t.is_empty() {
-                    self.acc.text(t);
-                    out.push(ChatEvent::Token { text: t.to_string() });
-                }
+            if let Some(t) = choice.pointer("/delta/content").and_then(|t| t.as_str())
+                && !t.is_empty()
+            {
+                self.acc.text(t);
+                out.push(ChatEvent::Token {
+                    text: t.to_string(),
+                });
             }
             if let Some(r) = choice.get("finish_reason").and_then(|r| r.as_str()) {
                 self.stop = Some(r.to_string());
@@ -261,6 +309,11 @@ impl Decoder for ChatCompletionsDecoder {
     }
 
     fn finish(&mut self) -> Vec<ChatEvent> {
-        vec![ChatEvent::Usage(self.acc.usage()), ChatEvent::Done { stop_reason: self.stop.take() }]
+        vec![
+            ChatEvent::Usage(self.acc.usage()),
+            ChatEvent::Done {
+                stop_reason: self.stop.take(),
+            },
+        ]
     }
 }

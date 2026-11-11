@@ -5,7 +5,9 @@ use futures_util::stream;
 
 use crate::adapters::anthropic::{Anthropic, AnthropicConfig, MessagesDecoder};
 use crate::adapters::gemini::{Gemini, GeminiConfig, GeminiDecoder};
-use crate::adapters::openai_compatible::{ChatCompletionsDecoder, OpenAiCompatible, OpenAiCompatibleConfig};
+use crate::adapters::openai_compatible::{
+    ChatCompletionsDecoder, OpenAiCompatible, OpenAiCompatibleConfig,
+};
 use crate::backend::Backend;
 use crate::decode::{Decoder, UsageAcc, decode_sse};
 use crate::error::HarnessError;
@@ -48,8 +50,11 @@ data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ple\"}],\"role\":\"m
 
 /// Run fixture bytes through a decoder, split into `chunk`-byte pieces.
 async fn run<D: Decoder>(fixture: &str, chunk: usize, dec: D) -> (String, Vec<ChatEvent>) {
-    let chunks: Vec<Result<Bytes, std::io::Error>> =
-        fixture.as_bytes().chunks(chunk).map(|c| Ok(Bytes::copy_from_slice(c))).collect();
+    let chunks: Vec<Result<Bytes, std::io::Error>> = fixture
+        .as_bytes()
+        .chunks(chunk)
+        .map(|c| Ok(Bytes::copy_from_slice(c)))
+        .collect();
     collect(decode_sse(stream::iter(chunks), dec)).await
 }
 
@@ -63,30 +68,63 @@ fn usage_of(evs: &[ChatEvent]) -> Usage {
 }
 
 fn assert_ends_done(evs: &[ChatEvent]) {
-    assert!(matches!(evs.last(), Some(ChatEvent::Done { .. })), "{evs:?}");
-    let n_done = evs.iter().filter(|e| matches!(e, ChatEvent::Done { .. })).count();
+    assert!(
+        matches!(evs.last(), Some(ChatEvent::Done { .. })),
+        "{evs:?}"
+    );
+    let n_done = evs
+        .iter()
+        .filter(|e| matches!(e, ChatEvent::Done { .. }))
+        .count();
     assert_eq!(n_done, 1);
     // usage comes before done
-    let u = evs.iter().position(|e| matches!(e, ChatEvent::Usage(_))).unwrap();
+    let u = evs
+        .iter()
+        .position(|e| matches!(e, ChatEvent::Usage(_)))
+        .unwrap();
     assert!(u < evs.len() - 1);
 }
 
 #[tokio::test]
 async fn openai_fixture_any_chunking() {
     for chunk in [1, 3, 7, 64, 4096] {
-        let (text, evs) = run(OPENAI_SSE, chunk, ChatCompletionsDecoder::new(UsageAcc::new(99))).await;
+        let (text, evs) = run(
+            OPENAI_SSE,
+            chunk,
+            ChatCompletionsDecoder::new(UsageAcc::new(99)),
+        )
+        .await;
         assert_eq!(text, "hello, wörld");
-        assert_eq!(usage_of(&evs), Usage { input: 12, output: 4, estimated: false, reported_cost_usd: None });
+        assert_eq!(
+            usage_of(&evs),
+            Usage {
+                input: 12,
+                output: 4,
+                estimated: false,
+                reported_cost_usd: None
+            }
+        );
         assert_ends_done(&evs);
-        assert!(matches!(evs.last(), Some(ChatEvent::Done { stop_reason: Some(r) }) if r == "stop"));
+        assert!(
+            matches!(evs.last(), Some(ChatEvent::Done { stop_reason: Some(r) }) if r == "stop")
+        );
     }
 }
 
 #[tokio::test]
 async fn openai_without_usage_is_estimated() {
-    let fixture = "data: {\"choices\":[{\"delta\":{\"content\":\"abcdefgh\"}}]}\n\ndata: [DONE]\n\n";
+    let fixture =
+        "data: {\"choices\":[{\"delta\":{\"content\":\"abcdefgh\"}}]}\n\ndata: [DONE]\n\n";
     let (_, evs) = run(fixture, 5, ChatCompletionsDecoder::new(UsageAcc::new(10))).await;
-    assert_eq!(usage_of(&evs), Usage { input: 10, output: 2, estimated: true, reported_cost_usd: None });
+    assert_eq!(
+        usage_of(&evs),
+        Usage {
+            input: 10,
+            output: 2,
+            estimated: true,
+            reported_cost_usd: None
+        }
+    );
 }
 
 #[tokio::test]
@@ -94,15 +132,36 @@ async fn anthropic_fixture() {
     for chunk in [1, 11, 4096] {
         let (text, evs) = run(ANTHROPIC_SSE, chunk, MessagesDecoder::new(UsageAcc::new(0))).await;
         assert_eq!(text, "a quiet room");
-        assert_eq!(usage_of(&evs), Usage { input: 30, output: 7, estimated: false, reported_cost_usd: None });
-        assert!(matches!(evs.last(), Some(ChatEvent::Done { stop_reason: Some(r) }) if r == "end_turn"));
+        assert_eq!(
+            usage_of(&evs),
+            Usage {
+                input: 30,
+                output: 7,
+                estimated: false,
+                reported_cost_usd: None
+            }
+        );
+        assert!(
+            matches!(evs.last(), Some(ChatEvent::Done { stop_reason: Some(r) }) if r == "end_turn")
+        );
     }
 }
 
 #[tokio::test]
 async fn anthropic_stream_error() {
-    let (_, evs) = run(ANTHROPIC_ERROR_SSE, 9, MessagesDecoder::new(UsageAcc::new(0))).await;
-    assert!(matches!(evs.last(), Some(ChatEvent::Error { failure: FailureKind::Unavailable, .. })));
+    let (_, evs) = run(
+        ANTHROPIC_ERROR_SSE,
+        9,
+        MessagesDecoder::new(UsageAcc::new(0)),
+    )
+    .await;
+    assert!(matches!(
+        evs.last(),
+        Some(ChatEvent::Error {
+            failure: FailureKind::Unavailable,
+            ..
+        })
+    ));
 }
 
 #[tokio::test]
@@ -110,8 +169,18 @@ async fn gemini_fixture_skips_thoughts() {
     for chunk in [2, 13, 4096] {
         let (text, evs) = run(GEMINI_SSE, chunk, GeminiDecoder::new(UsageAcc::new(0))).await;
         assert_eq!(text, "stipple");
-        assert_eq!(usage_of(&evs), Usage { input: 9, output: 5, estimated: false, reported_cost_usd: None });
-        assert!(matches!(evs.last(), Some(ChatEvent::Done { stop_reason: Some(r) }) if r == "STOP"));
+        assert_eq!(
+            usage_of(&evs),
+            Usage {
+                input: 9,
+                output: 5,
+                estimated: false,
+                reported_cost_usd: None
+            }
+        );
+        assert!(
+            matches!(evs.last(), Some(ChatEvent::Done { stop_reason: Some(r) }) if r == "STOP")
+        );
     }
 }
 
@@ -124,15 +193,24 @@ async fn truncated_stream_still_terminates() {
 }
 
 fn req() -> ChatRequest {
-    let mut r = ChatRequest::new(vec![Message::user("hello"), Message::assistant("hi"), Message::user("label this")])
-        .with_system("be brief");
+    let mut r = ChatRequest::new(vec![
+        Message::user("hello"),
+        Message::assistant("hi"),
+        Message::user("label this"),
+    ])
+    .with_system("be brief");
     r.temperature = Some(0.2);
     r.max_tokens = Some(100);
     r
 }
 
 fn fast_policy() -> BackoffPolicy {
-    BackoffPolicy { base_ms: 5, max_ms: 20, max_retries: 2, max_inline_wait_ms: 2_000 }
+    BackoffPolicy {
+        base_ms: 5,
+        max_ms: 20,
+        max_retries: 2,
+        max_inline_wait_ms: 2_000,
+    }
 }
 
 #[tokio::test]
@@ -163,7 +241,12 @@ async fn openai_compatible_against_mock() {
 #[tokio::test]
 async fn openai_compatible_models_and_availability() {
     let srv = MockServer::start(|r| {
-        (r.path == "/v1/models").then(|| Reply::json(200, r#"{"object":"list","data":[{"id":"qwen3"},{"id":"llama3"}]}"#))
+        (r.path == "/v1/models").then(|| {
+            Reply::json(
+                200,
+                r#"{"object":"list","data":[{"id":"qwen3"},{"id":"llama3"}]}"#,
+            )
+        })
     })
     .await;
     let mut cfg = OpenAiCompatibleConfig::ollama("llama3");
@@ -175,8 +258,15 @@ async fn openai_compatible_models_and_availability() {
 
 #[tokio::test]
 async fn anthropic_against_mock() {
-    let srv = MockServer::start(|r| (r.method == "POST" && r.path == "/v1/messages").then(|| Reply::sse(ANTHROPIC_SSE, 23))).await;
-    let cfg = AnthropicConfig { base_url: srv.base.clone(), api_key: Some("ak-test".into()), ..Default::default() };
+    let srv = MockServer::start(|r| {
+        (r.method == "POST" && r.path == "/v1/messages").then(|| Reply::sse(ANTHROPIC_SSE, 23))
+    })
+    .await;
+    let cfg = AnthropicConfig {
+        base_url: srv.base.clone(),
+        api_key: Some("ak-test".into()),
+        ..Default::default()
+    };
     let b = Anthropic::new(cfg, fast_policy());
     let mut r = req();
     r.model = Some(b.model_for(Task::Label));
@@ -191,7 +281,10 @@ async fn anthropic_against_mock() {
     assert_eq!(body["system"], "be brief");
     assert_eq!(body["stream"], true);
     assert_eq!(body["max_tokens"], 100);
-    assert!(body.get("temperature").is_none(), "temperature is not sent to current models");
+    assert!(
+        body.get("temperature").is_none(),
+        "temperature is not sent to current models"
+    );
     assert_eq!(body["output_config"]["format"]["type"], "json_schema");
     assert_eq!(body["messages"].as_array().unwrap().len(), 3);
 }
@@ -199,7 +292,10 @@ async fn anthropic_against_mock() {
 #[tokio::test]
 async fn anthropic_without_key_is_not_configured() {
     let b = Anthropic::new(AnthropicConfig::default(), fast_policy());
-    assert!(matches!(b.chat(req()).await, Err(HarnessError::NotConfigured(_))));
+    assert!(matches!(
+        b.chat(req()).await,
+        Err(HarnessError::NotConfigured(_))
+    ));
     assert!(!b.available().await.available);
 }
 
@@ -210,7 +306,13 @@ async fn gemini_against_mock() {
             .then(|| Reply::sse(GEMINI_SSE, 31))
     })
     .await;
-    let cfg = GeminiConfig { base_url: srv.base.clone(), api_key: Some("gk".into()), model: "gemini-test".into(), label_model: None, ..Default::default() };
+    let cfg = GeminiConfig {
+        base_url: srv.base.clone(),
+        api_key: Some("gk".into()),
+        model: "gemini-test".into(),
+        label_model: None,
+        ..Default::default()
+    };
     let b = Gemini::new(cfg, fast_policy());
     let (text, evs) = collect(b.chat(req()).await.unwrap()).await;
     assert_eq!(text, "stipple");
@@ -226,11 +328,23 @@ async fn gemini_against_mock() {
 #[tokio::test]
 async fn rate_limit_429_with_retry_after() {
     // long retry-after: not slept through, surfaced as RateLimited with the duration
-    let srv = MockServer::start(|_| Some(Reply::json(429, r#"{"error":{"type":"rate_limit_error"}}"#).header("retry-after", "120"))).await;
-    let cfg = AnthropicConfig { base_url: srv.base.clone(), api_key: Some("k".into()), ..Default::default() };
+    let srv = MockServer::start(|_| {
+        Some(
+            Reply::json(429, r#"{"error":{"type":"rate_limit_error"}}"#)
+                .header("retry-after", "120"),
+        )
+    })
+    .await;
+    let cfg = AnthropicConfig {
+        base_url: srv.base.clone(),
+        api_key: Some("k".into()),
+        ..Default::default()
+    };
     let b = Anthropic::new(cfg, fast_policy());
     match b.chat(req()).await {
-        Err(HarnessError::RateLimited { retry_after: Some(d) }) => assert_eq!(d.as_secs(), 120),
+        Err(HarnessError::RateLimited {
+            retry_after: Some(d),
+        }) => assert_eq!(d.as_secs(), 120),
         Err(e) => panic!("{e}"),
         Ok(_) => panic!("expected an error"),
     }
@@ -263,6 +377,54 @@ async fn server_errors_back_off_then_give_up() {
     let mut cfg = OpenAiCompatibleConfig::ollama("m");
     cfg.base_url = format!("{}/v1", srv.base);
     let b = OpenAiCompatible::new(cfg, fast_policy());
-    assert!(matches!(b.chat(req()).await, Err(HarnessError::Unavailable(_))));
+    assert!(matches!(
+        b.chat(req()).await,
+        Err(HarnessError::Unavailable(_))
+    ));
     assert_eq!(srv.recorded().len(), 3); // 1 + max_retries
+}
+
+#[tokio::test]
+async fn detect_all_builds_and_checks_backends() {
+    let srv = MockServer::start(|r| match r.path.as_str() {
+        "/v1/models" => Some(Reply::json(200, r#"{"data":[{"id":"llama3"}]}"#)),
+        "/api/tags" => Some(Reply::json(
+            200,
+            r#"{"models":[{"name":"llama3:8b"},{"name":"nomic-embed-text"}]}"#,
+        )),
+        _ => None,
+    })
+    .await;
+    let mut ollama = OpenAiCompatibleConfig::ollama("llama3");
+    ollama.base_url = format!("{}/v1", srv.base);
+    let empty = tempfile::tempdir().unwrap();
+    let cfg = crate::detect::HarnessConfig {
+        openai_compatible: vec![ollama],
+        anthropic: Some(AnthropicConfig::default()), // no key: configured but unavailable
+        claude_cli: crate::adapters::claude_cli::ClaudeCliConfig {
+            search_path: Some(empty.path().as_os_str().to_owned()),
+            ..Default::default()
+        },
+        probe_local: false,
+        ..Default::default()
+    };
+    let d = crate::detect::detect_all(&cfg).await;
+    assert_eq!(
+        d.report.ollama_models,
+        vec!["llama3:8b", "nomic-embed-text"]
+    );
+    assert!(!d.report.claude_cli.found);
+    let ids: Vec<_> = d
+        .report
+        .backends
+        .iter()
+        .map(|b| (b.id.as_str(), b.available))
+        .collect();
+    assert_eq!(ids, vec![("ollama", true), ("anthropic", false)]);
+    let routing = d.router.effective_routing();
+    assert_eq!(routing[&Task::Label].as_deref(), Some("ollama"));
+    assert_eq!(routing[&Task::Chat].as_deref(), Some("ollama"));
+    // the ui shape serialises
+    let json = serde_json::to_value(&routing).unwrap();
+    assert_eq!(json["label"], "ollama");
 }

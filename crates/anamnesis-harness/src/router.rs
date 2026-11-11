@@ -125,7 +125,12 @@ fn background_ok(b: &dyn Backend) -> bool {
 }
 
 impl Router {
-    pub fn new(backends: Vec<Arc<dyn Backend>>, settings: RoutingSettings, limits: Arc<Limits>, prices: PriceTable) -> Self {
+    pub fn new(
+        backends: Vec<Arc<dyn Backend>>,
+        settings: RoutingSettings,
+        limits: Arc<Limits>,
+        prices: PriceTable,
+    ) -> Self {
         Self {
             backends,
             settings: RwLock::new(settings),
@@ -182,16 +187,31 @@ impl Router {
     }
 
     fn is_available(&self, id: &str) -> bool {
-        self.availability.read().unwrap().get(id).map(|a| a.available).unwrap_or(false)
+        self.availability
+            .read()
+            .unwrap()
+            .get(id)
+            .map(|a| a.available)
+            .unwrap_or(false)
     }
 
     /// Price used to rank metered backends (unknown price ranks last).
     fn rank_price(&self, b: &dyn Backend, task: Task) -> f64 {
-        self.prices.read().unwrap().lookup(&b.model_for(task)).map(|p| p.blended()).unwrap_or(f64::INFINITY)
+        self.prices
+            .read()
+            .unwrap()
+            .lookup(&b.model_for(task))
+            .map(|p| p.blended())
+            .unwrap_or(f64::INFINITY)
     }
 
     fn default_backend(&self, task: Task) -> Option<Arc<dyn Backend>> {
-        let avail: Vec<_> = self.backends.iter().filter(|b| self.is_available(b.id())).cloned().collect();
+        let avail: Vec<_> = self
+            .backends
+            .iter()
+            .filter(|b| self.is_available(b.id()))
+            .cloned()
+            .collect();
         if let Some(local) = avail.iter().find(|b| b.is_local()) {
             return Some(local.clone());
         }
@@ -202,17 +222,26 @@ impl Router {
             .iter()
             .filter(|b| b.capabilities().cost_model == CostModel::Metered)
             .filter(|b| !task.is_background() || background_ok(b.as_ref()))
-            .min_by(|a, b| self.rank_price(a.as_ref(), task).total_cmp(&self.rank_price(b.as_ref(), task)))
+            .min_by(|a, b| {
+                self.rank_price(a.as_ref(), task)
+                    .total_cmp(&self.rank_price(b.as_ref(), task))
+            })
             .cloned()
     }
 
     /// The ordered candidates for a task: primary, then explicit fallbacks.
-    pub fn plan(&self, task: Task, override_backend: Option<&str>) -> Result<Vec<Arc<dyn Backend>>> {
+    pub fn plan(
+        &self,
+        task: Task,
+        override_backend: Option<&str>,
+    ) -> Result<Vec<Arc<dyn Backend>>> {
         let settings = self.settings();
         let explicit = override_backend.or(settings.get(task));
         let primary = match explicit {
             Some(id) => {
-                let b = self.get(id).ok_or_else(|| HarnessError::NotConfigured(id.to_string()))?;
+                let b = self
+                    .get(id)
+                    .ok_or_else(|| HarnessError::NotConfigured(id.to_string()))?;
                 if task.is_background() && !background_ok(b.as_ref()) {
                     return Err(HarnessError::Routing(format!(
                         "{} is a plan backend; background {} never runs on a subscription",
@@ -223,14 +252,20 @@ impl Router {
                 b
             }
             None => self.default_backend(task).ok_or_else(|| {
-                HarnessError::Routing(format!("no backend available for {}; configure a local model or an api key", task.as_str()))
+                HarnessError::Routing(format!(
+                    "no backend available for {}; configure a local model or an api key",
+                    task.as_str()
+                ))
             })?,
         };
         let mut out = vec![primary];
         for id in settings.fallbacks.get(&task).into_iter().flatten() {
             let Some(b) = self.get(id) else { continue };
             if task.is_background() && !background_ok(b.as_ref()) {
-                tracing::warn!("ignoring fallback {id} for background {}: plan backend", task.as_str());
+                tracing::warn!(
+                    "ignoring fallback {id} for background {}: plan backend",
+                    task.as_str()
+                );
                 continue;
             }
             if !out.iter().any(|x| x.id() == b.id()) {
@@ -259,25 +294,35 @@ impl Router {
                 None
             } else {
                 // refusals are final: they do not fall through to another backend
-                Some(egress_check_with_consent(&ctx.items, &ctx.approved)?.for_call(
-                    b.provider(),
-                    &model,
-                    task.as_str(),
-                    req.chars(),
-                ))
+                Some(
+                    egress_check_with_consent(&ctx.items, &ctx.approved)?.for_call(
+                        b.provider(),
+                        &model,
+                        task.as_str(),
+                        req.chars(),
+                    ),
+                )
             };
             let mut r = req.clone();
             r.model = Some(model.clone());
             match b.chat(r).await {
                 Ok(stream) => {
                     let stream = self.instrument(b.clone(), model.clone(), stream);
-                    return Ok(RoutedChat { backend: b.id().to_string(), model, egress, fell_back: i > 0, stream });
+                    return Ok(RoutedChat {
+                        backend: b.id().to_string(),
+                        model,
+                        egress,
+                        fell_back: i > 0,
+                        stream,
+                    });
                 }
                 Err(e) => {
                     let failure = e.failure_kind();
                     let next = matches!(
                         failure,
-                        FailureKind::RateLimited { .. } | FailureKind::UsageLimit { .. } | FailureKind::Unavailable
+                        FailureKind::RateLimited { .. }
+                            | FailureKind::UsageLimit { .. }
+                            | FailureKind::Unavailable
                     );
                     if next {
                         self.limits.record_failure(b.id(), &failure, now);
@@ -321,13 +366,18 @@ impl Router {
             .map(|b| {
                 let caps = b.capabilities();
                 let a = avail.get(b.id());
-                let cooldown = cds.iter().find(|c| c.backend == b.id() && c.until.is_some_and(|u| u > now)).cloned();
+                let cooldown = cds
+                    .iter()
+                    .find(|c| c.backend == b.id() && c.until.is_some_and(|u| u > now))
+                    .cloned();
                 BackendInfo {
                     id: b.id().to_string(),
                     kind: b.kind(),
                     label: b.label(),
                     available: a.map(|a| a.available).unwrap_or(false),
-                    status: a.map(|a| a.status.clone()).unwrap_or_else(|| "not checked".into()),
+                    status: a
+                        .map(|a| a.status.clone())
+                        .unwrap_or_else(|| "not checked".into()),
                     terms: caps.terms,
                     notice: caps.notice.clone(),
                     capabilities: caps,
@@ -340,6 +390,16 @@ impl Router {
 
     /// The effective backend per task for the ui (`routing: {chat, label, extract, summarise}`).
     pub fn effective_routing(&self) -> BTreeMap<Task, Option<String>> {
-        Task::ALL.iter().map(|t| (*t, self.plan(*t, None).ok().and_then(|v| v.first().map(|b| b.id().to_string())))).collect()
+        Task::ALL
+            .iter()
+            .map(|t| {
+                (
+                    *t,
+                    self.plan(*t, None)
+                        .ok()
+                        .and_then(|v| v.first().map(|b| b.id().to_string())),
+                )
+            })
+            .collect()
     }
 }

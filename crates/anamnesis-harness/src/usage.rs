@@ -36,7 +36,13 @@ impl Default for PriceTable {
     fn default() -> Self {
         let mut m = BTreeMap::new();
         // anthropic first-party api rates for prompts up to 100k tokens
-        m.insert("claude-haiku-5-5".into(), Price { input_per_m: 0.10, output_per_m: 0.50 });
+        m.insert(
+            "claude-haiku-5-5".into(),
+            Price {
+                input_per_m: 0.10,
+                output_per_m: 0.50,
+            },
+        );
         Self(m)
     }
 }
@@ -47,14 +53,18 @@ impl PriceTable {
             return Some(*p);
         }
         // provider-prefixed ids, e.g. "anthropic/claude-haiku-5-5" on openrouter
-        if let Some((_, tail)) = model.rsplit_once('/') {
-            if let Some(p) = self.0.get(tail) {
-                return Some(*p);
-            }
+        if let Some((_, tail)) = model.rsplit_once('/')
+            && let Some(p) = self.0.get(tail)
+        {
+            return Some(*p);
         }
         self.0
             .iter()
-            .filter_map(|(k, p)| k.strip_suffix('*').filter(|pre| model.starts_with(pre)).map(|pre| (pre.len(), *p)))
+            .filter_map(|(k, p)| {
+                k.strip_suffix('*')
+                    .filter(|pre| model.starts_with(pre))
+                    .map(|pre| (pre.len(), *p))
+            })
             .max_by_key(|(len, _)| *len)
             .map(|(_, p)| p)
     }
@@ -92,9 +102,21 @@ impl UsageLedger {
     }
 
     /// Record one call's usage; returns the cost attributed to it (charged or plan-equivalent).
-    pub fn record(&self, backend: &str, model: &str, cost_model: CostModel, u: &Usage, prices: &PriceTable) -> Option<f64> {
+    pub fn record(
+        &self,
+        backend: &str,
+        model: &str,
+        cost_model: CostModel,
+        u: &Usage,
+        prices: &PriceTable,
+    ) -> Option<f64> {
         let mut m = self.by_backend.lock().unwrap();
-        let e = m.entry(backend.to_string()).or_insert_with(|| BackendUsage { backend: backend.to_string(), ..Default::default() });
+        let e = m
+            .entry(backend.to_string())
+            .or_insert_with(|| BackendUsage {
+                backend: backend.to_string(),
+                ..Default::default()
+            });
         e.cost_model = Some(cost_model);
         e.requests += 1;
         e.input_tokens += u.input;
@@ -148,7 +170,10 @@ mod tests {
         // 1M in + 1M out = $0.10 + $0.50
         assert!(close(p.cost(1_000_000, 1_000_000), 0.60));
         // 12_345 in, 678 out
-        assert!(close(p.cost(12_345, 678), 12_345.0 * 0.10 / 1e6 + 678.0 * 0.50 / 1e6));
+        assert!(close(
+            p.cost(12_345, 678),
+            12_345.0 * 0.10 / 1e6 + 678.0 * 0.50 / 1e6
+        ));
         assert!(t.lookup("anthropic/claude-haiku-5-5").is_some());
         assert!(t.lookup("gpt-unknown").is_none());
     }
@@ -156,11 +181,29 @@ mod tests {
     #[test]
     fn prefix_and_edit() {
         let mut t = PriceTable::default();
-        t.set("gemini-*", Price { input_per_m: 0.3, output_per_m: 2.5 });
-        t.set("gemini-pro*", Price { input_per_m: 1.0, output_per_m: 10.0 });
+        t.set(
+            "gemini-*",
+            Price {
+                input_per_m: 0.3,
+                output_per_m: 2.5,
+            },
+        );
+        t.set(
+            "gemini-pro*",
+            Price {
+                input_per_m: 1.0,
+                output_per_m: 10.0,
+            },
+        );
         assert_eq!(t.lookup("gemini-flash-latest").unwrap().input_per_m, 0.3);
         assert_eq!(t.lookup("gemini-pro-latest").unwrap().input_per_m, 1.0);
-        t.set("claude-haiku-5-5", Price { input_per_m: 0.2, output_per_m: 1.0 });
+        t.set(
+            "claude-haiku-5-5",
+            Price {
+                input_per_m: 0.2,
+                output_per_m: 1.0,
+            },
+        );
         assert_eq!(t.lookup("claude-haiku-5-5").unwrap().output_per_m, 1.0);
     }
 
@@ -168,12 +211,35 @@ mod tests {
     fn ledger_by_cost_model() {
         let l = UsageLedger::new();
         let t = PriceTable::default();
-        let u = Usage { input: 2_000_000, output: 1_000_000, estimated: false, reported_cost_usd: None };
-        assert!(close(l.record("anthropic", "claude-haiku-5-5", CostModel::Metered, &u, &t).unwrap(), 0.70));
-        assert_eq!(l.record("ollama", "llama", CostModel::FreeLocal, &u, &t), Some(0.0));
-        let plan = Usage { input: 10, output: 10, estimated: true, reported_cost_usd: Some(0.02) };
-        assert_eq!(l.record("claude-cli", "default", CostModel::Subscription, &plan, &t), Some(0.02));
-        assert_eq!(l.record("openrouter", "x/unknown", CostModel::Metered, &u, &t), None);
+        let u = Usage {
+            input: 2_000_000,
+            output: 1_000_000,
+            estimated: false,
+            reported_cost_usd: None,
+        };
+        assert!(close(
+            l.record("anthropic", "claude-haiku-5-5", CostModel::Metered, &u, &t)
+                .unwrap(),
+            0.70
+        ));
+        assert_eq!(
+            l.record("ollama", "llama", CostModel::FreeLocal, &u, &t),
+            Some(0.0)
+        );
+        let plan = Usage {
+            input: 10,
+            output: 10,
+            estimated: true,
+            reported_cost_usd: Some(0.02),
+        };
+        assert_eq!(
+            l.record("claude-cli", "default", CostModel::Subscription, &plan, &t),
+            Some(0.02)
+        );
+        assert_eq!(
+            l.record("openrouter", "x/unknown", CostModel::Metered, &u, &t),
+            None
+        );
         let s = l.snapshot();
         let a = s.iter().find(|b| b.backend == "anthropic").unwrap();
         assert!(close(a.cost_usd, 0.70));
@@ -182,6 +248,12 @@ mod tests {
         assert!(c.tokens_estimated);
         assert_eq!(c.cost_usd, 0.0);
         assert!(close(c.plan_equivalent_usd, 0.02));
-        assert_eq!(s.iter().find(|b| b.backend == "openrouter").unwrap().unpriced_requests, 1);
+        assert_eq!(
+            s.iter()
+                .find(|b| b.backend == "openrouter")
+                .unwrap()
+                .unpriced_requests,
+            1
+        );
     }
 }

@@ -101,7 +101,10 @@ impl SseParser {
             self.event = None;
             return None;
         }
-        let ev = SseEvent { event: self.event.take(), data: self.data.join("\n") };
+        let ev = SseEvent {
+            event: self.event.take(),
+            data: self.data.join("\n"),
+        };
         self.data.clear();
         self.has_data = false;
         Some(ev)
@@ -115,7 +118,12 @@ where
     S: Stream<Item = Result<Bytes, E>> + Send + 'static,
     E: std::fmt::Display + 'static,
 {
-    let state = (Box::pin(bytes), SseParser::new(), std::collections::VecDeque::new(), false);
+    let state = (
+        Box::pin(bytes),
+        SseParser::new(),
+        std::collections::VecDeque::new(),
+        false,
+    );
     futures_util::stream::unfold(state, |(mut s, mut p, mut q, mut done)| async move {
         loop {
             if let Some(ev) = q.pop_front() {
@@ -154,8 +162,14 @@ mod tests {
         assert_eq!(
             evs,
             vec![
-                SseEvent { event: Some("a".into()), data: "{\"x\":1}".into() },
-                SseEvent { event: None, data: "b\nc".into() },
+                SseEvent {
+                    event: Some("a".into()),
+                    data: "{\"x\":1}".into()
+                },
+                SseEvent {
+                    event: None,
+                    data: "b\nc".into()
+                },
             ]
         );
     }
@@ -164,14 +178,24 @@ mod tests {
     fn finish_flushes_unterminated_event() {
         let mut p = SseParser::new();
         assert!(p.push(b"data: [DONE]").is_empty());
-        assert_eq!(p.finish(), Some(SseEvent { event: None, data: "[DONE]".into() }));
+        assert_eq!(
+            p.finish(),
+            Some(SseEvent {
+                event: None,
+                data: "[DONE]".into()
+            })
+        );
     }
 
     #[tokio::test]
     async fn byte_stream_adapter() {
-        let chunks: Vec<Result<Bytes, std::io::Error>> =
-            vec![Ok(Bytes::from_static(b"data: 1\n")), Ok(Bytes::from_static(b"\ndata: 2\n\n"))];
-        let evs: Vec<_> = sse_events(futures_util::stream::iter(chunks)).collect().await;
+        let chunks: Vec<Result<Bytes, std::io::Error>> = vec![
+            Ok(Bytes::from_static(b"data: 1\n")),
+            Ok(Bytes::from_static(b"\ndata: 2\n\n")),
+        ];
+        let evs: Vec<_> = sse_events(futures_util::stream::iter(chunks))
+            .collect()
+            .await;
         assert_eq!(evs.len(), 2);
         assert_eq!(evs[1].as_ref().unwrap().data, "2");
     }

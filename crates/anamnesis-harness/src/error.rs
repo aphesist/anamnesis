@@ -17,7 +17,9 @@ pub enum HarnessError {
     #[error("plan usage limit reached: {0}")]
     UsageLimit(String),
     #[error("cooling down until {until}")]
-    CoolingDown { until: chrono::DateTime<chrono::Utc> },
+    CoolingDown {
+        until: chrono::DateTime<chrono::Utc>,
+    },
     #[error("authentication failed: {0}")]
     Auth(String),
     #[error("request rejected: {0}")]

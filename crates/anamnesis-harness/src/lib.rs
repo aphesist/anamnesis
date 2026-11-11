@@ -25,13 +25,13 @@ pub mod types;
 pub mod usage;
 
 #[cfg(test)]
-pub(crate) mod testutil;
-#[cfg(test)]
 mod adapter_tests;
 #[cfg(test)]
 mod claude_cli_tests;
 #[cfg(test)]
 mod router_tests;
+#[cfg(test)]
+pub(crate) mod testutil;
 
 pub use backend::Backend;
 pub use detect::{Detection, DetectionReport, HarnessConfig, detect_all, detect_all_with};

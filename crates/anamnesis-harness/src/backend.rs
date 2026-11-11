@@ -3,7 +3,9 @@
 use async_trait::async_trait;
 
 use crate::error::Result;
-use crate::types::{Availability, BackendKind, Capabilities, ChatRequest, ChatStream, CostModel, Task};
+use crate::types::{
+    Availability, BackendKind, Capabilities, ChatRequest, ChatStream, CostModel, Task,
+};
 
 #[async_trait]
 pub trait Backend: Send + Sync {

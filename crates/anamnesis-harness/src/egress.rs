@@ -55,19 +55,36 @@ pub fn egress_check(items: &[(Id, Privacy)]) -> Result<EgressRecord> {
 
 /// Like `egress_check`, with ids the user approved for this call.
 pub fn egress_check_with_consent(items: &[(Id, Privacy)], approved: &[Id]) -> Result<EgressRecord> {
-    let local_only: Vec<Id> = items.iter().filter(|(_, p)| *p == Privacy::LocalOnly).map(|(i, _)| i.clone()).collect();
+    let local_only: Vec<Id> = items
+        .iter()
+        .filter(|(_, p)| *p == Privacy::LocalOnly)
+        .map(|(i, _)| i.clone())
+        .collect();
     if !local_only.is_empty() {
         return Err(HarnessError::EgressLocalOnly(local_only));
     }
     let ok: HashSet<&Id> = approved.iter().collect();
-    let needs: Vec<Id> =
-        items.iter().filter(|(i, p)| *p == Privacy::Ask && !ok.contains(i)).map(|(i, _)| i.clone()).collect();
+    let needs: Vec<Id> = items
+        .iter()
+        .filter(|(i, p)| *p == Privacy::Ask && !ok.contains(i))
+        .map(|(i, _)| i.clone())
+        .collect();
     if !needs.is_empty() {
         return Err(HarnessError::EgressNeedsConsent(needs));
     }
     let mut seen = HashSet::new();
-    let ids = items.iter().filter(|(i, _)| seen.insert(i.clone())).map(|(i, _)| i.clone()).collect();
-    Ok(EgressRecord { provider: String::new(), model: String::new(), purpose: String::new(), items: ids, chars: 0 })
+    let ids = items
+        .iter()
+        .filter(|(i, _)| seen.insert(i.clone()))
+        .map(|(i, _)| i.clone())
+        .collect();
+    Ok(EgressRecord {
+        provider: String::new(),
+        model: String::new(),
+        purpose: String::new(),
+        items: ids,
+        chars: 0,
+    })
 }
 
 #[cfg(test)]
@@ -92,7 +109,10 @@ mod tests {
     #[test]
     fn ask_needs_consent() {
         let items = [(id("a"), Privacy::Ask), (id("c"), Privacy::CloudOk)];
-        assert!(matches!(egress_check(&items), Err(HarnessError::EgressNeedsConsent(_))));
+        assert!(matches!(
+            egress_check(&items),
+            Err(HarnessError::EgressNeedsConsent(_))
+        ));
         let rec = egress_check_with_consent(&items, &[id("a")]).unwrap();
         assert_eq!(rec.items, vec![id("a"), id("c")]);
     }
@@ -103,8 +123,17 @@ mod tests {
             .unwrap()
             .for_call("anthropic", "claude-haiku-5-5", "label", 1234);
         match rec.into_event_kind() {
-            EventKind::Egress { provider, model, purpose, items, chars } => {
-                assert_eq!((provider.as_str(), model.as_str(), purpose.as_str()), ("anthropic", "claude-haiku-5-5", "label"));
+            EventKind::Egress {
+                provider,
+                model,
+                purpose,
+                items,
+                chars,
+            } => {
+                assert_eq!(
+                    (provider.as_str(), model.as_str(), purpose.as_str()),
+                    ("anthropic", "claude-haiku-5-5", "label")
+                );
                 assert_eq!(items, vec![id("a")]);
                 assert_eq!(chars, 1234);
             }

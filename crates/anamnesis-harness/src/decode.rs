@@ -28,7 +28,10 @@ pub(crate) struct UsageAcc {
 
 impl UsageAcc {
     pub fn new(est_input: u64) -> Self {
-        Self { est_input, ..Default::default() }
+        Self {
+            est_input,
+            ..Default::default()
+        }
     }
     pub fn text(&mut self, t: &str) {
         self.out_chars += t.chars().count() as u64;
@@ -55,31 +58,37 @@ where
     D: Decoder,
 {
     let events = Box::pin(sse_events(bytes));
-    let state = (events, decoder, std::collections::VecDeque::<ChatEvent>::new(), false);
-    let s = futures_util::stream::unfold(state, |(mut evs, mut dec, mut q, mut ended)| async move {
-        loop {
-            if let Some(ev) = q.pop_front() {
-                if is_terminal(&ev) {
-                    ended = true;
-                    q.clear();
+    let state = (
+        events,
+        decoder,
+        std::collections::VecDeque::<ChatEvent>::new(),
+        false,
+    );
+    let s =
+        futures_util::stream::unfold(state, |(mut evs, mut dec, mut q, mut ended)| async move {
+            loop {
+                if let Some(ev) = q.pop_front() {
+                    if is_terminal(&ev) {
+                        ended = true;
+                        q.clear();
+                    }
+                    return Some((ev, (evs, dec, q, ended)));
                 }
-                return Some((ev, (evs, dec, q, ended)));
-            }
-            if ended {
-                return None;
-            }
-            match evs.next().await {
-                Some(Ok(ev)) => q.extend(dec.event(&ev)),
-                Some(Err(e)) => q.push_back(ChatEvent::Error {
-                    message: format!("stream interrupted: {e}"),
-                    failure: FailureKind::Unavailable,
-                }),
-                None => {
-                    q.extend(dec.finish());
-                    ended = true;
+                if ended {
+                    return None;
+                }
+                match evs.next().await {
+                    Some(Ok(ev)) => q.extend(dec.event(&ev)),
+                    Some(Err(e)) => q.push_back(ChatEvent::Error {
+                        message: format!("stream interrupted: {e}"),
+                        failure: FailureKind::Unavailable,
+                    }),
+                    None => {
+                        q.extend(dec.finish());
+                        ended = true;
+                    }
                 }
             }
-        }
-    });
+        });
     Box::pin(s)
 }

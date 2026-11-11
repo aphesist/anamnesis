@@ -89,7 +89,12 @@ pub struct Detection {
 
 /// Ollama's native model list at `{root}/api/tags`.
 pub async fn ollama_models(client: &reqwest::Client, root: &str) -> Option<Vec<String>> {
-    let r = client.get(join(root, "api/tags")).timeout(Duration::from_millis(1500)).send().await.ok()?;
+    let r = client
+        .get(join(root, "api/tags"))
+        .timeout(Duration::from_millis(1500))
+        .send()
+        .await
+        .ok()?;
     if !r.status().is_success() {
         return None;
     }
@@ -98,13 +103,23 @@ pub async fn ollama_models(client: &reqwest::Client, root: &str) -> Option<Vec<S
         v.get("models")?
             .as_array()?
             .iter()
-            .filter_map(|m| m.get("name").or_else(|| m.get("model")).and_then(|n| n.as_str()).map(str::to_string))
+            .filter_map(|m| {
+                m.get("name")
+                    .or_else(|| m.get("model"))
+                    .and_then(|n| n.as_str())
+                    .map(str::to_string)
+            })
             .collect(),
     )
 }
 
 async fn probe_models(client: &reqwest::Client, base: &str) -> Option<Vec<String>> {
-    let r = client.get(join(base, "models")).timeout(Duration::from_millis(1500)).send().await.ok()?;
+    let r = client
+        .get(join(base, "models"))
+        .timeout(Duration::from_millis(1500))
+        .send()
+        .await
+        .ok()?;
     if !r.status().is_success() {
         return None;
     }
@@ -113,7 +128,10 @@ async fn probe_models(client: &reqwest::Client, base: &str) -> Option<Vec<String
 }
 
 fn root_of(base_url: &str) -> String {
-    base_url.trim_end_matches('/').trim_end_matches("/v1").to_string()
+    base_url
+        .trim_end_matches('/')
+        .trim_end_matches("/v1")
+        .to_string()
 }
 
 /// Build every configured backend, probe local servers, run health checks.
@@ -123,7 +141,7 @@ pub async fn detect_all(config: &HarnessConfig) -> Detection {
 
 /// As `detect_all`, offering the brain's mcp server to the installed claude cli.
 pub async fn detect_all_with(config: &HarnessConfig, mcp: Option<McpOffer>) -> Detection {
-    let client = http::client(None);
+    let client = http::local_client(); // only used for loopback probes
     let policy = config.backoff;
     let mut compat = config.openai_compatible.clone();
     let mut discovered = Vec::new();
@@ -143,7 +161,9 @@ pub async fn detect_all_with(config: &HarnessConfig, mcp: Option<McpOffer>) -> D
         });
         for (provider, label, base, models) in futures_util::future::join_all(probes).await {
             let Some(models) = models else { continue };
-            let Some(first) = models.first().cloned() else { continue };
+            let Some(first) = models.first().cloned() else {
+                continue;
+            };
             discovered.push(provider.to_string());
             let mut c = OpenAiCompatibleConfig::ollama(first);
             c.id = provider.replace(' ', "-").replace('.', "");
@@ -175,7 +195,11 @@ pub async fn detect_all_with(config: &HarnessConfig, mcp: Option<McpOffer>) -> D
     }
     let cli = ClaudeCli::new(config.claude_cli.clone()).with_mcp(mcp);
     let cli_path = cli.locate();
-    let cli_version = if cli_path.is_some() && !config.claude_cli.disabled_by_policy { cli.version().await } else { None };
+    let cli_version = if cli_path.is_some() && !config.claude_cli.disabled_by_policy {
+        cli.version().await
+    } else {
+        None
+    };
     let claude_cli = ClaudeCliDetection {
         found: cli_path.is_some(),
         path: cli_path.map(|p| p.display().to_string()),
@@ -187,9 +211,18 @@ pub async fn detect_all_with(config: &HarnessConfig, mcp: Option<McpOffer>) -> D
         backends.push(Arc::new(cli));
     }
 
-    let router = Router::new(backends, config.routing.clone(), Arc::new(Limits::new(policy)), config.prices.clone());
+    let router = Router::new(
+        backends,
+        config.routing.clone(),
+        Arc::new(Limits::new(policy)),
+        config.prices.clone(),
+    );
     router.refresh().await;
-    let report =
-        DetectionReport { backends: router.backends_info(), ollama_models: ollama_list, discovered_local: discovered, claude_cli };
+    let report = DetectionReport {
+        backends: router.backends_info(),
+        ollama_models: ollama_list,
+        discovered_local: discovered,
+        claude_cli,
+    };
     Detection { router, report }
 }

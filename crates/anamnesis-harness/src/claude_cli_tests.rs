@@ -72,7 +72,12 @@ exit {exit}
     let p = bin_dir.join("claude");
     std::fs::write(&p, script).unwrap();
     std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
-    Fake { _dir: dir, bin_dir, log, work }
+    Fake {
+        _dir: dir,
+        bin_dir,
+        log,
+        work,
+    }
 }
 
 const AUTH_OK: &str = r#"echo '{"loggedIn":true,"authMethod":"claude.ai"}'; exit 0;;"#;
@@ -97,27 +102,64 @@ fn read(p: &Path) -> String {
 async fn streams_partial_messages_and_reports_plan_usage() {
     let f = fake(SUCCESS, 0, AUTH_OK);
     let b = cli(&f);
-    let mut r = ChatRequest::new(vec![Message::user("first"), Message::assistant("ok"), Message::user("what now?")])
-        .with_system("you are the brain");
+    let mut r = ChatRequest::new(vec![
+        Message::user("first"),
+        Message::assistant("ok"),
+        Message::user("what now?"),
+    ])
+    .with_system("you are the brain");
     r.temperature = Some(0.9);
     let (text, evs) = collect(b.chat(r).await.unwrap()).await;
-    assert_eq!(text, "hello there", "partials are used, the full assistant message is not duplicated");
-    let usage = evs.iter().find_map(|e| if let ChatEvent::Usage(u) = e { Some(*u) } else { None }).unwrap();
+    assert_eq!(
+        text, "hello there",
+        "partials are used, the full assistant message is not duplicated"
+    );
+    let usage = evs
+        .iter()
+        .find_map(|e| {
+            if let ChatEvent::Usage(u) = e {
+                Some(*u)
+            } else {
+                None
+            }
+        })
+        .unwrap();
     assert_eq!(usage.input, 100);
     assert_eq!(usage.output, 5);
     assert!(usage.estimated, "plan usage is always marked estimated");
     assert_eq!(usage.reported_cost_usd, Some(0.0123));
     assert!(matches!(evs.last(), Some(ChatEvent::Done { .. })));
 
-    let args: Vec<String> = read(&f.log.join("args")).lines().map(str::to_string).collect();
-    for want in ["-p", "--output-format", "stream-json", "--verbose", "--strict-mcp-config", "--no-session-persistence"] {
+    let args: Vec<String> = read(&f.log.join("args"))
+        .lines()
+        .map(str::to_string)
+        .collect();
+    for want in [
+        "-p",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--strict-mcp-config",
+        "--no-session-persistence",
+    ] {
         assert!(args.iter().any(|a| a == want), "missing {want}: {args:?}");
     }
     let i = args.iter().position(|a| a == "--tools").unwrap();
     assert_eq!(args[i + 1], "", "all built-in tools disabled");
-    assert!(!args.iter().any(|a| a.contains("dangerously") || a.contains("bypassPermissions") || a == "--bare"));
-    assert!(!args.iter().any(|a| a.contains(".claude") || a.contains("credentials")));
-    assert!(!args.iter().any(|a| a.contains("0.9")), "temperature is not passed");
+    assert!(
+        !args
+            .iter()
+            .any(|a| a.contains("dangerously") || a.contains("bypassPermissions") || a == "--bare")
+    );
+    assert!(
+        !args
+            .iter()
+            .any(|a| a.contains(".claude") || a.contains("credentials"))
+    );
+    assert!(
+        !args.iter().any(|a| a.contains("0.9")),
+        "temperature is not passed"
+    );
     let i = args.iter().position(|a| a == "--system-prompt").unwrap();
     assert_eq!(args[i + 1], "you are the brain");
     // the prompt goes on stdin, not argv
@@ -126,14 +168,22 @@ async fn streams_partial_messages_and_reports_plan_usage() {
     assert!(stdin.contains("<conversation_so_far>"));
     assert!(!args.iter().any(|a| a.contains("what now?")));
     // runs in its own empty work dir
-    assert_eq!(read(&f.log.join("cwd")).trim(), f.work.canonicalize().unwrap().display().to_string());
+    assert_eq!(
+        read(&f.log.join("cwd")).trim(),
+        f.work.canonicalize().unwrap().display().to_string()
+    );
 }
 
 #[tokio::test]
 async fn never_sets_the_entrypoint_and_scrubs_inherited_values() {
     let f = fake(SUCCESS, 0, AUTH_OK);
     let b = cli(&f);
-    collect(b.chat(ChatRequest::new(vec![Message::user("x")])).await.unwrap()).await;
+    collect(
+        b.chat(ChatRequest::new(vec![Message::user("x")]))
+            .await
+            .unwrap(),
+    )
+    .await;
     // with nothing inherited the child sees no entrypoint
     assert_eq!(read(&f.log.join("env")).trim(), "entry=unset");
 }
@@ -141,17 +191,32 @@ async fn never_sets_the_entrypoint_and_scrubs_inherited_values() {
 #[tokio::test]
 async fn falls_back_to_assistant_text_without_partials() {
     let f = fake(NO_PARTIALS, 0, AUTH_OK);
-    let (text, _) = collect(cli(&f).chat(ChatRequest::new(vec![Message::user("x")])).await.unwrap()).await;
+    let (text, _) = collect(
+        cli(&f)
+            .chat(ChatRequest::new(vec![Message::user("x")]))
+            .await
+            .unwrap(),
+    )
+    .await;
     assert_eq!(text, "whole reply");
 }
 
 #[tokio::test]
 async fn usage_limit_with_stated_reset() {
     let f = fake(LIMIT, 1, AUTH_OK);
-    let (text, evs) = collect(cli(&f).chat(ChatRequest::new(vec![Message::user("x")])).await.unwrap()).await;
+    let (text, evs) = collect(
+        cli(&f)
+            .chat(ChatRequest::new(vec![Message::user("x")]))
+            .await
+            .unwrap(),
+    )
+    .await;
     assert_eq!(text, "", "the limit message is not shown as a reply");
     match evs.last() {
-        Some(ChatEvent::Error { failure: FailureKind::UsageLimit { resets_at }, .. }) => {
+        Some(ChatEvent::Error {
+            failure: FailureKind::UsageLimit { resets_at },
+            ..
+        }) => {
             assert_eq!(*resets_at, Utc.timestamp_opt(1_900_000_000, 0).single());
         }
         other => panic!("{other:?}"),
@@ -161,14 +226,32 @@ async fn usage_limit_with_stated_reset() {
 #[tokio::test]
 async fn not_logged_in_is_an_auth_failure() {
     let f = fake(NOT_LOGGED_IN, 1, AUTH_NO);
-    let (_, evs) = collect(cli(&f).chat(ChatRequest::new(vec![Message::user("x")])).await.unwrap()).await;
-    assert!(matches!(evs.last(), Some(ChatEvent::Error { failure: FailureKind::Auth, .. })));
+    let (_, evs) = collect(
+        cli(&f)
+            .chat(ChatRequest::new(vec![Message::user("x")]))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(matches!(
+        evs.last(),
+        Some(ChatEvent::Error {
+            failure: FailureKind::Auth,
+            ..
+        })
+    ));
 }
 
 #[tokio::test]
 async fn crash_without_result_reports_stderr() {
     let f = fake("", 3, AUTH_OK);
-    let (_, evs) = collect(cli(&f).chat(ChatRequest::new(vec![Message::user("x")])).await.unwrap()).await;
+    let (_, evs) = collect(
+        cli(&f)
+            .chat(ChatRequest::new(vec![Message::user("x")]))
+            .await
+            .unwrap(),
+    )
+    .await;
     match evs.last() {
         Some(ChatEvent::Error { message, failure }) => {
             assert!(message.contains("fake stderr line"));
@@ -183,7 +266,11 @@ async fn availability_uses_version_and_auth_status() {
     let f = fake(SUCCESS, 0, AUTH_OK);
     let a = cli(&f).available().await;
     assert!(a.available);
-    assert!(a.status.contains("2.1.300") && a.status.contains("signed in (claude.ai)"), "{}", a.status);
+    assert!(
+        a.status.contains("2.1.300") && a.status.contains("signed in (claude.ai)"),
+        "{}",
+        a.status
+    );
 
     let f = fake(SUCCESS, 0, AUTH_NO);
     let a = cli(&f).available().await;
@@ -206,7 +293,10 @@ async fn not_found_on_path() {
     });
     assert!(b.locate().is_none());
     assert!(!b.available().await.available);
-    assert!(matches!(b.chat(ChatRequest::new(vec![Message::user("x")])).await, Err(HarnessError::Unavailable(_))));
+    assert!(matches!(
+        b.chat(ChatRequest::new(vec![Message::user("x")])).await,
+        Err(HarnessError::Unavailable(_))
+    ));
 }
 
 #[tokio::test]
@@ -215,14 +305,23 @@ async fn kill_switch_and_opt_in() {
     let mut cfg = cli(&f).config().clone();
     cfg.disabled_by_policy = true;
     let b = ClaudeCli::new(cfg.clone());
-    assert!(matches!(b.chat(ChatRequest::new(vec![Message::user("x")])).await, Err(HarnessError::DisabledByPolicy(_))));
+    assert!(matches!(
+        b.chat(ChatRequest::new(vec![Message::user("x")])).await,
+        Err(HarnessError::DisabledByPolicy(_))
+    ));
     assert_eq!(b.available().await.status, "disabled by policy");
-    assert!(!f.log.join("args").exists(), "the binary was never run for chat");
+    assert!(
+        !f.log.join("args").exists(),
+        "the binary was never run for chat"
+    );
 
     cfg.disabled_by_policy = false;
     cfg.enabled = false;
     let b = ClaudeCli::new(cfg);
-    assert!(matches!(b.chat(ChatRequest::new(vec![Message::user("x")])).await, Err(HarnessError::NotConfigured(_))));
+    assert!(matches!(
+        b.chat(ChatRequest::new(vec![Message::user("x")])).await,
+        Err(HarnessError::NotConfigured(_))
+    ));
 }
 
 #[test]
@@ -240,10 +339,21 @@ fn removes_inherited_entrypoint_from_child_env() {
     let b = cli(&f);
     let bin = b.locate().unwrap();
     let cmd = b.command_for_test(&bin);
-    let envs: Vec<_> = cmd.as_std().get_envs().map(|(k, v)| (k.to_owned(), v.map(|v| v.to_owned()))).collect();
-    let entry = envs.iter().find(|(k, _)| k == "CLAUDE_CODE_ENTRYPOINT").expect("explicitly handled");
+    let envs: Vec<_> = cmd
+        .as_std()
+        .get_envs()
+        .map(|(k, v)| (k.to_owned(), v.map(|v| v.to_owned())))
+        .collect();
+    let entry = envs
+        .iter()
+        .find(|(k, _)| k == "CLAUDE_CODE_ENTRYPOINT")
+        .expect("explicitly handled");
     assert!(entry.1.is_none(), "removed, never set to a value");
-    assert!(!envs.iter().any(|(k, v)| k.to_string_lossy().starts_with("CLAUDE") && v.is_some()));
+    assert!(
+        !envs
+            .iter()
+            .any(|(k, v)| k.to_string_lossy().starts_with("CLAUDE") && v.is_some())
+    );
 }
 
 /// Static guard: the adapter source never names the cli's credential stores or attribution
@@ -273,6 +383,9 @@ fn adapter_source_never_touches_cli_credentials() {
         ".env(\"CLAUDE",
         "auth login",
     ] {
-        assert!(!code.contains(forbidden), "claude_cli.rs must not contain {forbidden:?}");
+        assert!(
+            !code.contains(forbidden),
+            "claude_cli.rs must not contain {forbidden:?}"
+        );
     }
 }

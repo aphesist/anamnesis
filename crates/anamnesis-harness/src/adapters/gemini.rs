@@ -46,7 +46,13 @@ fn default_model() -> String {
 
 impl Default for GeminiConfig {
     fn default() -> Self {
-        Self { id: default_id(), base_url: default_base(), api_key: None, model: default_model(), label_model: None }
+        Self {
+            id: default_id(),
+            base_url: default_base(),
+            api_key: None,
+            model: default_model(),
+            label_model: None,
+        }
     }
 }
 
@@ -58,11 +64,18 @@ pub struct Gemini {
 
 impl Gemini {
     pub fn new(cfg: GeminiConfig, policy: BackoffPolicy) -> Self {
-        Self { cfg, client: http::client(None), policy }
+        Self {
+            cfg,
+            client: http::client(None),
+            policy,
+        }
     }
 
     fn key(&self) -> Result<&str> {
-        self.cfg.api_key.as_deref().ok_or_else(|| HarnessError::NotConfigured("gemini api key".into()))
+        self.cfg
+            .api_key
+            .as_deref()
+            .ok_or_else(|| HarnessError::NotConfigured("gemini api key".into()))
     }
 
     pub(crate) fn body(&self, req: &ChatRequest) -> Value {
@@ -134,9 +147,18 @@ impl Backend for Gemini {
         c
     }
     async fn available(&self) -> Availability {
-        let Ok(key) = self.key() else { return Availability::down("no api key") };
+        let Ok(key) = self.key() else {
+            return Availability::down("no api key");
+        };
         let url = join(&self.cfg.base_url, "v1beta/models");
-        match self.client.get(url).header("x-goog-api-key", key).timeout(std::time::Duration::from_secs(8)).send().await {
+        match self
+            .client
+            .get(url)
+            .header("x-goog-api-key", key)
+            .timeout(std::time::Duration::from_secs(8))
+            .send()
+            .await
+        {
             Ok(r) if r.status().is_success() => {
                 let models = r
                     .json::<Value>()
@@ -150,9 +172,15 @@ impl Backend for Gemini {
                             .collect()
                     })
                     .unwrap_or_default();
-                Availability { available: true, status: "ready".into(), models }
+                Availability {
+                    available: true,
+                    status: "ready".into(),
+                    models,
+                }
             }
-            Ok(r) if matches!(r.status().as_u16(), 400 | 401 | 403) => Availability::down("key rejected"),
+            Ok(r) if matches!(r.status().as_u16(), 400 | 401 | 403) => {
+                Availability::down("key rejected")
+            }
             Ok(r) => Availability::down(format!("http {}", r.status().as_u16())),
             Err(e) => Availability::down(format!("unreachable: {e}")),
         }
@@ -160,11 +188,22 @@ impl Backend for Gemini {
     async fn chat(&self, req: ChatRequest) -> Result<ChatStream> {
         let key = self.key()?.to_string();
         let model = req.model.clone().unwrap_or_else(|| self.cfg.model.clone());
-        let url = join(&self.cfg.base_url, &format!("v1beta/models/{model}:streamGenerateContent?alt=sse"));
+        let url = join(
+            &self.cfg.base_url,
+            &format!("v1beta/models/{model}:streamGenerateContent?alt=sse"),
+        );
         let body = self.body(&req);
-        let resp =
-            send_with_retry(&self.policy, || self.client.post(&url).header("x-goog-api-key", &key).json(&body)).await?;
-        Ok(decode_sse(resp.bytes_stream(), GeminiDecoder::new(UsageAcc::new(req.estimated_input_tokens()))))
+        let resp = send_with_retry(&self.policy, || {
+            self.client
+                .post(&url)
+                .header("x-goog-api-key", &key)
+                .json(&body)
+        })
+        .await?;
+        Ok(decode_sse(
+            resp.bytes_stream(),
+            GeminiDecoder::new(UsageAcc::new(req.estimated_input_tokens())),
+        ))
     }
 }
 
@@ -187,12 +226,18 @@ impl Decoder for GeminiDecoder {
         if let Some(err) = v.get("error") {
             let code = err.get("code").and_then(|c| c.as_u64()).unwrap_or(0);
             let failure = match code {
-                429 => FailureKind::RateLimited { retry_after_secs: None },
+                429 => FailureKind::RateLimited {
+                    retry_after_secs: None,
+                },
                 401 | 403 => FailureKind::Auth,
                 500..=599 => FailureKind::Unavailable,
                 _ => FailureKind::Other,
             };
-            let message = err.get("message").and_then(|m| m.as_str()).unwrap_or("gemini error").to_string();
+            let message = err
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("gemini error")
+                .to_string();
             return vec![ChatEvent::Error { message, failure }];
         }
         let mut out = Vec::new();
@@ -203,11 +248,13 @@ impl Decoder for GeminiDecoder {
                     if p.get("thought").and_then(|t| t.as_bool()) == Some(true) {
                         continue;
                     }
-                    if let Some(t) = p.get("text").and_then(|t| t.as_str()) {
-                        if !t.is_empty() {
-                            self.acc.text(t);
-                            out.push(ChatEvent::Token { text: t.to_string() });
-                        }
+                    if let Some(t) = p.get("text").and_then(|t| t.as_str())
+                        && !t.is_empty()
+                    {
+                        self.acc.text(t);
+                        out.push(ChatEvent::Token {
+                            text: t.to_string(),
+                        });
                     }
                 }
             }
@@ -220,7 +267,10 @@ impl Decoder for GeminiDecoder {
                 self.acc.input = Some(i);
             }
             let cand = u.get("candidatesTokenCount").and_then(|x| x.as_u64());
-            let thoughts = u.get("thoughtsTokenCount").and_then(|x| x.as_u64()).unwrap_or(0);
+            let thoughts = u
+                .get("thoughtsTokenCount")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0);
             if let Some(o) = cand {
                 self.acc.output = Some(o + thoughts);
             }
@@ -229,6 +279,11 @@ impl Decoder for GeminiDecoder {
     }
 
     fn finish(&mut self) -> Vec<ChatEvent> {
-        vec![ChatEvent::Usage(self.acc.usage()), ChatEvent::Done { stop_reason: self.stop.take() }]
+        vec![
+            ChatEvent::Usage(self.acc.usage()),
+            ChatEvent::Done {
+                stop_reason: self.stop.take(),
+            },
+        ]
     }
 }

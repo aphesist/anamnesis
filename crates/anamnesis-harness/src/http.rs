@@ -10,6 +10,16 @@ use crate::limits::{BackoffPolicy, retry_after_from_headers};
 
 const BODY_LIMIT: usize = 600;
 
+/// A client for loopback servers: never sent through a system proxy.
+pub(crate) fn local_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .user_agent(concat!("anamnesis/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(Duration::from_secs(5))
+        .no_proxy()
+        .build()
+        .expect("reqwest client")
+}
+
 pub(crate) fn client(timeout: Option<Duration>) -> reqwest::Client {
     let mut b = reqwest::Client::builder()
         .user_agent(concat!("anamnesis/", env!("CARGO_PKG_VERSION")))
@@ -46,7 +56,11 @@ pub(crate) async fn error_from_response(resp: Response) -> HarnessError {
     classify(status, retry_after, body)
 }
 
-pub(crate) fn classify(status: StatusCode, retry_after: Option<Duration>, body: String) -> HarnessError {
+pub(crate) fn classify(
+    status: StatusCode,
+    retry_after: Option<Duration>,
+    body: String,
+) -> HarnessError {
     let code = error_code(&body).unwrap_or_default();
     // chatgpt plan flow (https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery)
     if code == "subscription_sharing_usage_limit_exceeded" {
@@ -56,7 +70,11 @@ pub(crate) fn classify(status: StatusCode, retry_after: Option<Duration>, body: 
         return HarnessError::Auth(code);
     }
     match status.as_u16() {
-        401 | 403 => HarnessError::Auth(if code.is_empty() { status.to_string() } else { code }),
+        401 | 403 => HarnessError::Auth(if code.is_empty() {
+            status.to_string()
+        } else {
+            code
+        }),
         429 => HarnessError::RateLimited { retry_after },
         400 | 404 | 413 | 422 => HarnessError::InvalidRequest(body),
         500..=599 => HarnessError::Unavailable(format!("http {}", status.as_u16())),
@@ -84,26 +102,38 @@ where
         let err = error_from_response(resp).await;
         attempt += 1;
         let wait = match &err {
-            HarnessError::RateLimited { retry_after } => retry_after.unwrap_or_else(|| policy.delay(attempt)),
+            HarnessError::RateLimited { retry_after } => {
+                retry_after.unwrap_or_else(|| policy.delay(attempt))
+            }
             HarnessError::Unavailable(_) => policy.delay(attempt),
             _ => return Err(err),
         };
         if attempt > policy.max_retries || wait.as_millis() as u64 > policy.max_inline_wait_ms {
             return Err(err);
         }
-        tracing::debug!(attempt, wait_ms = wait.as_millis() as u64, "retrying after {err}");
+        tracing::debug!(
+            attempt,
+            wait_ms = wait.as_millis() as u64,
+            "retrying after {err}"
+        );
         tokio::time::sleep(wait).await;
     }
 }
 
 /// Join a base url and a path without doubling slashes.
 pub(crate) fn join(base: &str, path: &str) -> String {
-    format!("{}/{}", base.trim_end_matches('/'), path.trim_start_matches('/'))
+    format!(
+        "{}/{}",
+        base.trim_end_matches('/'),
+        path.trim_start_matches('/')
+    )
 }
 
 /// True for loopback / private-lan hosts (used to decide whether a call is "local").
 pub(crate) fn is_local_url(u: &str) -> bool {
-    let Ok(url) = url::Url::parse(u) else { return false };
+    let Ok(url) = url::Url::parse(u) else {
+        return false;
+    };
     match url.host() {
         Some(url::Host::Domain(d)) => d == "localhost" || d.ends_with(".localhost"),
         Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
@@ -119,13 +149,28 @@ mod tests {
     #[test]
     fn classify_statuses() {
         assert!(matches!(
-            classify(StatusCode::TOO_MANY_REQUESTS, Some(Duration::from_secs(3)), "{}".into()),
-            HarnessError::RateLimited { retry_after: Some(_) }
+            classify(
+                StatusCode::TOO_MANY_REQUESTS,
+                Some(Duration::from_secs(3)),
+                "{}".into()
+            ),
+            HarnessError::RateLimited {
+                retry_after: Some(_)
+            }
         ));
-        assert!(matches!(classify(StatusCode::UNAUTHORIZED, None, "".into()), HarnessError::Auth(_)));
+        assert!(matches!(
+            classify(StatusCode::UNAUTHORIZED, None, "".into()),
+            HarnessError::Auth(_)
+        ));
         let body = r#"{"error":{"code":"subscription_sharing_usage_limit_exceeded"}}"#.to_string();
-        assert!(matches!(classify(StatusCode::TOO_MANY_REQUESTS, None, body), HarnessError::UsageLimit(_)));
-        assert!(matches!(classify(StatusCode::from_u16(529).unwrap(), None, "".into()), HarnessError::Unavailable(_)));
+        assert!(matches!(
+            classify(StatusCode::TOO_MANY_REQUESTS, None, body),
+            HarnessError::UsageLimit(_)
+        ));
+        assert!(matches!(
+            classify(StatusCode::from_u16(529).unwrap(), None, "".into()),
+            HarnessError::Unavailable(_)
+        ));
     }
 
     #[test]

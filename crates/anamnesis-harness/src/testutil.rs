@@ -32,8 +32,16 @@ impl Reply {
         }
     }
     pub fn sse(body: &str, chunk: usize) -> Self {
-        let chunks = body.as_bytes().chunks(chunk.max(1)).map(|c| c.to_vec()).collect();
-        Self { status: 200, headers: vec![("content-type".into(), "text/event-stream".into())], chunks }
+        let chunks = body
+            .as_bytes()
+            .chunks(chunk.max(1))
+            .map(|c| c.to_vec())
+            .collect();
+        Self {
+            status: 200,
+            headers: vec![("content-type".into(), "text/event-stream".into())],
+            chunks,
+        }
     }
     pub fn header(mut self, k: &str, v: &str) -> Self {
         self.headers.push((k.into(), v.into()));
@@ -50,7 +58,9 @@ pub struct MockServer {
 
 impl MockServer {
     /// `handler` returns None for 404.
-    pub async fn start(handler: impl Fn(&Recorded) -> Option<Reply> + Send + Sync + 'static) -> Self {
+    pub async fn start(
+        handler: impl Fn(&Recorded) -> Option<Reply> + Send + Sync + 'static,
+    ) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let requests = Arc::new(Mutex::new(Vec::new()));
@@ -58,15 +68,22 @@ impl MockServer {
         let handler: Handler = Arc::new(handler);
         tokio::spawn(async move {
             loop {
-                let Ok((mut sock, _)) = listener.accept().await else { break };
+                let Ok((mut sock, _)) = listener.accept().await else {
+                    break;
+                };
                 let reqs = reqs.clone();
                 let handler = handler.clone();
                 tokio::spawn(async move {
-                    let Some(rec) = read_request(&mut sock).await else { return };
+                    let Some(rec) = read_request(&mut sock).await else {
+                        return;
+                    };
                     reqs.lock().unwrap().push(rec.clone());
                     let reply = handler(&rec).unwrap_or_else(|| Reply::json(404, "{}"));
                     let total: usize = reply.chunks.iter().map(|c| c.len()).sum();
-                    let mut head = format!("HTTP/1.1 {} X\r\ncontent-length: {total}\r\nconnection: close\r\n", reply.status);
+                    let mut head = format!(
+                        "HTTP/1.1 {} X\r\ncontent-length: {total}\r\nconnection: close\r\n",
+                        reply.status
+                    );
                     for (k, v) in &reply.headers {
                         head.push_str(&format!("{k}: {v}\r\n"));
                     }
@@ -114,7 +131,10 @@ async fn read_request(sock: &mut tokio::net::TcpStream) -> Option<Recorded> {
             headers.insert(k.trim().to_lowercase(), v.trim().to_string());
         }
     }
-    let len: usize = headers.get("content-length").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let len: usize = headers
+        .get("content-length")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
     while buf.len() < head_end + len {
         let n = sock.read(&mut tmp).await.ok()?;
         if n == 0 {
@@ -123,7 +143,12 @@ async fn read_request(sock: &mut tokio::net::TcpStream) -> Option<Recorded> {
         buf.extend_from_slice(&tmp[..n]);
     }
     let body = String::from_utf8_lossy(&buf[head_end..(head_end + len).min(buf.len())]).to_string();
-    Some(Recorded { method, path, headers, body })
+    Some(Recorded {
+        method,
+        path,
+        headers,
+        body,
+    })
 }
 
 /// Collect a chat stream into (text, events).

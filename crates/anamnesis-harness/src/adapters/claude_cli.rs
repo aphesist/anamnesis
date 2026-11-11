@@ -25,7 +25,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -132,14 +132,19 @@ pub fn which_in(name: &str, path: &OsStr) -> Option<PathBuf> {
 
 fn candidates(dir: &Path, name: &str) -> Vec<PathBuf> {
     if cfg!(windows) {
-        ["exe", "cmd", "bat"].iter().map(|e| dir.join(format!("{name}.{e}"))).collect()
+        ["exe", "cmd", "bat"]
+            .iter()
+            .map(|e| dir.join(format!("{name}.{e}")))
+            .collect()
     } else {
         vec![dir.join(name)]
     }
 }
 
 fn is_executable(p: &Path) -> bool {
-    let Ok(md) = std::fs::metadata(p) else { return false };
+    let Ok(md) = std::fs::metadata(p) else {
+        return false;
+    };
     if !md.is_file() {
         return false;
     }
@@ -176,10 +181,14 @@ impl ClaudeCli {
 
     fn policy_check(&self) -> Result<()> {
         if self.cfg.disabled_by_policy {
-            return Err(HarnessError::DisabledByPolicy("the installed claude cli route is turned off".into()));
+            return Err(HarnessError::DisabledByPolicy(
+                "the installed claude cli route is turned off".into(),
+            ));
         }
         if !self.cfg.enabled {
-            return Err(HarnessError::NotConfigured("installed claude cli is not enabled".into()));
+            return Err(HarnessError::NotConfigured(
+                "installed claude cli is not enabled".into(),
+            ));
         }
         Ok(())
     }
@@ -189,7 +198,11 @@ impl ClaudeCli {
         if let Some(b) = &self.cfg.binary {
             return is_executable(b).then(|| b.clone());
         }
-        let path = self.cfg.search_path.clone().or_else(|| std::env::var_os("PATH"))?;
+        let path = self
+            .cfg
+            .search_path
+            .clone()
+            .or_else(|| std::env::var_os("PATH"))?;
         which_in("claude", &path)
     }
 
@@ -201,7 +214,10 @@ impl ClaudeCli {
         if let Some(p) = &self.cfg.search_path {
             c.env("PATH", p);
         }
-        c.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
+        c.stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
         c
     }
 
@@ -213,21 +229,35 @@ impl ClaudeCli {
     /// `claude --version`.
     pub async fn version(&self) -> Option<String> {
         let bin = self.locate()?;
-        let out = tokio::time::timeout(Duration::from_secs(10), self.command(&bin).arg("--version").output())
-            .await
-            .ok()?
-            .ok()?;
-        out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
+        let out = tokio::time::timeout(
+            Duration::from_secs(10),
+            self.command(&bin).arg("--version").output(),
+        )
+        .await
+        .ok()?
+        .ok()?;
+        out.status
+            .success()
+            .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
     }
 
     /// Sign-in state from the cli's own `claude auth status` (json; exit 0 when logged in,
     /// 1 when not). Older clis without the command report "unknown".
     pub async fn sign_in_status(&self) -> SignInStatus {
-        let unknown = || SignInStatus { logged_in: None, auth_method: None, message: SIGN_IN_HINT.into() };
-        let Some(bin) = self.locate() else { return unknown() };
+        let unknown = || SignInStatus {
+            logged_in: None,
+            auth_method: None,
+            message: SIGN_IN_HINT.into(),
+        };
+        let Some(bin) = self.locate() else {
+            return unknown();
+        };
         let fut = self.command(&bin).args(["auth", "status"]).output();
-        let Ok(Ok(out)) = tokio::time::timeout(Duration::from_secs(15), fut).await else { return unknown() };
-        parse_auth_status(out.status.code(), &String::from_utf8_lossy(&out.stdout)).unwrap_or_else(unknown)
+        let Ok(Ok(out)) = tokio::time::timeout(Duration::from_secs(15), fut).await else {
+            return unknown();
+        };
+        parse_auth_status(out.status.code(), &String::from_utf8_lossy(&out.stdout))
+            .unwrap_or_else(unknown)
     }
 
     pub(crate) fn args(&self, req: &ChatRequest) -> Vec<String> {
@@ -290,7 +320,10 @@ pub(crate) fn parse_auth_status(code: Option<i32>, stdout: &str) -> Option<SignI
         Some(1) => Some(false),
         _ => None,
     })?;
-    let auth_method = v.get("authMethod").and_then(|m| m.as_str()).map(str::to_string);
+    let auth_method = v
+        .get("authMethod")
+        .and_then(|m| m.as_str())
+        .map(str::to_string);
     let message = if logged_in {
         match auth_method.as_deref() {
             Some(m) => format!("signed in ({m})"),
@@ -299,16 +332,26 @@ pub(crate) fn parse_auth_status(code: Option<i32>, stdout: &str) -> Option<SignI
     } else {
         "not signed in — run `claude` in your terminal to sign in".into()
     };
-    Some(SignInStatus { logged_in: Some(logged_in), auth_method, message })
+    Some(SignInStatus {
+        logged_in: Some(logged_in),
+        auth_method,
+        message,
+    })
 }
 
 /// Recognise the cli's usage-limit / auth messages in result or error text.
-pub fn classify_cli_message(text: &str, now: DateTime<Utc>) -> Option<FailureKind> {
+pub fn classify_cli_message(text: &str) -> Option<FailureKind> {
     let t = text.to_lowercase();
     // older clis: "Claude AI usage limit reached|1731340800"
     if let Some(rest) = text.split_once("usage limit reached|").map(|(_, r)| r) {
-        let ts = rest.trim().split(|c: char| !c.is_ascii_digit()).next().and_then(|d| d.parse::<i64>().ok());
-        return Some(FailureKind::UsageLimit { resets_at: ts.and_then(|s| Utc.timestamp_opt(s, 0).single()) });
+        let ts = rest
+            .trim()
+            .split(|c: char| !c.is_ascii_digit())
+            .next()
+            .and_then(|d| d.parse::<i64>().ok());
+        return Some(FailureKind::UsageLimit {
+            resets_at: ts.and_then(|s| Utc.timestamp_opt(s, 0).single()),
+        });
     }
     if t.contains("usage limit")
         || t.contains("hit your limit")
@@ -316,11 +359,12 @@ pub fn classify_cli_message(text: &str, now: DateTime<Utc>) -> Option<FailureKin
         || t.contains("out of extra usage")
         || t.contains("weekly limit")
     {
-        let _ = now;
         return Some(FailureKind::UsageLimit { resets_at: None });
     }
     if t.contains("rate limit") || t.contains("rate_limit") || t.contains("429") {
-        return Some(FailureKind::RateLimited { retry_after_secs: None });
+        return Some(FailureKind::RateLimited {
+            retry_after_secs: None,
+        });
     }
     if t.contains("not logged in")
         || t.contains("please run /login")
@@ -348,30 +392,35 @@ pub(crate) struct StreamJsonDecoder {
 
 impl StreamJsonDecoder {
     pub(crate) fn new(est_input: u64) -> Self {
-        Self { est_input, ..Default::default() }
+        Self {
+            est_input,
+            ..Default::default()
+        }
     }
 
     pub(crate) fn line(&mut self, line: &str) -> Vec<ChatEvent> {
-        let Ok(v) = serde_json::from_str::<Value>(line.trim()) else { return Vec::new() };
-        let now = Utc::now();
+        let Ok(v) = serde_json::from_str::<Value>(line.trim()) else {
+            return Vec::new();
+        };
         match v.get("type").and_then(|t| t.as_str()).unwrap_or("") {
             "stream_event" => {
                 let ev = v.get("event").unwrap_or(&Value::Null);
                 if ev.get("type").and_then(|t| t.as_str()) == Some("content_block_delta")
                     && ev.pointer("/delta/type").and_then(|t| t.as_str()) == Some("text_delta")
+                    && let Some(t) = ev.pointer("/delta/text").and_then(|t| t.as_str())
                 {
-                    if let Some(t) = ev.pointer("/delta/text").and_then(|t| t.as_str()) {
-                        self.saw_partial = true;
-                        self.out_chars += t.chars().count() as u64;
-                        return vec![ChatEvent::Token { text: t.to_string() }];
-                    }
+                    self.saw_partial = true;
+                    self.out_chars += t.chars().count() as u64;
+                    return vec![ChatEvent::Token {
+                        text: t.to_string(),
+                    }];
                 }
                 Vec::new()
             }
             "assistant" => {
                 if let Some(err) = v.get("error").and_then(|e| e.as_str()) {
                     if self.pending_limit.is_none() {
-                        self.pending_limit = classify_cli_message(err, now);
+                        self.pending_limit = classify_cli_message(err);
                     }
                     // an error message is not a reply: don't show its text as one
                     return Vec::new();
@@ -382,11 +431,13 @@ impl StreamJsonDecoder {
                 let mut out = Vec::new();
                 if let Some(content) = v.pointer("/message/content").and_then(|c| c.as_array()) {
                     for b in content {
-                        if b.get("type").and_then(|t| t.as_str()) == Some("text") {
-                            if let Some(t) = b.get("text").and_then(|t| t.as_str()) {
-                                self.out_chars += t.chars().count() as u64;
-                                out.push(ChatEvent::Token { text: t.to_string() });
-                            }
+                        if b.get("type").and_then(|t| t.as_str()) == Some("text")
+                            && let Some(t) = b.get("text").and_then(|t| t.as_str())
+                        {
+                            self.out_chars += t.chars().count() as u64;
+                            out.push(ChatEvent::Token {
+                                text: t.to_string(),
+                            });
                         }
                     }
                 }
@@ -406,11 +457,13 @@ impl StreamJsonDecoder {
             "result" => {
                 self.done = true;
                 let is_error = v.get("is_error").and_then(|b| b.as_bool()).unwrap_or(false)
-                    || v.get("subtype").and_then(|s| s.as_str()).is_some_and(|s| s != "success");
+                    || v.get("subtype")
+                        .and_then(|s| s.as_str())
+                        .is_some_and(|s| s != "success");
                 let text = v.get("result").and_then(|r| r.as_str()).unwrap_or("");
                 let usage = self.usage_from(&v);
                 if is_error {
-                    let from_text = classify_cli_message(text, now);
+                    let from_text = classify_cli_message(text);
                     let failure = match (self.pending_limit.take(), from_text) {
                         // a stated reset time from the cli's rate-limit event wins
                         (Some(p @ FailureKind::UsageLimit { resets_at: Some(_) }), _) => p,
@@ -418,17 +471,29 @@ impl StreamJsonDecoder {
                         (Some(p), None) => p,
                         (None, None) => FailureKind::Other,
                     };
-                    let message = if text.is_empty() { "the claude cli reported an error".to_string() } else { text.to_string() };
-                    return vec![ChatEvent::Usage(usage), ChatEvent::Error { message, failure }];
+                    let message = if text.is_empty() {
+                        "the claude cli reported an error".to_string()
+                    } else {
+                        text.to_string()
+                    };
+                    return vec![
+                        ChatEvent::Usage(usage),
+                        ChatEvent::Error { message, failure },
+                    ];
                 }
                 // if nothing streamed (no partials, no assistant text), use the result text
                 let mut out = Vec::new();
                 if self.out_chars == 0 && !text.is_empty() {
-                    out.push(ChatEvent::Token { text: text.to_string() });
+                    out.push(ChatEvent::Token {
+                        text: text.to_string(),
+                    });
                 }
                 out.push(ChatEvent::Usage(usage));
                 out.push(ChatEvent::Done {
-                    stop_reason: v.get("stop_reason").and_then(|s| s.as_str()).map(str::to_string),
+                    stop_reason: v
+                        .get("stop_reason")
+                        .and_then(|s| s.as_str())
+                        .map(str::to_string),
                 });
                 out
             }
@@ -440,7 +505,8 @@ impl StreamJsonDecoder {
         let u = v.get("usage");
         let get = |k: &str| u.and_then(|u| u.get(k)).and_then(|x| x.as_u64());
         let input = get("input_tokens").map(|i| {
-            i + get("cache_creation_input_tokens").unwrap_or(0) + get("cache_read_input_tokens").unwrap_or(0)
+            i + get("cache_creation_input_tokens").unwrap_or(0)
+                + get("cache_read_input_tokens").unwrap_or(0)
         });
         Usage {
             input: input.unwrap_or(self.est_input),
@@ -457,11 +523,27 @@ impl StreamJsonDecoder {
             return Vec::new();
         }
         self.done = true;
-        let failure = classify_cli_message(stderr, Utc::now())
+        let failure = classify_cli_message(stderr)
             .or(self.pending_limit.take())
-            .unwrap_or(if exit_ok { FailureKind::Other } else { FailureKind::Unavailable });
-        let tail: String = stderr.trim().chars().rev().take(300).collect::<Vec<_>>().into_iter().rev().collect();
-        let message = if tail.is_empty() { "the claude cli exited without a result".to_string() } else { tail };
+            .unwrap_or(if exit_ok {
+                FailureKind::Other
+            } else {
+                FailureKind::Unavailable
+            });
+        let tail: String = stderr
+            .trim()
+            .chars()
+            .rev()
+            .take(300)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        let message = if tail.is_empty() {
+            "the claude cli exited without a result".to_string()
+        } else {
+            tail
+        };
         vec![ChatEvent::Error { message, failure }]
     }
 }
@@ -488,7 +570,11 @@ impl Backend for ClaudeCli {
         c.background_allowed = false;
         c.tools = self.mcp.is_some();
         c.json_schema = false;
-        c.forbidden_params = vec!["temperature".into(), "max_tokens".into(), "json_schema".into()];
+        c.forbidden_params = vec![
+            "temperature".into(),
+            "max_tokens".into(),
+            "json_schema".into(),
+        ];
         c.terms = Terms::Grey;
         c.notice = Some(NOTICE.into());
         c
@@ -507,7 +593,11 @@ impl Backend for ClaudeCli {
             return Availability::down(format!("found {version}; not enabled"));
         }
         if !self.cfg.check_auth_status {
-            return Availability { available: true, status: format!("{version}; sign-in {SIGN_IN_HINT}"), models: vec![] };
+            return Availability {
+                available: true,
+                status: format!("{version}; sign-in {SIGN_IN_HINT}"),
+                models: vec![],
+            };
         }
         let st = self.sign_in_status().await;
         Availability {
@@ -519,7 +609,9 @@ impl Backend for ClaudeCli {
     }
     async fn chat(&self, req: ChatRequest) -> Result<ChatStream> {
         self.policy_check()?;
-        let bin = self.locate().ok_or_else(|| HarnessError::Unavailable("claude cli not found on PATH".into()))?;
+        let bin = self
+            .locate()
+            .ok_or_else(|| HarnessError::Unavailable("claude cli not found on PATH".into()))?;
         let mut cmd = self.command(&bin);
         cmd.args(self.args(&req)).stdin(Stdio::piped());
         let dir = match &self.cfg.work_dir {
@@ -541,53 +633,66 @@ impl Backend for ClaudeCli {
         let stderr_w = stderr.clone();
         tokio::spawn(async move {
             let mut buf = Vec::new();
-            let _ = (&mut stderr_pipe).take(64 * 1024).read_to_end(&mut buf).await;
+            let _ = (&mut stderr_pipe)
+                .take(64 * 1024)
+                .read_to_end(&mut buf)
+                .await;
             *stderr_w.lock().unwrap() = String::from_utf8_lossy(&buf).into_owned();
         });
         let lines = tokio_lines(BufReader::new(stdout));
         let deadline = tokio::time::Instant::now() + Duration::from_secs(self.cfg.timeout_secs);
         let dec = StreamJsonDecoder::new(req.estimated_input_tokens());
-        let state = (Box::pin(lines), dec, std::collections::VecDeque::new(), Some(child), stderr, false);
-        let s = futures_util::stream::unfold(state, move |(mut lines, mut dec, mut q, mut child, stderr, mut ended)| async move {
-            loop {
-                if let Some(ev) = q.pop_front() {
-                    if crate::decode::is_terminal(&ev) {
-                        ended = true;
-                        q.clear();
+        let state = (
+            Box::pin(lines),
+            dec,
+            std::collections::VecDeque::new(),
+            Some(child),
+            stderr,
+            false,
+        );
+        let s = futures_util::stream::unfold(
+            state,
+            move |(mut lines, mut dec, mut q, mut child, stderr, mut ended)| async move {
+                loop {
+                    if let Some(ev) = q.pop_front() {
+                        if crate::decode::is_terminal(&ev) {
+                            ended = true;
+                            q.clear();
+                        }
+                        return Some((ev, (lines, dec, q, child, stderr, ended)));
                     }
-                    return Some((ev, (lines, dec, q, child, stderr, ended)));
+                    if ended {
+                        if let Some(mut c) = child.take() {
+                            let _ = tokio::time::timeout(Duration::from_secs(5), c.wait()).await;
+                        }
+                        return None;
+                    }
+                    match tokio::time::timeout_at(deadline, lines.next()).await {
+                        Err(_) => {
+                            q.push_back(ChatEvent::Error {
+                                message: "the claude cli timed out".into(),
+                                failure: FailureKind::Unavailable,
+                            });
+                        }
+                        Ok(Some(line)) => q.extend(dec.line(&line)),
+                        Ok(None) => {
+                            let ok = match child.as_mut() {
+                                Some(c) => matches!(
+                                    tokio::time::timeout(Duration::from_secs(5), c.wait()).await,
+                                    Ok(Ok(st)) if st.success()
+                                ),
+                                None => false,
+                            };
+                            // give the stderr reader a moment to finish
+                            tokio::time::sleep(Duration::from_millis(20)).await;
+                            let err = stderr.lock().unwrap().clone();
+                            q.extend(dec.eof(ok, &err));
+                            ended = true;
+                        }
+                    }
                 }
-                if ended {
-                    if let Some(mut c) = child.take() {
-                        let _ = tokio::time::timeout(Duration::from_secs(5), c.wait()).await;
-                    }
-                    return None;
-                }
-                match tokio::time::timeout_at(deadline, lines.next()).await {
-                    Err(_) => {
-                        q.push_back(ChatEvent::Error {
-                            message: "the claude cli timed out".into(),
-                            failure: FailureKind::Unavailable,
-                        });
-                    }
-                    Ok(Some(line)) => q.extend(dec.line(&line)),
-                    Ok(None) => {
-                        let ok = match child.as_mut() {
-                            Some(c) => matches!(
-                                tokio::time::timeout(Duration::from_secs(5), c.wait()).await,
-                                Ok(Ok(st)) if st.success()
-                            ),
-                            None => false,
-                        };
-                        // give the stderr reader a moment to finish
-                        tokio::time::sleep(Duration::from_millis(20)).await;
-                        let err = stderr.lock().unwrap().clone();
-                        q.extend(dec.eof(ok, &err));
-                        ended = true;
-                    }
-                }
-            }
-        });
+            },
+        );
         Ok(Box::pin(s))
     }
 }
@@ -609,22 +714,27 @@ mod tests {
 
     #[test]
     fn usage_limit_messages() {
-        let now = Utc::now();
         assert_eq!(
-            classify_cli_message("Claude AI usage limit reached|1731340800", now),
-            Some(FailureKind::UsageLimit { resets_at: Utc.timestamp_opt(1731340800, 0).single() })
+            classify_cli_message("Claude AI usage limit reached|1731340800"),
+            Some(FailureKind::UsageLimit {
+                resets_at: Utc.timestamp_opt(1731340800, 0).single()
+            })
         );
         assert!(matches!(
-            classify_cli_message("You've hit your limit · resets 3pm (Europe/Berlin)", now),
+            classify_cli_message("You've hit your limit · resets 3pm (Europe/Berlin)"),
             Some(FailureKind::UsageLimit { resets_at: None })
         ));
-        assert_eq!(classify_cli_message("Not logged in · Please run /login", now), Some(FailureKind::Auth));
-        assert_eq!(classify_cli_message("hello", now), None);
+        assert_eq!(
+            classify_cli_message("Not logged in · Please run /login"),
+            Some(FailureKind::Auth)
+        );
+        assert_eq!(classify_cli_message("hello"), None);
     }
 
     #[test]
     fn auth_status_parsing() {
-        let s = parse_auth_status(Some(0), r#"{"loggedIn":true,"authMethod":"claude.ai"}"#).unwrap();
+        let s =
+            parse_auth_status(Some(0), r#"{"loggedIn":true,"authMethod":"claude.ai"}"#).unwrap();
         assert_eq!(s.logged_in, Some(true));
         assert_eq!(s.auth_method.as_deref(), Some("claude.ai"));
         let s = parse_auth_status(Some(1), r#"{"authMethod":"none"}"#).unwrap();
@@ -634,23 +744,42 @@ mod tests {
 
     #[test]
     fn prompt_rendering() {
-        let r = ChatRequest::new(vec![Message::user("a"), Message::assistant("b"), Message::user("c")]);
+        let r = ChatRequest::new(vec![
+            Message::user("a"),
+            Message::assistant("b"),
+            Message::user("c"),
+        ]);
         let p = render_prompt(&r);
         assert!(p.starts_with("<conversation_so_far>"));
         assert!(p.ends_with("\nc"));
-        assert_eq!(render_prompt(&ChatRequest::new(vec![Message::user("x")])), "x");
+        assert_eq!(
+            render_prompt(&ChatRequest::new(vec![Message::user("x")])),
+            "x"
+        );
     }
 
     #[test]
     fn args_disable_tools_and_never_skip_permissions() {
-        let cli = ClaudeCli::new(ClaudeCliConfig { enabled: true, ..Default::default() });
+        let cli = ClaudeCli::new(ClaudeCliConfig {
+            enabled: true,
+            ..Default::default()
+        });
         let a = cli.args(&ChatRequest::new(vec![Message::user("x")]));
         let i = a.iter().position(|s| s == "--tools").unwrap();
         assert_eq!(a[i + 1], "");
         assert!(a.contains(&"--strict-mcp-config".to_string()));
-        assert!(!a.iter().any(|s| s.contains("dangerously") || s.contains("bypass") || s == "--bare"));
-        let cli = cli.with_mcp(Some(McpOffer { config: "{}".into(), server_name: "anamnesis".into() }));
+        assert!(
+            !a.iter()
+                .any(|s| s.contains("dangerously") || s.contains("bypass") || s == "--bare")
+        );
+        let cli = cli.with_mcp(Some(McpOffer {
+            config: "{}".into(),
+            server_name: "anamnesis".into(),
+        }));
         let a = cli.args(&ChatRequest::new(vec![Message::user("x")]));
-        assert!(a.windows(2).any(|w| w[0] == "--allowedTools" && w[1] == "mcp__anamnesis"));
+        assert!(
+            a.windows(2)
+                .any(|w| w[0] == "--allowedTools" && w[1] == "mcp__anamnesis")
+        );
     }
 }

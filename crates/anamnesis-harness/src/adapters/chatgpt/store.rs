@@ -82,7 +82,10 @@ pub struct TokenStore {
 
 impl TokenStore {
     pub fn new(kind: TokenStoreKind, dir: &Path) -> Self {
-        Self { kind, file: dir.join("chatgpt-auth.json") }
+        Self {
+            kind,
+            file: dir.join("chatgpt-auth.json"),
+        }
     }
 
     pub fn file_path(&self) -> &Path {
@@ -94,13 +97,13 @@ impl TokenStore {
     }
 
     pub fn load(&self) -> Result<Option<StoredCredentials>> {
-        if self.kind == TokenStoreKind::Keychain {
-            if let Some(e) = Self::entry() {
-                match e.get_password() {
-                    Ok(s) => return Ok(Some(serde_json::from_str(&s)?)),
-                    Err(keyring::Error::NoEntry) => {}
-                    Err(err) => tracing::debug!("keychain unavailable, using file: {err}"),
-                }
+        if self.kind == TokenStoreKind::Keychain
+            && let Some(e) = Self::entry()
+        {
+            match e.get_password() {
+                Ok(s) => return Ok(Some(serde_json::from_str(&s)?)),
+                Err(keyring::Error::NoEntry) => {}
+                Err(err) => tracing::debug!("keychain unavailable, using file: {err}"),
             }
         }
         match std::fs::read_to_string(&self.file) {
@@ -112,23 +115,23 @@ impl TokenStore {
 
     pub fn save(&self, creds: &StoredCredentials) -> Result<()> {
         let json = serde_json::to_string(creds)?;
-        if self.kind == TokenStoreKind::Keychain {
-            if let Some(e) = Self::entry() {
-                if e.set_password(&json).is_ok() && e.get_password().ok().as_deref() == Some(json.as_str()) {
-                    // the keychain holds it; remove any stale file copy
-                    let _ = std::fs::remove_file(&self.file);
-                    return Ok(());
-                }
-            }
+        if self.kind == TokenStoreKind::Keychain
+            && let Some(e) = Self::entry()
+            && e.set_password(&json).is_ok()
+            && e.get_password().ok().as_deref() == Some(json.as_str())
+        {
+            // the keychain holds it; remove any stale file copy
+            let _ = std::fs::remove_file(&self.file);
+            return Ok(());
         }
         write_private(&self.file, json.as_bytes())
     }
 
     pub fn delete(&self) -> Result<()> {
-        if self.kind == TokenStoreKind::Keychain {
-            if let Some(e) = Self::entry() {
-                let _ = e.delete_credential();
-            }
+        if self.kind == TokenStoreKind::Keychain
+            && let Some(e) = Self::entry()
+        {
+            let _ = e.delete_credential();
         }
         match std::fs::remove_file(&self.file) {
             Ok(()) => Ok(()),
@@ -140,7 +143,9 @@ impl TokenStore {
 
 /// Atomic write with 0600 permissions (unix). Creates the parent directory (0700).
 pub(crate) fn write_private(path: &Path, data: &[u8]) -> Result<()> {
-    let dir = path.parent().ok_or_else(|| HarnessError::TokenStore("no parent dir".into()))?;
+    let dir = path
+        .parent()
+        .ok_or_else(|| HarnessError::TokenStore("no parent dir".into()))?;
     std::fs::create_dir_all(dir)?;
     #[cfg(unix)]
     {
@@ -189,7 +194,11 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mode = std::fs::metadata(st.file_path()).unwrap().permissions().mode() & 0o777;
+            let mode = std::fs::metadata(st.file_path())
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777;
             assert_eq!(mode, 0o600);
         }
         assert!(!format!("{c:?}").contains("secret"));

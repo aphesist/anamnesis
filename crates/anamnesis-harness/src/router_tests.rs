@@ -53,18 +53,30 @@ impl Backend for Fake {
         Availability::ready()
     }
     async fn chat(&self, req: ChatRequest) -> Result<ChatStream> {
-        self.calls.lock().unwrap().push(format!("{}:{}", self.id, req.model.unwrap_or_default()));
+        self.calls
+            .lock()
+            .unwrap()
+            .push(format!("{}:{}", self.id, req.model.unwrap_or_default()));
         match self.behaviour {
-            Behaviour::RateLimited => Err(HarnessError::RateLimited { retry_after: Some(std::time::Duration::from_secs(30)) }),
+            Behaviour::RateLimited => Err(HarnessError::RateLimited {
+                retry_after: Some(std::time::Duration::from_secs(30)),
+            }),
             Behaviour::Ok => Ok(Box::pin(futures_util::stream::iter(vec![
                 ChatEvent::Token { text: "ok".into() },
-                ChatEvent::Usage(Usage { input: 1_000_000, output: 1_000_000, estimated: false, reported_cost_usd: None }),
+                ChatEvent::Usage(Usage {
+                    input: 1_000_000,
+                    output: 1_000_000,
+                    estimated: false,
+                    reported_cost_usd: None,
+                }),
                 ChatEvent::Done { stop_reason: None },
             ]))),
-            Behaviour::StreamUsageLimit => Ok(Box::pin(futures_util::stream::iter(vec![ChatEvent::Error {
-                message: "limit".into(),
-                failure: FailureKind::UsageLimit { resets_at: None },
-            }]))),
+            Behaviour::StreamUsageLimit => Ok(Box::pin(futures_util::stream::iter(vec![
+                ChatEvent::Error {
+                    message: "limit".into(),
+                    failure: FailureKind::UsageLimit { resets_at: None },
+                },
+            ]))),
         }
     }
 }
@@ -76,9 +88,19 @@ struct World {
 
 impl World {
     fn new() -> Self {
-        Self { calls: Arc::new(Mutex::new(Vec::new())), backends: Vec::new() }
+        Self {
+            calls: Arc::new(Mutex::new(Vec::new())),
+            backends: Vec::new(),
+        }
     }
-    fn add(mut self, id: &str, kind: BackendKind, cost: CostModel, model: &str, behaviour: Behaviour) -> Self {
+    fn add(
+        mut self,
+        id: &str,
+        kind: BackendKind,
+        cost: CostModel,
+        model: &str,
+        behaviour: Behaviour,
+    ) -> Self {
         self.backends.push(Arc::new(Fake {
             id: id.into(),
             kind,
@@ -91,8 +113,19 @@ impl World {
     }
     async fn router(&self, settings: RoutingSettings) -> Router {
         let mut prices = PriceTable::default();
-        prices.set("pricey", crate::usage::Price { input_per_m: 5.0, output_per_m: 25.0 });
-        let r = Router::new(self.backends.clone(), settings, Arc::new(Limits::new(BackoffPolicy::default())), prices);
+        prices.set(
+            "pricey",
+            crate::usage::Price {
+                input_per_m: 5.0,
+                output_per_m: 25.0,
+            },
+        );
+        let r = Router::new(
+            self.backends.clone(),
+            settings,
+            Arc::new(Limits::new(BackoffPolicy::default())),
+            prices,
+        );
         r.refresh().await;
         r
     }
@@ -102,7 +135,14 @@ impl World {
 }
 
 fn subscriptions(w: World) -> World {
-    w.add("chatgpt", BackendKind::Chatgpt, CostModel::Subscription, "gpt", Behaviour::Ok).add(
+    w.add(
+        "chatgpt",
+        BackendKind::Chatgpt,
+        CostModel::Subscription,
+        "gpt",
+        Behaviour::Ok,
+    )
+    .add(
         "claude-cli",
         BackendKind::ClaudeCli,
         CostModel::Subscription,
@@ -121,38 +161,86 @@ async fn background_never_defaults_to_subscription() {
     let w = subscriptions(World::new());
     let r = w.router(RoutingSettings::default()).await;
     for t in [Task::Label, Task::Extract, Task::Summarise] {
-        assert!(matches!(r.chat(t, req(), CallContext::default()).await, Err(HarnessError::Routing(_))));
+        assert!(matches!(
+            r.chat(t, req(), CallContext::default()).await,
+            Err(HarnessError::Routing(_))
+        ));
     }
     // and chat is not auto-routed to a plan either
-    assert!(r.chat(Task::Chat, req(), CallContext::default()).await.is_err());
+    assert!(
+        r.chat(Task::Chat, req(), CallContext::default())
+            .await
+            .is_err()
+    );
     assert!(w.calls().is_empty());
 }
 
 #[tokio::test]
 async fn background_refuses_explicit_subscription_choice_and_fallbacks() {
-    let w = subscriptions(World::new()).add("anthropic", BackendKind::Anthropic, CostModel::Metered, "claude-haiku-5-5", Behaviour::Ok);
-    let mut s = RoutingSettings { label: Some("claude-cli".into()), extract: Some("chatgpt".into()), ..Default::default() };
-    s.fallbacks.insert(Task::Summarise, vec!["claude-cli".into(), "chatgpt".into()]);
+    let w = subscriptions(World::new()).add(
+        "anthropic",
+        BackendKind::Anthropic,
+        CostModel::Metered,
+        "claude-haiku-5-5",
+        Behaviour::Ok,
+    );
+    let mut s = RoutingSettings {
+        label: Some("claude-cli".into()),
+        extract: Some("chatgpt".into()),
+        ..Default::default()
+    };
+    s.fallbacks
+        .insert(Task::Summarise, vec!["claude-cli".into(), "chatgpt".into()]);
     let r = w.router(s).await;
-    assert!(matches!(r.chat(Task::Label, req(), CallContext::default()).await, Err(HarnessError::Routing(_))));
-    assert!(matches!(r.chat(Task::Extract, req(), CallContext::default()).await, Err(HarnessError::Routing(_))));
+    assert!(matches!(
+        r.chat(Task::Label, req(), CallContext::default()).await,
+        Err(HarnessError::Routing(_))
+    ));
+    assert!(matches!(
+        r.chat(Task::Extract, req(), CallContext::default()).await,
+        Err(HarnessError::Routing(_))
+    ));
     // per-request override cannot sneak a background task onto a plan either
-    let ctx = CallContext { backend: Some("chatgpt".into()), ..Default::default() };
-    assert!(matches!(r.chat(Task::Summarise, req(), ctx).await, Err(HarnessError::Routing(_))));
+    let ctx = CallContext {
+        backend: Some("chatgpt".into()),
+        ..Default::default()
+    };
+    assert!(matches!(
+        r.chat(Task::Summarise, req(), ctx).await,
+        Err(HarnessError::Routing(_))
+    ));
     // summarise default goes to the metered backend; the plan fallbacks are dropped
     let plan = r.plan(Task::Summarise, None).unwrap();
-    assert_eq!(plan.iter().map(|b| b.id().to_string()).collect::<Vec<_>>(), vec!["anthropic"]);
-    let rc = r.chat(Task::Summarise, req(), CallContext::default()).await.unwrap();
+    assert_eq!(
+        plan.iter().map(|b| b.id().to_string()).collect::<Vec<_>>(),
+        vec!["anthropic"]
+    );
+    let rc = r
+        .chat(Task::Summarise, req(), CallContext::default())
+        .await
+        .unwrap();
     assert_eq!(rc.backend, "anthropic");
     collect(rc.stream).await;
-    assert!(w.calls().iter().all(|c| !c.starts_with("chatgpt") && !c.starts_with("claude-cli")));
+    assert!(
+        w.calls()
+            .iter()
+            .all(|c| !c.starts_with("chatgpt") && !c.starts_with("claude-cli"))
+    );
 }
 
 #[tokio::test]
 async fn chat_may_use_a_plan_when_chosen() {
     let w = subscriptions(World::new());
-    let r = w.router(RoutingSettings { chat: Some("claude-cli".into()), ..Default::default() }).await;
-    let rc = r.chat(Task::Chat, req(), CallContext::default()).await.unwrap();
+    let r = w
+        .router(RoutingSettings {
+            chat: Some("claude-cli".into()),
+            ..Default::default()
+        })
+        .await;
+    let rc = r
+        .chat(Task::Chat, req(), CallContext::default())
+        .await
+        .unwrap();
     assert_eq!(rc.backend, "claude-cli");
     assert!(rc.egress.is_some(), "plan backends are non-local");
 }
@@ -160,56 +248,150 @@ async fn chat_may_use_a_plan_when_chosen() {
 #[tokio::test]
 async fn local_first_for_background_then_cheapest_api() {
     let w = World::new()
-        .add("pricey-api", BackendKind::Anthropic, CostModel::Metered, "pricey", Behaviour::Ok)
-        .add("haiku-api", BackendKind::Anthropic, CostModel::Metered, "claude-haiku-5-5", Behaviour::Ok)
-        .add("unpriced-api", BackendKind::OpenaiCompatible, CostModel::Metered, "mystery", Behaviour::Ok)
-        .add("ollama", BackendKind::OpenaiCompatible, CostModel::FreeLocal, "llama", Behaviour::Ok);
+        .add(
+            "pricey-api",
+            BackendKind::Anthropic,
+            CostModel::Metered,
+            "pricey",
+            Behaviour::Ok,
+        )
+        .add(
+            "haiku-api",
+            BackendKind::Anthropic,
+            CostModel::Metered,
+            "claude-haiku-5-5",
+            Behaviour::Ok,
+        )
+        .add(
+            "unpriced-api",
+            BackendKind::OpenaiCompatible,
+            CostModel::Metered,
+            "mystery",
+            Behaviour::Ok,
+        )
+        .add(
+            "ollama",
+            BackendKind::OpenaiCompatible,
+            CostModel::FreeLocal,
+            "llama",
+            Behaviour::Ok,
+        );
     let r = w.router(RoutingSettings::default()).await;
     assert_eq!(r.plan(Task::Label, None).unwrap()[0].id(), "ollama");
-    let rc = r.chat(Task::Extract, req(), CallContext::default()).await.unwrap();
+    let rc = r
+        .chat(Task::Extract, req(), CallContext::default())
+        .await
+        .unwrap();
     assert!(rc.egress.is_none(), "local calls skip the gate");
 
     let w2 = World::new()
-        .add("pricey-api", BackendKind::Anthropic, CostModel::Metered, "pricey", Behaviour::Ok)
-        .add("unpriced-api", BackendKind::OpenaiCompatible, CostModel::Metered, "mystery", Behaviour::Ok)
-        .add("haiku-api", BackendKind::Anthropic, CostModel::Metered, "claude-haiku-5-5", Behaviour::Ok);
+        .add(
+            "pricey-api",
+            BackendKind::Anthropic,
+            CostModel::Metered,
+            "pricey",
+            Behaviour::Ok,
+        )
+        .add(
+            "unpriced-api",
+            BackendKind::OpenaiCompatible,
+            CostModel::Metered,
+            "mystery",
+            Behaviour::Ok,
+        )
+        .add(
+            "haiku-api",
+            BackendKind::Anthropic,
+            CostModel::Metered,
+            "claude-haiku-5-5",
+            Behaviour::Ok,
+        );
     let r2 = w2.router(RoutingSettings::default()).await;
     assert_eq!(r2.plan(Task::Label, None).unwrap()[0].id(), "haiku-api");
     // background api use can be switched off
-    let r3 = w2.router(RoutingSettings { background_to_api_by_default: false, ..Default::default() }).await;
+    let r3 = w2
+        .router(RoutingSettings {
+            background_to_api_by_default: false,
+            ..Default::default()
+        })
+        .await;
     assert!(r3.plan(Task::Label, None).is_err());
 }
 
 #[tokio::test]
 async fn no_silent_fallback_from_plan_to_paid() {
     let w = World::new()
-        .add("claude-cli", BackendKind::ClaudeCli, CostModel::Subscription, "default", Behaviour::RateLimited)
-        .add("anthropic", BackendKind::Anthropic, CostModel::Metered, "claude-haiku-5-5", Behaviour::Ok);
-    let r = w.router(RoutingSettings { chat: Some("claude-cli".into()), ..Default::default() }).await;
-    let e = r.chat(Task::Chat, req(), CallContext::default()).await.err().unwrap();
+        .add(
+            "claude-cli",
+            BackendKind::ClaudeCli,
+            CostModel::Subscription,
+            "default",
+            Behaviour::RateLimited,
+        )
+        .add(
+            "anthropic",
+            BackendKind::Anthropic,
+            CostModel::Metered,
+            "claude-haiku-5-5",
+            Behaviour::Ok,
+        );
+    let r = w
+        .router(RoutingSettings {
+            chat: Some("claude-cli".into()),
+            ..Default::default()
+        })
+        .await;
+    let e = r
+        .chat(Task::Chat, req(), CallContext::default())
+        .await
+        .err()
+        .unwrap();
     assert!(matches!(e, HarnessError::RateLimited { .. }));
     assert_eq!(w.calls(), vec!["claude-cli:default"]);
     // cooldown is visible for the ui, and the next call does not even try
     let cd = r.cooldowns();
     assert_eq!(cd[0].backend, "claude-cli");
     assert!(cd[0].reset_known);
-    assert!(matches!(r.chat(Task::Chat, req(), CallContext::default()).await, Err(HarnessError::CoolingDown { .. })));
+    assert!(matches!(
+        r.chat(Task::Chat, req(), CallContext::default()).await,
+        Err(HarnessError::CoolingDown { .. })
+    ));
     assert_eq!(w.calls().len(), 1);
 
     // an explicit fallback in settings is honoured
-    let mut s = RoutingSettings { chat: Some("claude-cli".into()), ..Default::default() };
+    let mut s = RoutingSettings {
+        chat: Some("claude-cli".into()),
+        ..Default::default()
+    };
     s.fallbacks.insert(Task::Chat, vec!["anthropic".into()]);
     let r = w.router(s).await;
-    let rc = r.chat(Task::Chat, req(), CallContext::default()).await.unwrap();
+    let rc = r
+        .chat(Task::Chat, req(), CallContext::default())
+        .await
+        .unwrap();
     assert_eq!(rc.backend, "anthropic");
     assert!(rc.fell_back);
 }
 
 #[tokio::test]
 async fn mid_stream_usage_limit_sets_cooldown() {
-    let w = World::new().add("chatgpt", BackendKind::Chatgpt, CostModel::Subscription, "gpt", Behaviour::StreamUsageLimit);
-    let r = w.router(RoutingSettings { chat: Some("chatgpt".into()), ..Default::default() }).await;
-    let rc = r.chat(Task::Chat, req(), CallContext::default()).await.unwrap();
+    let w = World::new().add(
+        "chatgpt",
+        BackendKind::Chatgpt,
+        CostModel::Subscription,
+        "gpt",
+        Behaviour::StreamUsageLimit,
+    );
+    let r = w
+        .router(RoutingSettings {
+            chat: Some("chatgpt".into()),
+            ..Default::default()
+        })
+        .await;
+    let rc = r
+        .chat(Task::Chat, req(), CallContext::default())
+        .await
+        .unwrap();
     collect(rc.stream).await;
     let cd = r.cooldowns();
     assert_eq!(cd[0].reason.as_deref(), Some("plan usage limit reached"));
@@ -218,10 +400,19 @@ async fn mid_stream_usage_limit_sets_cooldown() {
 
 #[tokio::test]
 async fn egress_gate_refuses_local_only_items() {
-    let w = World::new().add("anthropic", BackendKind::Anthropic, CostModel::Metered, "claude-haiku-5-5", Behaviour::Ok);
+    let w = World::new().add(
+        "anthropic",
+        BackendKind::Anthropic,
+        CostModel::Metered,
+        "claude-haiku-5-5",
+        Behaviour::Ok,
+    );
     let r = w.router(RoutingSettings::default()).await;
     let ctx = CallContext {
-        items: vec![(Id("a".into()), Privacy::CloudOk), (Id("secret".into()), Privacy::LocalOnly)],
+        items: vec![
+            (Id("a".into()), Privacy::CloudOk),
+            (Id("secret".into()), Privacy::LocalOnly),
+        ],
         ..Default::default()
     };
     match r.chat(Task::Label, req(), ctx).await {
@@ -232,8 +423,18 @@ async fn egress_gate_refuses_local_only_items() {
     assert!(w.calls().is_empty(), "nothing left the machine");
 
     // cloud-ok items pass and produce an egress record with counts only
-    let ctx = CallContext { items: vec![(Id("a".into()), Privacy::CloudOk)], ..Default::default() };
-    let rc = r.chat(Task::Label, ChatRequest::new(vec![Message::user("abcd")]), ctx).await.unwrap();
+    let ctx = CallContext {
+        items: vec![(Id("a".into()), Privacy::CloudOk)],
+        ..Default::default()
+    };
+    let rc = r
+        .chat(
+            Task::Label,
+            ChatRequest::new(vec![Message::user("abcd")]),
+            ctx,
+        )
+        .await
+        .unwrap();
     let ev: EventKind = rc.egress.unwrap().into();
     assert_eq!(
         ev,
@@ -249,17 +450,41 @@ async fn egress_gate_refuses_local_only_items() {
 
 #[tokio::test]
 async fn local_only_items_may_go_to_local_backends() {
-    let w = World::new().add("ollama", BackendKind::OpenaiCompatible, CostModel::FreeLocal, "llama", Behaviour::Ok);
+    let w = World::new().add(
+        "ollama",
+        BackendKind::OpenaiCompatible,
+        CostModel::FreeLocal,
+        "llama",
+        Behaviour::Ok,
+    );
     let r = w.router(RoutingSettings::default()).await;
-    let ctx = CallContext { items: vec![(Id("secret".into()), Privacy::LocalOnly)], ..Default::default() };
-    assert!(r.chat(Task::Label, req(), ctx).await.unwrap().egress.is_none());
+    let ctx = CallContext {
+        items: vec![(Id("secret".into()), Privacy::LocalOnly)],
+        ..Default::default()
+    };
+    assert!(
+        r.chat(Task::Label, req(), ctx)
+            .await
+            .unwrap()
+            .egress
+            .is_none()
+    );
 }
 
 #[tokio::test]
 async fn usage_is_recorded_with_prices() {
-    let w = World::new().add("anthropic", BackendKind::Anthropic, CostModel::Metered, "claude-haiku-5-5", Behaviour::Ok);
+    let w = World::new().add(
+        "anthropic",
+        BackendKind::Anthropic,
+        CostModel::Metered,
+        "claude-haiku-5-5",
+        Behaviour::Ok,
+    );
     let r = w.router(RoutingSettings::default()).await;
-    let rc = r.chat(Task::Label, req(), CallContext::default()).await.unwrap();
+    let rc = r
+        .chat(Task::Label, req(), CallContext::default())
+        .await
+        .unwrap();
     collect(rc.stream).await;
     let u = r.usage();
     assert_eq!(u[0].requests, 1);
