@@ -1,0 +1,77 @@
+# the demo brain
+
+a second brain is only interesting once it holds years of writing, and nobody should have to show their private notes to see what anamnesis does. the demo brain is a real, dated corpus instead: the journals of henry david thoreau and ralph waldo emerson, 1820–1876, with their essays as the outside voice. two people who knew each other, wrote every day, and named each other in their journals.
+
+the demo brain is built on your machine by the optional python lab. it is never committed to this repository and never shipped inside the binary, and it is kept apart from your own brain (in `<data dir>/anamnesis/demo/`).
+
+## what is in it
+
+| part | source edition |
+|---|---|
+| thoreau, *journal*, 1837–1861 | *the writings of henry david thoreau*, vols. 7–20 (houghton mifflin, 1906), ed. bradford torrey (and francis h. allen) |
+| emerson, *journals*, 1820–1876 | *journals of ralph waldo emerson, with annotations* (houghton mifflin, 1909–14), ed. edward waldo emerson and waldo emerson forbes |
+| emerson, *nature*, *essays* i and ii | 1836/1849, 1841, 1844 |
+| thoreau, *walden*, *a week on the concord and merrimack rivers*, *civil disobedience*, *walking* | 1854, 1849, 1849, 1862 |
+
+journal entries are stored as written by the demo's owner (`owner_written`); the essays are `external`, so the "when you wrote" chart has both voices. a full build gave about 9,200 notes (5,010 thoreau journal entries, 3,543 emerson journal entries, 674 essay sections), about 3.1 million words, and 366 cross-author links. the exact counts depend on the run; the lab writes them to `manifest.json`.
+
+the builder removes every distributor wrapper and the editors' own matter (introductions, footnotes, bracketed notes, running heads), splits the journals into dated entries, splits the books into sections, and adds `[[wikilinks]]` only where one author explicitly names the other or one of the other's distinctive titles. dates are parsed from the text; emerson's undated stretches are dated to the year. the ocr of the later volumes is imperfect. treat it as a demonstration corpus, not an edition.
+
+## public-domain status
+
+the bar for a demo text is **public domain in both the united states and brazil**:
+
+- **united states:** works published before 1931 are in the public domain as of 2026.
+- **brazil:** lei 9.610/98, art. 41 protects a work for seventy years counted from 1 january of the year after the author's death, so a person who died in year *d* is in the public domain from 1 january of *d* + 71. editors and translators are authors of their contributions, so every person on an edition is checked.
+
+| person | role | died | public domain in brazil from |
+|---|---|---|---|
+| henry david thoreau | author | 1862 | 1933 |
+| ralph waldo emerson | author | 1882 | 1953 |
+| bradford torrey | editor, thoreau's journal (1906) | 1912 | 1983 |
+| francis h. allen | co-editor, thoreau's journal (1906) | 1953 | 2024 |
+| edward waldo emerson | editor, emerson's journals (1909–14) | 1930 | 2001 |
+| waldo emerson forbes | co-editor, emerson's journals | 1917 (genealogy records; to be confirmed against a library authority record) | 1988 |
+
+every edition used was published before 1931. the builder drops the editors' annotations in any case, leaving the authors' own text. the harvard *journals and miscellaneous notebooks* (1960–82) are still in copyright and are not used. the source of each text is credited in the build's `COLOPHON.md` and `SOURCES.md`, not inside the notes.
+
+outside the united states and brazil, check your local law before redistributing a build.
+
+## build it
+
+needs [uv](https://docs.astral.sh/uv/) and python 3.11 or newer.
+
+```sh
+cd lab
+uv sync
+uv run anamnesis-lab demo transcendentalist           # downloads ~30 MB of texts once, writes lab/out/transcendentalist
+uv run anamnesis-lab demo transcendentalist --small   # offline, ~290 notes from a bundled fixture, seconds
+```
+
+then serve it as the demo brain, pointing at the `notes/` folder of the build:
+
+```sh
+anamnesis serve --demo --demo-bundle lab/out/transcendentalist/notes
+```
+
+or set `ANAMNESIS_DEMO_BUNDLE=lab/out/transcendentalist/notes` and switch with `POST /api/demo {"enabled": true}` (and back with `false`). the first switch imports the notes and runs the background jobs; with the default local embedder, embedding ~9,000 notes takes a while on a laptop cpu. add `--hash-embedder` for a quick look.
+
+you can also import the notes into a brain of your own like any folder: `anamnesis import lab/out/transcendentalist/notes`.
+
+## a demonstration, not a measurement
+
+the demo's links were added by a script, from explicit mentions. they are not links anyone made by hand while reading, so any "latent links" number on the demo brain shows the pipeline working and measures nothing. the lab's link-prediction benchmark on it is labelled the same way. the evaluation that means something is the one on your own brain ([evaluation.md](evaluation.md)).
+
+## why not other authors
+
+the double bar rules out more than one might expect:
+
+- **nick land:** alive, so protected everywhere.
+- **julius evola:** died 1974, protected in brazil until 1 january 2045. a few italian originals from before 1931 are public domain in the us but not in brazil, and the english translations carry their own copyrights.
+- **seneca in gummere's loeb translation** (1917–25): gummere died in 1969, so public domain in the us but not in brazil until 2040. aubrey stewart's bohn translations or lodge (1614) would do.
+- **nietzsche in kaufmann's translations:** kaufmann died in 1980; protected in both countries. common's and zimmern's translations are fine.
+- **guénon in english:** the 1942 translators died long after 1955, and the translation was most likely restored in the us until 2037. the french originals up to 1930 clear both countries.
+- **plotinus:** only mackenna's 1917–1930 volumes qualify; page's 1956 revision is a separate, later work.
+- texts from sites with their own reuse conditions (for example a non-commercial notice on a public-domain file) are avoided.
+
+a second, partial theme exists: the **pragmatist brain** (`uv run anamnesis-lab demo pragmatist`) with the dated *letters of william james* (1920) and *pragmatism* (1907). peirce, dewey and cross-author links are not built yet. details in [lab/README.md](../lab/README.md).
