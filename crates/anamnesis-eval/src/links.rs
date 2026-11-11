@@ -6,6 +6,11 @@
 //! ## design
 //! * Every suggestion is logged as `SuggestionMade` with `shown`. About 20% of
 //!   top-k suggestions are randomly held out (`shown = false`) and never displayed.
+//!   `shown = true` only makes a suggestion *eligible*: it reaches the user when the
+//!   ui actually displays it, logged as `SuggestionDisplayed` (accepting or
+//!   dismissing one also implies it was seen). Everything about exposure (the
+//!   shown arm, acceptance, exposure lift) counts **displayed** suggestions only;
+//!   eligible ones nobody looked at are in neither arm.
 //! * Links are matched to suggestions as **unordered pairs** (a hand link `b → a`
 //!   matches a suggestion `a → b`). Only the first link per pair counts; self links
 //!   are ignored.
@@ -14,7 +19,8 @@
 //!   only ever counts in the shown arm.
 //! * A pair is *predicted* at time t if some suggestion for it with `rank <= k`
 //!   was made strictly before t. It is in the **shown arm** if any such suggestion
-//!   was displayed before t, otherwise in the **held-out arm**.
+//!   was displayed before t, in the **held-out arm** if it was only ever held out
+//!   before t, and in neither if it was eligible but never displayed.
 //!
 //! ## latent share estimator
 //! Let H be hand links whose pair was predicted in the held-out arm, U hand links
@@ -27,7 +33,8 @@
 //! latent share = (H/π_h) / (H/π_h + U)
 //! ```
 //!
-//! The same formula on the shown arm (S, π_s = 1 − π_h) is reported alongside: it
+//! The same formula on the shown arm (S, π_s = share of predicted pairs actually
+//! displayed) is reported alongside: it
 //! is contaminated by exposure, and the gap between the two is the exposure lift.
 //! The estimator assumes that showing suggestions does not change how many
 //! *unpredicted* links you make, which is why it is classed as *modelled*.
@@ -98,7 +105,8 @@ pub struct LatentArm {
     pub links_accepted: usize,
     /// Hand links whose pair was never predicted before the link.
     pub links_unpredicted: usize,
-    /// Share of predicted pairs that fell in this arm (the design propensity).
+    /// Share of predicted pairs that fell in this arm: the design propensity for the
+    /// held-out arm, the displayed share for the shown arm.
     pub propensity: Option<f64>,
     /// Latent share estimated from this arm; `n` = links_predicted + links_unpredicted.
     pub estimate: Estimate,
@@ -167,11 +175,15 @@ pub struct Rankings {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Acceptance {
-    pub shown: usize,
+    /// Shown-arm suggestions recorded (`SuggestionMade { shown: true }`): eligible to be
+    /// displayed, not necessarily seen.
+    pub eligible: usize,
+    /// Of those, actually displayed to the user (`SuggestionDisplayed`, or decided).
+    pub displayed: usize,
     pub accepted: usize,
     pub dismissed: usize,
     pub ignored: usize,
-    /// accepted / shown
+    /// accepted / displayed
     pub rate: Estimate,
     /// accepted / (accepted + dismissed)
     pub rate_of_responses: Estimate,
@@ -219,6 +231,8 @@ pub struct LinksReport {
     /// Predicted pairs over the whole log, by arm.
     pub predicted_pairs: usize,
     pub held_out_pairs: usize,
+    /// Predicted pairs with a suggestion actually displayed to the user.
+    pub displayed_pairs: usize,
     pub status: Status,
     #[serde(flatten)]
     pub all: LinkMetrics,
@@ -251,16 +265,33 @@ struct Sugg {
 #[derive(Debug, Clone)]
 struct PairInfo {
     first_at: Timestamp,
+    /// First top-k suggestion for the pair eligible to be shown.
     first_shown_at: Option<Timestamp>,
     first_held_at: Option<Timestamp>,
+    /// First time one of its suggestions was actually displayed (or decided).
+    first_displayed_at: Option<Timestamp>,
+}
+
+/// Where a predicted pair stood when a link was made.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Exposure {
+    /// Predicted and actually displayed before.
+    Displayed,
+    /// Predicted, and only ever held out before (the randomised control).
+    HeldOut,
+    /// Predicted and eligible, but never displayed: neither exposed nor a control.
+    Unseen,
 }
 
 impl PairInfo {
-    fn arm_before(&self, t: Timestamp) -> Option<Arm> {
-        if self.first_shown_at.is_some_and(|s| s < t) {
-            Some(Arm::Shown)
+    /// `None`: the pair had not been predicted before `t`.
+    fn exposure_before(&self, t: Timestamp) -> Option<Exposure> {
+        if self.first_displayed_at.is_some_and(|s| s < t) {
+            Some(Exposure::Displayed)
+        } else if self.first_shown_at.is_some_and(|s| s < t) {
+            Some(Exposure::Unseen)
         } else if self.first_held_at.is_some_and(|h| h < t) {
-            Some(Arm::HeldOut)
+            Some(Exposure::HeldOut)
         } else {
             None
         }
@@ -285,6 +316,8 @@ struct Parsed {
     link_list: Vec<(Pair, LinkObs)>,
     accepted: HashMap<String, Timestamp>,
     dismissed: HashMap<String, Timestamp>,
+    /// suggestion id → first time it was displayed (or decided, which implies it was seen)
+    displayed: HashMap<String, Timestamp>,
     feature_start: Option<Timestamp>,
     as_of: Option<Timestamp>,
 }
@@ -296,6 +329,7 @@ fn parse(events: &[Event], cfg: &LinkConfig) -> Parsed {
     let mut link_list = Vec::new();
     let mut accepted = HashMap::new();
     let mut dismissed = HashMap::new();
+    let mut displayed: HashMap<String, Timestamp> = HashMap::new();
     let mut sorted: Vec<&Event> = events.iter().collect();
     sorted.sort_by_key(|e| (e.at, e.seq));
     for e in sorted {
@@ -316,6 +350,7 @@ fn parse(events: &[Event], cfg: &LinkConfig) -> Parsed {
                     first_at: e.at,
                     first_shown_at: None,
                     first_held_at: None,
+                    first_displayed_at: None,
                 });
                 if *shown {
                     info.first_shown_at.get_or_insert(e.at);
@@ -333,9 +368,16 @@ fn parse(events: &[Event], cfg: &LinkConfig) -> Parsed {
             }
             EventKind::SuggestionAccepted { suggestion_id } => {
                 accepted.entry(suggestion_id.0.clone()).or_insert(e.at);
+                displayed.entry(suggestion_id.0.clone()).or_insert(e.at);
             }
             EventKind::SuggestionDismissed { suggestion_id } => {
                 dismissed.entry(suggestion_id.0.clone()).or_insert(e.at);
+                displayed.entry(suggestion_id.0.clone()).or_insert(e.at);
+            }
+            EventKind::SuggestionDisplayed { suggestion_ids } => {
+                for sid in suggestion_ids {
+                    displayed.entry(sid.0.clone()).or_insert(e.at);
+                }
             }
             EventKind::LinkAdded { link } => {
                 let Some(p) = pair(&link.from, &link.to) else {
@@ -355,6 +397,18 @@ fn parse(events: &[Event], cfg: &LinkConfig) -> Parsed {
             _ => {}
         }
     }
+    // held-out suggestions cannot be displayed: ignore any record saying otherwise
+    for s in top.iter().filter(|s| s.shown) {
+        let Some(&d) = displayed.get(&s.id.0) else {
+            continue;
+        };
+        if let Some(info) = pair(&s.from, &s.to).and_then(|p| pairs.get_mut(&p)) {
+            let at = d.max(s.at);
+            if info.first_displayed_at.is_none_or(|x| at < x) {
+                info.first_displayed_at = Some(at);
+            }
+        }
+    }
     let feature_start = first_at(events, |e| {
         matches!(e.kind, EventKind::SuggestionMade { .. })
     });
@@ -365,6 +419,7 @@ fn parse(events: &[Event], cfg: &LinkConfig) -> Parsed {
         link_list,
         accepted,
         dismissed,
+        displayed,
         feature_start,
         as_of: as_of(events, cfg.as_of),
     }
@@ -379,6 +434,11 @@ pub fn link_metrics(events: &[Event], cfg: &LinkConfig) -> LinksReport {
         .values()
         .filter(|i| i.first_shown_at.is_none())
         .count();
+    let displayed_pairs = p
+        .pairs
+        .values()
+        .filter(|i| i.first_displayed_at.is_some())
+        .count();
     let all = metrics_in(&p, cfg, Window::ALL);
     let novelty = Novelty::compute(p.feature_start, cfg.novelty_days, |w| {
         metrics_in(&p, cfg, w)
@@ -390,6 +450,7 @@ pub fn link_metrics(events: &[Event], cfg: &LinkConfig) -> LinksReport {
         as_of: p.as_of,
         predicted_pairs,
         held_out_pairs,
+        displayed_pairs,
         status,
         all,
         novelty,
@@ -419,32 +480,41 @@ fn latent_share(p: &Parsed, cfg: &LinkConfig, w: Window) -> LatentShare {
         .values()
         .filter(|i| i.first_shown_at.is_none())
         .count();
+    let seen = p
+        .pairs
+        .values()
+        .filter(|i| i.first_displayed_at.is_some())
+        .count();
     let pi_h = (total > 0).then(|| held as f64 / total as f64);
-    let pi_s = pi_h.map(|x| 1.0 - x);
+    let pi_s = (total > 0).then(|| seen as f64 / total as f64);
 
     let (mut h, mut s, mut s_acc, mut s_hand, mut u, mut hand) = (0, 0, 0, 0, 0, 0);
+    let mut unseen_hand = 0;
     for (pr, l) in &p.link_list {
         if !w.contains(l.at) {
             continue;
         }
-        let arm = p.pairs.get(pr).and_then(|i| i.arm_before(l.at));
+        let exposure = p.pairs.get(pr).and_then(|i| i.exposure_before(l.at));
         let hand_link = is_hand(l.kind);
         if hand_link {
             hand += 1;
         }
-        match (arm, hand_link) {
+        match (exposure, hand_link) {
             (None, true) => u += 1,
             (None, false) => {} // accepted link without a prior top-k suggestion: ignore
-            (Some(Arm::HeldOut), true) => h += 1,
-            (Some(Arm::HeldOut), false) => {} // cannot accept an unseen suggestion
-            (Some(Arm::Shown), true) => {
+            (Some(Exposure::HeldOut), true) => h += 1,
+            (Some(Exposure::HeldOut), false) => {} // cannot accept an unseen suggestion
+            (Some(Exposure::Displayed), true) => {
                 s += 1;
                 s_hand += 1;
             }
-            (Some(Arm::Shown), false) => {
+            (Some(Exposure::Displayed), false) => {
                 s += 1;
                 s_acc += 1;
             }
+            // predicted and eligible but never displayed: in neither arm
+            (Some(Exposure::Unseen), true) => unseen_hand += 1,
+            (Some(Exposure::Unseen), false) => {}
         }
     }
 
@@ -454,7 +524,7 @@ fn latent_share(p: &Parsed, cfg: &LinkConfig, w: Window) -> LatentShare {
         (Some(a), Some(b)) => Some(b - a),
         _ => None,
     };
-    let raw_k = h + s_hand;
+    let raw_k = h + s_hand + unseen_hand;
     LatentShare {
         hand_links: hand,
         predicted_before_raw: Estimate {
@@ -530,10 +600,13 @@ fn hit_rates(p: &Parsed, cfg: &LinkConfig, w: Window) -> HitRates {
             .get(pr)
             .filter(|l| l.at > info.first_at && l.at <= end);
         let exposed_by = link.map(|l| l.at).unwrap_or(end);
-        let arm = if info.first_shown_at.is_some_and(|s| s < exposed_by) {
+        let arm = if info.first_displayed_at.is_some_and(|s| s < exposed_by) {
             Arm::Shown
-        } else {
+        } else if info.first_shown_at.is_none_or(|s| s >= exposed_by) {
             Arm::HeldOut
+        } else {
+            // eligible but never displayed: neither exposed nor the randomised control
+            continue;
         };
         let linked = match (arm, link) {
             (Arm::HeldOut, Some(l)) => is_hand(l.kind),
@@ -716,8 +789,13 @@ fn score(
 }
 
 fn acceptance(p: &Parsed, cfg: &LinkConfig, w: Window) -> Acceptance {
-    let (mut shown, mut acc, mut dis) = (0, 0, 0);
+    let (mut eligible, mut shown, mut acc, mut dis) = (0, 0, 0, 0);
     for s in p.top.iter().filter(|s| s.shown && w.contains(s.at)) {
+        eligible += 1;
+        // only suggestions the user actually saw can be accepted, dismissed or ignored
+        if !p.displayed.contains_key(&s.id.0) {
+            continue;
+        }
         shown += 1;
         if p.accepted.contains_key(&s.id.0) {
             acc += 1;
@@ -727,7 +805,8 @@ fn acceptance(p: &Parsed, cfg: &LinkConfig, w: Window) -> Acceptance {
     }
     let responses = acc + dis;
     Acceptance {
-        shown,
+        eligible,
+        displayed: shown,
         accepted: acc,
         dismissed: dis,
         ignored: shown - responses,
@@ -758,9 +837,9 @@ fn time_to_link(p: &Parsed, w: Window) -> TimeToLink {
             continue;
         };
         let d = days_between(info.first_at, l.at);
-        match (info.arm_before(l.at), is_hand(l.kind)) {
-            (Some(Arm::HeldOut), true) => held.push(d),
-            (Some(Arm::Shown), _) => shown.push(d),
+        match (info.exposure_before(l.at), is_hand(l.kind)) {
+            (Some(Exposure::HeldOut), true) => held.push(d),
+            (Some(Exposure::Displayed), _) => shown.push(d),
             _ => {}
         }
     }

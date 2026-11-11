@@ -359,6 +359,17 @@ pub fn generate(cfg: &SyntheticConfig) -> Vec<Event> {
                             model: "synthetic-embed".into(),
                         },
                     );
+                    if shown {
+                        // the user opens the item and sees its suggestions
+                        push(
+                            &mut raw,
+                            ts + Duration::minutes(1),
+                            Actor::User,
+                            EventKind::SuggestionDisplayed {
+                                suggestion_ids: vec![sid.clone()],
+                            },
+                        );
+                    }
                     let p_latent = if same {
                         cfg.p_latent_same_topic
                     } else {

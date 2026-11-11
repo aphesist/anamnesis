@@ -7,6 +7,11 @@
 //! * **hypothesis** — not yet supported: too little data, or not measured at all.
 //!
 //! A claim whose metric is still "measuring" is always a hypothesis, whatever its method.
+//!
+//! `n` always counts observations of the user: hand links, suggestions actually
+//! displayed, labels, ratings. Things the app did on its own (suggestions it
+//! computed, pairs it held out, clustering runs) are never an `n` by themselves:
+//! a brain nobody has used yet reads "measuring" everywhere.
 
 use serde::{Deserialize, Serialize};
 
@@ -95,7 +100,10 @@ pub fn honesty(r: &EvalReport) -> Honesty {
     ));
 
     let hr = &l.hit_rate.held_out;
-    let hr_status = Status::from_bool(hr.pairs >= r.config.links.min_held_out_pairs);
+    // held-out pairs accumulate without the user doing anything; a hit rate means
+    // something only once the user has been making links by hand
+    let hand_enough = l.latent.hand_links >= r.config.links.min_hand_links;
+    let hr_status = Status::from_bool(hr.pairs >= r.config.links.min_held_out_pairs && hand_enough);
     claims.push(claim(
         "held_out_hit_rate",
         "suggestions you never saw still became links you made yourself",
@@ -105,31 +113,50 @@ pub fn honesty(r: &EvalReport) -> Honesty {
         hr.estimate.interval.clone(),
         hr_status,
         &format!("randomised holdout: share of never-shown top-{} suggestions linked by hand within {} days", r.links.k, r.links.window_days),
-        "pairs whose window is still open are left out; long-delayed links are missed",
+        &format!(
+            "pairs whose window is still open are left out; long-delayed links are missed; read only after {} hand links",
+            r.config.links.min_hand_links
+        ),
     ));
 
+    let acc = &l.acceptance;
+    let displayed_enough = acc.displayed >= 30;
+
+    // the shown arm exists only once suggestions were actually displayed
+    let lift_n = if r.links.displayed_pairs > 0 {
+        l.latent.shown.estimate.n
+    } else {
+        0
+    };
+    let lift_status = if l.latent.status == Status::EnoughData && displayed_enough {
+        Status::EnoughData
+    } else {
+        Status::Measuring
+    };
     claims.push(claim(
         "exposure_lift",
         "seeing a suggestion changes what you link",
         ClaimClass::Modelled,
-        l.latent.shown.estimate.n,
+        lift_n,
         l.latent.exposure_lift,
         None,
-        l.latent.status,
-        "latent share estimated from shown suggestions minus the held-out estimate",
-        "no interval yet; both arms share the unpredicted-link count",
+        lift_status,
+        "latent share estimated from suggestions actually displayed to you, minus the held-out estimate",
+        "no interval yet; both arms share the unpredicted-link count; which suggestions you open is not random",
     ));
 
-    let acc = &l.acceptance;
     claims.push(claim(
         "acceptance_rate",
         "you accept some of the suggestions you are shown (a diagnostic, not a quality measure)",
         ClaimClass::Measured,
-        acc.shown,
+        acc.displayed,
         acc.rate.value,
         acc.rate.interval.clone(),
-        Status::from_bool(acc.shown >= 30),
-        "accepted / shown suggestions",
+        Status::from_bool(displayed_enough),
+        &format!(
+            "accepted / suggestions actually displayed to you ({} of {} eligible were displayed)",
+            acc.displayed, acc.eligible
+        ),
         "acceptance happens under influence; optimising it would reward persuasion, not insight",
     ));
 
@@ -185,6 +212,13 @@ pub fn honesty(r: &EvalReport) -> Honesty {
     ));
 
     let g = &r.growth;
+    // identity over time is only observed across clustering runs on different days
+    // (one import followed by two quick recomputes says nothing about time)
+    let run_days: std::collections::BTreeSet<chrono::NaiveDate> = g
+        .regions_over_time
+        .iter()
+        .map(|run| run.at.date_naive())
+        .collect();
     claims.push(claim(
         "growth",
         "the brain grows and its regions keep their identity over time",
@@ -192,8 +226,8 @@ pub fn honesty(r: &EvalReport) -> Honesty {
         g.n,
         Some(g.n as f64),
         None,
-        Status::from_bool(g.regions_over_time.len() >= 2),
-        "counts from the event log; region transitions from clustering runs",
+        Status::from_bool(g.n > 0 && run_days.len() >= 2),
+        "counts from the event log; region transitions from clustering runs on different days",
         "region identity depends on the clustering parameters",
     ));
 

@@ -41,6 +41,16 @@ fn suggest(raw: &mut Raw, at: Timestamp, sid: &str, from: &str, to: &str, rank: 
     ));
 }
 
+fn display(raw: &mut Raw, at: Timestamp, sids: &[&str]) {
+    raw.push((
+        at,
+        Actor::User,
+        EventKind::SuggestionDisplayed {
+            suggestion_ids: sids.iter().map(|s| id(s)).collect(),
+        },
+    ));
+}
+
 fn link(raw: &mut Raw, at: Timestamp, from: &str, to: &str, kind: LinkKind) {
     raw.push((
         at,
@@ -80,7 +90,17 @@ fn item(raw: &mut Raw, at: Timestamp, name: &str, origin: Origin) {
 
 /// 100 predicted pairs, 20 held out; `held_linked` of the held-out and `shown_linked`
 /// of the shown pairs are later linked by hand, plus `unpredicted` other hand links.
+/// Every shown suggestion is displayed on day 1.
 fn latent_log(held_linked: usize, shown_linked: usize, unpredicted: usize) -> Vec<Event> {
+    latent_log_displayed(held_linked, shown_linked, unpredicted, true)
+}
+
+fn latent_log_displayed(
+    held_linked: usize,
+    shown_linked: usize,
+    unpredicted: usize,
+    displayed: bool,
+) -> Vec<Event> {
     let mut raw = Raw::new();
     for i in 0..100 {
         let shown = i >= 20;
@@ -93,6 +113,9 @@ fn latent_log(held_linked: usize, shown_linked: usize, unpredicted: usize) -> Ve
             1,
             shown,
         );
+        if shown && displayed {
+            display(&mut raw, day(1.0), &[&format!("s{i}")]);
+        }
         let linked = if shown {
             i - 20 < shown_linked
         } else {
@@ -172,6 +195,120 @@ fn exposure_inflates_shown_arm_only() {
 }
 
 #[test]
+fn eligible_but_undisplayed_suggestions_are_in_neither_arm() {
+    // the same log, but nobody ever opened the items: the held-out estimate stands,
+    // the shown arm and acceptance have nothing to read
+    let events = latent_log_displayed(10, 40, 50, false);
+    let r = link_metrics(&events, &link_cfg());
+    let l = &r.all.latent;
+    assert!((l.held_out.estimate.value.unwrap() - 0.5).abs() < 1e-12);
+    assert_eq!(l.shown.links_predicted, 0);
+    assert_eq!(l.shown.propensity, Some(0.0));
+    assert_eq!(l.shown.estimate.value, None);
+    assert_eq!(l.exposure_lift, None);
+    assert_eq!(r.displayed_pairs, 0);
+    assert_eq!(r.all.hit_rate.shown.pairs, 0);
+    // the raw share still sees all 50 predicted hand links
+    assert!((l.predicted_before_raw.value.unwrap() - 0.5).abs() < 1e-12);
+    let a = &r.all.acceptance;
+    assert_eq!((a.eligible, a.displayed), (80, 0));
+    assert_eq!(a.rate.value, None);
+
+    let report = evaluate(&events, None, None, &EvalConfig::default());
+    for key in ["acceptance_rate", "exposure_lift"] {
+        let c = report.honesty.claims.iter().find(|c| c.key == key).unwrap();
+        assert_eq!(c.n, 0, "{key}");
+        assert_eq!(c.status, Status::Measuring, "{key}");
+        assert_eq!(c.class, ClaimClass::Hypothesis, "{key}");
+    }
+}
+
+#[test]
+fn only_displayed_suggestions_count_for_acceptance() {
+    let mut raw = Raw::new();
+    for i in 0..40 {
+        suggest(
+            &mut raw,
+            day(0.0),
+            &format!("s{i}"),
+            "x",
+            &format!("t{i}"),
+            1,
+            true,
+        );
+    }
+    // 31 of 40 were displayed; 10 accepted
+    let shown: Vec<String> = (0..31).map(|i| format!("s{i}")).collect();
+    let refs: Vec<&str> = shown.iter().map(String::as_str).collect();
+    display(&mut raw, day(1.0), &refs);
+    // displayed twice: counted once
+    display(&mut raw, day(2.0), &refs[..5]);
+    for i in 0..10 {
+        raw.push((
+            day(3.0),
+            Actor::User,
+            EventKind::SuggestionAccepted {
+                suggestion_id: id(&format!("s{i}")),
+            },
+        ));
+    }
+    let events = chain(raw);
+    let a = link_metrics(&events, &link_cfg()).all.acceptance;
+    assert_eq!((a.eligible, a.displayed, a.accepted), (40, 31, 10));
+    assert!((a.rate.value.unwrap() - 10.0 / 31.0).abs() < 1e-12);
+    let report = evaluate(&events, None, None, &EvalConfig::default());
+    let c = report
+        .honesty
+        .claims
+        .iter()
+        .find(|c| c.key == "acceptance_rate")
+        .unwrap();
+    assert_eq!(
+        (c.n, c.status, c.class),
+        (31, Status::EnoughData, ClaimClass::Measured)
+    );
+}
+
+#[test]
+fn held_out_hit_rate_needs_hand_links() {
+    // 100 held-out pairs and no hand link at all: the user has not been linking, so a
+    // hit rate of 0 says nothing yet
+    let mut raw = Raw::new();
+    for i in 0..100 {
+        suggest(
+            &mut raw,
+            day(0.0),
+            &format!("s{i}"),
+            &format!("a{i}"),
+            &format!("b{i}"),
+            1,
+            false,
+        );
+    }
+    let events = chain(raw);
+    let report = evaluate(
+        &events,
+        None,
+        None,
+        &EvalConfig {
+            links: link_cfg(),
+            ..EvalConfig::default()
+        },
+    );
+    assert_eq!(report.links.all.hit_rate.held_out.pairs, 100);
+    let c = report
+        .honesty
+        .claims
+        .iter()
+        .find(|c| c.key == "held_out_hit_rate")
+        .unwrap();
+    assert_eq!(
+        (c.status, c.class),
+        (Status::Measuring, ClaimClass::Hypothesis)
+    );
+}
+
+#[test]
 fn links_before_the_prediction_are_unpredicted() {
     let mut raw = Raw::new();
     link(&mut raw, day(1.0), "a", "b", LinkKind::Manual);
@@ -235,20 +372,26 @@ fn ranking_metrics_hand_computed() {
     assert!((held.mrr.value.unwrap() - 1.0).abs() < 1e-12);
 
     let a = &r.all.acceptance;
-    assert_eq!((a.shown, a.accepted, a.dismissed, a.ignored), (4, 1, 1, 2));
-    assert!((a.rate.value.unwrap() - 0.25).abs() < 1e-12);
+    // s3 accepted and s0 dismissed: deciding implies they were seen; the other two
+    // shown suggestions were never displayed
+    assert_eq!(
+        (a.eligible, a.displayed, a.accepted, a.dismissed, a.ignored),
+        (4, 2, 1, 1, 0)
+    );
+    assert!((a.rate.value.unwrap() - 0.5).abs() < 1e-12);
     assert!(a.note.contains("not a quality measure"));
 
-    // time to link: held-out t2 after 5 days; shown t4 (2 d) and t5 (120 d)
+    // time to link: held-out t2 after 5 days; displayed t4 (2 d); t5 (120 d) was
+    // eligible but never displayed, so it is in neither arm
     let ttl = &r.all.time_to_link;
     assert_eq!(ttl.held_out.n, 1);
     assert!((ttl.held_out.median.unwrap() - 5.0).abs() < 1e-9);
-    assert_eq!(ttl.shown.n, 2);
+    assert_eq!(ttl.shown.n, 1);
     assert_eq!(
         ttl.shown
             .buckets
             .iter()
-            .find(|b| b.label == "≥ 90 days")
+            .find(|b| b.label == "1–7 days")
             .unwrap()
             .count,
         1
