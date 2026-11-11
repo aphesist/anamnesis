@@ -64,13 +64,35 @@
   "brain": {
     "$type": "color",
     "dot": {
-      "$value": "{color.cool.200}"
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.82,
+          0.07,
+          244
+        ]
+      },
+      "$description": "a note at rest: a cool blue-white grain, saturated enough that dense (additive) clusters stay blue rather than burning white."
     },
     "dot-dim": {
-      "$value": "{color.cool.600}"
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.47,
+          0.075,
+          250
+        ]
+      }
     },
     "dot-hot": {
-      "$value": "{color.cool.50}"
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.97,
+          0.03,
+          228
+        ]
+      }
     },
     "thread": {
       "$value": {

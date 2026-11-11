@@ -74,9 +74,9 @@
   --accent-text: oklch(0.66 0.17 26);
   --seal: oklch(0.57 0.2 26);
   --veil: oklch(0.57 0.2 26 / 0.28);
-  --dot: oklch(0.88 0.035 235);
-  --dot-dim: oklch(0.5 0.035 242);
-  --dot-hot: oklch(0.97 0.03 230);
+  --dot: oklch(0.82 0.07 244);
+  --dot-dim: oklch(0.47 0.075 250);
+  --dot-hot: oklch(0.97 0.03 228);
   --thread: oklch(0.72 0.04 238 / 0.55);
   --region-label: oklch(0.72 0.04 238);
   --area-1: oklch(0.78 0.06 235);
