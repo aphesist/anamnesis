@@ -1,0 +1,5 @@
+# the aphes.ist theme's own assets (Aphesis Script, the φ) are fetched at install time and never committed:
+# see themes/aphesis/assets/NOTICE.md
+themes/aphesis/assets/*
+!themes/aphesis/assets/NOTICE.md
+node_modules/

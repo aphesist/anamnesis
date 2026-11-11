@@ -1,0 +1,16 @@
+{
+  "name": "@anamnesis/theme",
+  "version": "0.1.0",
+  "private": true,
+  "description": "anamnesis design tokens, theme loader, settings and first-launch motion choice",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-tokens.mjs",
+    "check": "node scripts/build-tokens.mjs --check",
+    "fetch-assets": "node scripts/fetch-aphesis-assets.mjs",
+    "postinstall": "node scripts/fetch-aphesis-assets.mjs --quiet",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": { "node": ">=18" }
+}

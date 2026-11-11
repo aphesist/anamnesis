@@ -1,0 +1,106 @@
+{
+  "$schema": "./layout.schema.json",
+  "version": 1,
+  "id": "minimal",
+  "name": "minimal",
+  "description": "just the brain, the nav and time. everything else is a keystroke away.",
+  "panels": [
+    {
+      "id": "sidebar-left",
+      "label": "nav",
+      "region": "left",
+      "order": 0,
+      "open": true,
+      "visible": true,
+      "size": 56,
+      "sections": [
+        "ask-or-search",
+        "brain",
+        "notes",
+        "write",
+        "today",
+        "add",
+        "more"
+      ]
+    },
+    {
+      "id": "timeline-bottom",
+      "label": "time",
+      "region": "bottom",
+      "order": 0,
+      "open": true,
+      "visible": true,
+      "size": 72
+    },
+    {
+      "id": "view-right",
+      "label": "view",
+      "region": "right",
+      "order": 0,
+      "open": false,
+      "visible": true,
+      "size": 300
+    },
+    {
+      "id": "legend-bottom-left",
+      "label": "function (anatomy)",
+      "region": "overlay",
+      "order": 0,
+      "open": false,
+      "visible": false,
+      "anchor": "bottom-left"
+    },
+    {
+      "id": "when-you-wrote",
+      "label": "when you wrote",
+      "region": "right",
+      "order": 1,
+      "open": false,
+      "visible": false
+    },
+    {
+      "id": "review",
+      "label": "review",
+      "region": "right",
+      "order": 2,
+      "open": false,
+      "visible": false
+    },
+    {
+      "id": "threads",
+      "label": "threads",
+      "region": "right",
+      "order": 3,
+      "open": false,
+      "visible": false
+    },
+    {
+      "id": "chat",
+      "label": "chat",
+      "region": "overlay",
+      "order": 1,
+      "open": false,
+      "visible": true,
+      "anchor": "right",
+      "size": 420
+    },
+    {
+      "id": "eval",
+      "label": "evaluation",
+      "region": "overlay",
+      "order": 2,
+      "open": false,
+      "visible": false,
+      "anchor": "center"
+    },
+    {
+      "id": "skills",
+      "label": "skills",
+      "region": "overlay",
+      "order": 3,
+      "open": false,
+      "visible": false,
+      "anchor": "center"
+    }
+  ]
+}

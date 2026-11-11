@@ -1,0 +1,90 @@
+{
+  "$description": "aphes.ist, eye closed.",
+  "color": {
+    "$type": "color",
+    "rubedo": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.57,
+          0.2,
+          26
+        ]
+      }
+    },
+    "rubedo-text": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.66,
+          0.17,
+          26
+        ]
+      }
+    }
+  },
+  "role": {
+    "$type": "color",
+    "bg": {
+      "$value": "{color.neutral.975}"
+    },
+    "ink": {
+      "$value": "{color.neutral.100}"
+    },
+    "ink-soft": {
+      "$value": "{color.neutral.500}"
+    },
+    "line": {
+      "$value": "{color.neutral.800}"
+    },
+    "fog": {
+      "$value": "{color.neutral.150}"
+    },
+    "accent": {
+      "$value": "{color.rubedo}"
+    },
+    "accent-text": {
+      "$value": "{color.rubedo-text}"
+    },
+    "seal": {
+      "$value": "{color.rubedo}"
+    },
+    "veil": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.57,
+          0.2,
+          26
+        ],
+        "alpha": 0.28
+      }
+    }
+  },
+  "brain": {
+    "$type": "color",
+    "dot": {
+      "$value": "{color.cool.200}"
+    },
+    "dot-dim": {
+      "$value": "{color.cool.600}"
+    },
+    "dot-hot": {
+      "$value": "{color.cool.50}"
+    },
+    "thread": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.72,
+          0.04,
+          238
+        ],
+        "alpha": 0.55
+      }
+    },
+    "region-label": {
+      "$value": "{color.cool.400}"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "paper",
+  "name": "paper",
+  "description": "plain ink on paper: light by default, serif, one blue-black ink, no ornament.",
+  "defaultMode": "light",
+  "tokens": "tokens.json",
+  "modes": {
+    "light": "light.tokens.json",
+    "dark": "dark.tokens.json"
+  },
+  "fonts": [],
+  "optionalFonts": [],
+  "marks": {
+    "mark": {
+      "fallback": "../../marks/phi-placeholder.svg"
+    },
+    "wordmark": {
+      "fallback": "../../marks/wordmark-placeholder.svg"
+    }
+  },
+  "behaviours": {
+    "cursor": "system",
+    "scrollbars": "system",
+    "motion": "full"
+  },
+  "licence": "Apache-2.0 (part of anamnesis)."
+}

@@ -1,0 +1,1083 @@
+{
+  "id": "paper",
+  "name": "paper",
+  "defaultMode": "light",
+  "modes": {
+    "light": {
+      "--bg": {
+        "type": "color",
+        "path": "role.bg",
+        "description": "The ground of every screen, under the fog.",
+        "hex": "#f9f5ec",
+        "alpha": 1,
+        "linear": [
+          0.9454,
+          0.9102,
+          0.8407
+        ]
+      },
+      "--ink": {
+        "type": "color",
+        "path": "role.ink",
+        "description": "Primary text and titles on bg.",
+        "hex": "#191d24",
+        "alpha": 1,
+        "linear": [
+          0.0096,
+          0.0124,
+          0.0177
+        ]
+      },
+      "--ink-soft": {
+        "type": "color",
+        "path": "role.ink-soft",
+        "description": "Secondary text, glosses, meta, tooltips. 4.5:1 or better on bg.",
+        "hex": "#575b62",
+        "alpha": 1,
+        "linear": [
+          0.0951,
+          0.1047,
+          0.1214
+        ]
+      },
+      "--line": {
+        "type": "color",
+        "path": "role.line",
+        "description": "Decorative hairlines only. Never the only sign of a control or a state.",
+        "hex": "#cecac2",
+        "alpha": 1,
+        "linear": [
+          0.6173,
+          0.5908,
+          0.5389
+        ]
+      },
+      "--fog": {
+        "type": "color",
+        "path": "role.fog",
+        "description": "The colour of stipple cells, drawn at 55-72% over bg.",
+        "hex": "#292e36",
+        "alpha": 1,
+        "linear": [
+          0.0226,
+          0.0274,
+          0.0363
+        ]
+      },
+      "--accent": {
+        "type": "color",
+        "path": "role.accent",
+        "description": "Focus, icons, moments of impact. Rare.",
+        "hex": "#264a8e",
+        "alpha": 1,
+        "linear": [
+          0.0197,
+          0.0677,
+          0.2687
+        ]
+      },
+      "--accent-text": {
+        "type": "color",
+        "path": "role.accent-text",
+        "description": "Accent when it is text.",
+        "hex": "#214487",
+        "alpha": 1,
+        "linear": [
+          0.0153,
+          0.0576,
+          0.2434
+        ]
+      },
+      "--seal": {
+        "type": "color",
+        "path": "role.seal",
+        "description": "The mark.",
+        "hex": "#191d24",
+        "alpha": 1,
+        "linear": [
+          0.0096,
+          0.0124,
+          0.0177
+        ]
+      },
+      "--veil": {
+        "type": "color",
+        "path": "role.veil",
+        "description": "Selection veil under accent-text.",
+        "hex": "#264a8e",
+        "alpha": 0.14,
+        "linear": [
+          0.0197,
+          0.0677,
+          0.2687
+        ]
+      },
+      "--dot": {
+        "type": "color",
+        "path": "brain.dot",
+        "description": "A note at rest.",
+        "hex": "#232933",
+        "alpha": 1,
+        "linear": [
+          0.0169,
+          0.0223,
+          0.033
+        ]
+      },
+      "--dot-dim": {
+        "type": "color",
+        "path": "brain.dot-dim",
+        "description": "A note outside the current selection or filter.",
+        "hex": "#a7abb1",
+        "alpha": 1,
+        "linear": [
+          0.387,
+          0.4072,
+          0.4411
+        ]
+      },
+      "--dot-hot": {
+        "type": "color",
+        "path": "brain.dot-hot",
+        "description": "A lit note: selected, hovered, resurfaced.",
+        "hex": "#224fa7",
+        "alpha": 1,
+        "linear": [
+          0.0164,
+          0.0786,
+          0.3859
+        ]
+      },
+      "--thread": {
+        "type": "color",
+        "path": "brain.thread",
+        "description": "Filaments (links). Suggestions draw it dashed and fainter.",
+        "hex": "#313b4a",
+        "alpha": 0.45,
+        "linear": [
+          0.0312,
+          0.0437,
+          0.0693
+        ]
+      },
+      "--region-label": {
+        "type": "color",
+        "path": "brain.region-label",
+        "description": "Region names floating in the cloud.",
+        "hex": "#484d55",
+        "alpha": 1,
+        "linear": [
+          0.0654,
+          0.0749,
+          0.0919
+        ]
+      },
+      "--area-1": {
+        "type": "color",
+        "path": "area.1",
+        "hex": "#395487",
+        "alpha": 1,
+        "linear": [
+          0.0409,
+          0.0892,
+          0.2425
+        ]
+      },
+      "--area-2": {
+        "type": "color",
+        "path": "area.2",
+        "hex": "#357153",
+        "alpha": 1,
+        "linear": [
+          0.0352,
+          0.1658,
+          0.0872
+        ]
+      },
+      "--area-3": {
+        "type": "color",
+        "path": "area.3",
+        "hex": "#8d6b2d",
+        "alpha": 1,
+        "linear": [
+          0.2666,
+          0.1476,
+          0.0265
+        ]
+      },
+      "--area-4": {
+        "type": "color",
+        "path": "area.4",
+        "hex": "#98483c",
+        "alpha": 1,
+        "linear": [
+          0.3133,
+          0.0644,
+          0.0453
+        ]
+      },
+      "--area-5": {
+        "type": "color",
+        "path": "area.5",
+        "hex": "#724e7a",
+        "alpha": 1,
+        "linear": [
+          0.167,
+          0.0767,
+          0.1935
+        ]
+      },
+      "--area-6": {
+        "type": "color",
+        "path": "area.6",
+        "hex": "#286f73",
+        "alpha": 1,
+        "linear": [
+          0.0208,
+          0.1596,
+          0.1712
+        ]
+      },
+      "--area-7": {
+        "type": "color",
+        "path": "area.7",
+        "hex": "#555075",
+        "alpha": 1,
+        "linear": [
+          0.0899,
+          0.0793,
+          0.1764
+        ]
+      },
+      "--area-8": {
+        "type": "color",
+        "path": "area.8",
+        "hex": "#6d774f",
+        "alpha": 1,
+        "linear": [
+          0.1523,
+          0.1845,
+          0.0779
+        ]
+      },
+      "--font-display": {
+        "type": "fontFamily",
+        "path": "font.display",
+        "description": "Wordmark, titles, headings, glosses."
+      },
+      "--font-text": {
+        "type": "fontFamily",
+        "path": "font.text",
+        "description": "Everything people read and operate."
+      },
+      "--font-data": {
+        "type": "fontFamily",
+        "path": "font.data",
+        "description": "Counts, tables, axes: tabular figures, plainer than the text face."
+      },
+      "--type-scale": {
+        "type": "number",
+        "path": "type.scale",
+        "description": "A multiplier the user can change in settings."
+      },
+      "--type-size-wordmark": {
+        "type": "dimension",
+        "path": "type.size.wordmark"
+      },
+      "--type-size-title": {
+        "type": "dimension",
+        "path": "type.size.title"
+      },
+      "--type-size-heading": {
+        "type": "dimension",
+        "path": "type.size.heading"
+      },
+      "--type-size-lede": {
+        "type": "dimension",
+        "path": "type.size.lede"
+      },
+      "--type-size-body": {
+        "type": "dimension",
+        "path": "type.size.body"
+      },
+      "--type-size-label": {
+        "type": "dimension",
+        "path": "type.size.label"
+      },
+      "--type-size-meta": {
+        "type": "dimension",
+        "path": "type.size.meta"
+      },
+      "--type-size-gloss": {
+        "type": "dimension",
+        "path": "type.size.gloss"
+      },
+      "--type-leading-display": {
+        "type": "number",
+        "path": "type.leading.display"
+      },
+      "--type-leading-body": {
+        "type": "number",
+        "path": "type.leading.body"
+      },
+      "--type-leading-lede": {
+        "type": "number",
+        "path": "type.leading.lede"
+      },
+      "--type-leading-label": {
+        "type": "number",
+        "path": "type.leading.label"
+      },
+      "--type-leading-meta": {
+        "type": "number",
+        "path": "type.leading.meta"
+      },
+      "--type-tracking-label": {
+        "type": "number",
+        "path": "type.tracking.label"
+      },
+      "--type-tracking-meta": {
+        "type": "number",
+        "path": "type.tracking.meta"
+      },
+      "--type-tracking-gloss": {
+        "type": "number",
+        "path": "type.tracking.gloss"
+      },
+      "--type-display-slant": {
+        "type": "number",
+        "path": "type.display-slant",
+        "description": "slnt axis for display text (variable fonts that have it)."
+      },
+      "--type-display-weight": {
+        "type": "fontWeight",
+        "path": "type.display-weight"
+      },
+      "--space-1": {
+        "type": "dimension",
+        "path": "space.1"
+      },
+      "--space-2": {
+        "type": "dimension",
+        "path": "space.2"
+      },
+      "--space-3": {
+        "type": "dimension",
+        "path": "space.3"
+      },
+      "--space-4": {
+        "type": "dimension",
+        "path": "space.4"
+      },
+      "--space-5": {
+        "type": "dimension",
+        "path": "space.5"
+      },
+      "--space-6": {
+        "type": "dimension",
+        "path": "space.6"
+      },
+      "--space-7": {
+        "type": "dimension",
+        "path": "space.7"
+      },
+      "--space-8": {
+        "type": "dimension",
+        "path": "space.8"
+      },
+      "--space-9": {
+        "type": "dimension",
+        "path": "space.9"
+      },
+      "--ease": {
+        "type": "cubicBezier",
+        "path": "ease",
+        "description": "easing-settle: things arrive and settle; nothing bounces."
+      },
+      "--dur-short": {
+        "type": "duration",
+        "path": "dur.short",
+        "description": "Tooltips, cursor fade, small state changes."
+      },
+      "--dur-mid": {
+        "type": "duration",
+        "path": "dur.mid",
+        "description": "Letter wave, panels."
+      },
+      "--dur-long": {
+        "type": "duration",
+        "path": "dur.long",
+        "description": "Scenes entering; camera moves use minimum-jerk easing in js."
+      },
+      "--dur-theme": {
+        "type": "duration",
+        "path": "dur.theme",
+        "description": "Theme cross-fade."
+      },
+      "--dur-shift": {
+        "type": "duration",
+        "path": "dur.shift",
+        "description": "The slow theme wave, where the app draws one."
+      },
+      "--motion": {
+        "type": "number",
+        "path": "motion",
+        "description": "1 full motion, 0 reduced. Set by the motion choice; reduced also shortens dur-mid and dur-long."
+      },
+      "--radius-none": {
+        "type": "dimension",
+        "path": "radius.none"
+      },
+      "--z-fog": {
+        "type": "number",
+        "path": "z.fog"
+      },
+      "--z-brain": {
+        "type": "number",
+        "path": "z.brain"
+      },
+      "--z-main": {
+        "type": "number",
+        "path": "z.main"
+      },
+      "--z-panel": {
+        "type": "number",
+        "path": "z.panel"
+      },
+      "--z-seal": {
+        "type": "number",
+        "path": "z.seal"
+      },
+      "--z-nav": {
+        "type": "number",
+        "path": "z.nav"
+      },
+      "--z-dialog": {
+        "type": "number",
+        "path": "z.dialog"
+      },
+      "--z-tip": {
+        "type": "number",
+        "path": "z.tip"
+      },
+      "--z-cursor": {
+        "type": "number",
+        "path": "z.cursor"
+      }
+    },
+    "dark": {
+      "--bg": {
+        "type": "color",
+        "path": "role.bg",
+        "description": "The ground of every screen, under the fog.",
+        "hex": "#1a1510",
+        "alpha": 1,
+        "linear": [
+          0.0101,
+          0.0076,
+          0.0053
+        ]
+      },
+      "--ink": {
+        "type": "color",
+        "path": "role.ink",
+        "description": "Primary text and titles on bg.",
+        "hex": "#eae4d7",
+        "alpha": 1,
+        "linear": [
+          0.8231,
+          0.7752,
+          0.6825
+        ]
+      },
+      "--ink-soft": {
+        "type": "color",
+        "path": "role.ink-soft",
+        "description": "Secondary text, glosses, meta, tooltips. 4.5:1 or better on bg.",
+        "hex": "#a39e94",
+        "alpha": 1,
+        "linear": [
+          0.3644,
+          0.3413,
+          0.2967
+        ]
+      },
+      "--line": {
+        "type": "color",
+        "path": "role.line",
+        "description": "Decorative hairlines only. Never the only sign of a control or a state.",
+        "hex": "#3f3a34",
+        "alpha": 1,
+        "linear": [
+          0.0492,
+          0.0417,
+          0.0342
+        ]
+      },
+      "--fog": {
+        "type": "color",
+        "path": "role.fog",
+        "description": "The colour of stipple cells, drawn at 55-72% over bg.",
+        "hex": "#d4cdbf",
+        "alpha": 1,
+        "linear": [
+          0.6563,
+          0.6107,
+          0.5234
+        ]
+      },
+      "--accent": {
+        "type": "color",
+        "path": "role.accent",
+        "description": "Focus, icons, moments of impact. Rare.",
+        "hex": "#82b1ed",
+        "alpha": 1,
+        "linear": [
+          0.2248,
+          0.4391,
+          0.8431
+        ]
+      },
+      "--accent-text": {
+        "type": "color",
+        "path": "role.accent-text",
+        "description": "Accent when it is text.",
+        "hex": "#90baf1",
+        "alpha": 1,
+        "linear": [
+          0.2804,
+          0.4934,
+          0.8756
+        ]
+      },
+      "--seal": {
+        "type": "color",
+        "path": "role.seal",
+        "description": "The mark.",
+        "hex": "#eae4d7",
+        "alpha": 1,
+        "linear": [
+          0.8231,
+          0.7752,
+          0.6825
+        ]
+      },
+      "--veil": {
+        "type": "color",
+        "path": "role.veil",
+        "description": "Selection veil under accent-text.",
+        "hex": "#82b1ed",
+        "alpha": 0.25,
+        "linear": [
+          0.2248,
+          0.4391,
+          0.8431
+        ]
+      },
+      "--dot": {
+        "type": "color",
+        "path": "brain.dot",
+        "description": "A note at rest.",
+        "hex": "#ddd7c9",
+        "alpha": 1,
+        "linear": [
+          0.7267,
+          0.6778,
+          0.5841
+        ]
+      },
+      "--dot-dim": {
+        "type": "color",
+        "path": "brain.dot-dim",
+        "description": "A note outside the current selection or filter.",
+        "hex": "#5a554c",
+        "alpha": 1,
+        "linear": [
+          0.1015,
+          0.0898,
+          0.0724
+        ]
+      },
+      "--dot-hot": {
+        "type": "color",
+        "path": "brain.dot-hot",
+        "description": "A lit note: selected, hovered, resurfaced.",
+        "hex": "#8dc1ff",
+        "alpha": 1,
+        "linear": [
+          0.266,
+          0.5329,
+          1
+        ]
+      },
+      "--thread": {
+        "type": "color",
+        "path": "brain.thread",
+        "description": "Filaments (links). Suggestions draw it dashed and fainter.",
+        "hex": "#b7ad99",
+        "alpha": 0.45,
+        "linear": [
+          0.4717,
+          0.4173,
+          0.3182
+        ]
+      },
+      "--region-label": {
+        "type": "color",
+        "path": "brain.region-label",
+        "description": "Region names floating in the cloud.",
+        "hex": "#a9a49a",
+        "alpha": 1,
+        "linear": [
+          0.3959,
+          0.3714,
+          0.3242
+        ]
+      },
+      "--area-1": {
+        "type": "color",
+        "path": "area.1",
+        "hex": "#92bed9",
+        "alpha": 1,
+        "linear": [
+          0.289,
+          0.5164,
+          0.6916
+        ]
+      },
+      "--area-2": {
+        "type": "color",
+        "path": "area.2",
+        "hex": "#94c4ae",
+        "alpha": 1,
+        "linear": [
+          0.2949,
+          0.5525,
+          0.4226
+        ]
+      },
+      "--area-3": {
+        "type": "color",
+        "path": "area.3",
+        "hex": "#ccbe8a",
+        "alpha": 1,
+        "linear": [
+          0.6011,
+          0.5141,
+          0.2551
+        ]
+      },
+      "--area-4": {
+        "type": "color",
+        "path": "area.4",
+        "hex": "#d79a85",
+        "alpha": 1,
+        "linear": [
+          0.6813,
+          0.3232,
+          0.2334
+        ]
+      },
+      "--area-5": {
+        "type": "color",
+        "path": "area.5",
+        "hex": "#bc9fc3",
+        "alpha": 1,
+        "linear": [
+          0.5037,
+          0.3469,
+          0.5442
+        ]
+      },
+      "--area-6": {
+        "type": "color",
+        "path": "area.6",
+        "hex": "#98c8ca",
+        "alpha": 1,
+        "linear": [
+          0.3155,
+          0.5776,
+          0.593
+        ]
+      },
+      "--area-7": {
+        "type": "color",
+        "path": "area.7",
+        "hex": "#9ea2c4",
+        "alpha": 1,
+        "linear": [
+          0.3412,
+          0.36,
+          0.5526
+        ]
+      },
+      "--area-8": {
+        "type": "color",
+        "path": "area.8",
+        "hex": "#bccaaf",
+        "alpha": 1,
+        "linear": [
+          0.5004,
+          0.589,
+          0.4277
+        ]
+      },
+      "--font-display": {
+        "type": "fontFamily",
+        "path": "font.display",
+        "description": "Wordmark, titles, headings, glosses."
+      },
+      "--font-text": {
+        "type": "fontFamily",
+        "path": "font.text",
+        "description": "Everything people read and operate."
+      },
+      "--font-data": {
+        "type": "fontFamily",
+        "path": "font.data",
+        "description": "Counts, tables, axes: tabular figures, plainer than the text face."
+      },
+      "--type-scale": {
+        "type": "number",
+        "path": "type.scale",
+        "description": "A multiplier the user can change in settings."
+      },
+      "--type-size-wordmark": {
+        "type": "dimension",
+        "path": "type.size.wordmark"
+      },
+      "--type-size-title": {
+        "type": "dimension",
+        "path": "type.size.title"
+      },
+      "--type-size-heading": {
+        "type": "dimension",
+        "path": "type.size.heading"
+      },
+      "--type-size-lede": {
+        "type": "dimension",
+        "path": "type.size.lede"
+      },
+      "--type-size-body": {
+        "type": "dimension",
+        "path": "type.size.body"
+      },
+      "--type-size-label": {
+        "type": "dimension",
+        "path": "type.size.label"
+      },
+      "--type-size-meta": {
+        "type": "dimension",
+        "path": "type.size.meta"
+      },
+      "--type-size-gloss": {
+        "type": "dimension",
+        "path": "type.size.gloss"
+      },
+      "--type-leading-display": {
+        "type": "number",
+        "path": "type.leading.display"
+      },
+      "--type-leading-body": {
+        "type": "number",
+        "path": "type.leading.body"
+      },
+      "--type-leading-lede": {
+        "type": "number",
+        "path": "type.leading.lede"
+      },
+      "--type-leading-label": {
+        "type": "number",
+        "path": "type.leading.label"
+      },
+      "--type-leading-meta": {
+        "type": "number",
+        "path": "type.leading.meta"
+      },
+      "--type-tracking-label": {
+        "type": "number",
+        "path": "type.tracking.label"
+      },
+      "--type-tracking-meta": {
+        "type": "number",
+        "path": "type.tracking.meta"
+      },
+      "--type-tracking-gloss": {
+        "type": "number",
+        "path": "type.tracking.gloss"
+      },
+      "--type-display-slant": {
+        "type": "number",
+        "path": "type.display-slant",
+        "description": "slnt axis for display text (variable fonts that have it)."
+      },
+      "--type-display-weight": {
+        "type": "fontWeight",
+        "path": "type.display-weight"
+      },
+      "--space-1": {
+        "type": "dimension",
+        "path": "space.1"
+      },
+      "--space-2": {
+        "type": "dimension",
+        "path": "space.2"
+      },
+      "--space-3": {
+        "type": "dimension",
+        "path": "space.3"
+      },
+      "--space-4": {
+        "type": "dimension",
+        "path": "space.4"
+      },
+      "--space-5": {
+        "type": "dimension",
+        "path": "space.5"
+      },
+      "--space-6": {
+        "type": "dimension",
+        "path": "space.6"
+      },
+      "--space-7": {
+        "type": "dimension",
+        "path": "space.7"
+      },
+      "--space-8": {
+        "type": "dimension",
+        "path": "space.8"
+      },
+      "--space-9": {
+        "type": "dimension",
+        "path": "space.9"
+      },
+      "--ease": {
+        "type": "cubicBezier",
+        "path": "ease",
+        "description": "easing-settle: things arrive and settle; nothing bounces."
+      },
+      "--dur-short": {
+        "type": "duration",
+        "path": "dur.short",
+        "description": "Tooltips, cursor fade, small state changes."
+      },
+      "--dur-mid": {
+        "type": "duration",
+        "path": "dur.mid",
+        "description": "Letter wave, panels."
+      },
+      "--dur-long": {
+        "type": "duration",
+        "path": "dur.long",
+        "description": "Scenes entering; camera moves use minimum-jerk easing in js."
+      },
+      "--dur-theme": {
+        "type": "duration",
+        "path": "dur.theme",
+        "description": "Theme cross-fade."
+      },
+      "--dur-shift": {
+        "type": "duration",
+        "path": "dur.shift",
+        "description": "The slow theme wave, where the app draws one."
+      },
+      "--motion": {
+        "type": "number",
+        "path": "motion",
+        "description": "1 full motion, 0 reduced. Set by the motion choice; reduced also shortens dur-mid and dur-long."
+      },
+      "--radius-none": {
+        "type": "dimension",
+        "path": "radius.none"
+      },
+      "--z-fog": {
+        "type": "number",
+        "path": "z.fog"
+      },
+      "--z-brain": {
+        "type": "number",
+        "path": "z.brain"
+      },
+      "--z-main": {
+        "type": "number",
+        "path": "z.main"
+      },
+      "--z-panel": {
+        "type": "number",
+        "path": "z.panel"
+      },
+      "--z-seal": {
+        "type": "number",
+        "path": "z.seal"
+      },
+      "--z-nav": {
+        "type": "number",
+        "path": "z.nav"
+      },
+      "--z-dialog": {
+        "type": "number",
+        "path": "z.dialog"
+      },
+      "--z-tip": {
+        "type": "number",
+        "path": "z.tip"
+      },
+      "--z-cursor": {
+        "type": "number",
+        "path": "z.cursor"
+      }
+    }
+  },
+  "values": {
+    "light": {
+      "--bg": "oklch(0.97 0.012 85)",
+      "--ink": "oklch(0.23 0.015 260)",
+      "--ink-soft": "oklch(0.47 0.012 260)",
+      "--line": "oklch(0.84 0.012 85)",
+      "--fog": "oklch(0.3 0.015 260)",
+      "--accent": "oklch(0.42 0.12 262)",
+      "--accent-text": "oklch(0.4 0.12 262)",
+      "--seal": "oklch(0.23 0.015 260)",
+      "--veil": "oklch(0.42 0.12 262 / 0.14)",
+      "--dot": "oklch(0.28 0.02 260)",
+      "--dot-dim": "oklch(0.74 0.01 260)",
+      "--dot-hot": "oklch(0.45 0.15 262)",
+      "--thread": "oklch(0.35 0.03 260 / 0.45)",
+      "--region-label": "oklch(0.42 0.015 260)",
+      "--area-1": "oklch(0.45 0.09 262)",
+      "--area-2": "oklch(0.5 0.08 160)",
+      "--area-3": "oklch(0.55 0.09 80)",
+      "--area-4": "oklch(0.5 0.11 30)",
+      "--area-5": "oklch(0.48 0.08 320)",
+      "--area-6": "oklch(0.5 0.07 200)",
+      "--area-7": "oklch(0.45 0.06 290)",
+      "--area-8": "oklch(0.55 0.06 120)",
+      "--font-display": "\"Iowan Old Style\", \"Palatino Linotype\", \"Palatino\", \"Book Antiqua\", \"Georgia\", serif",
+      "--font-text": "\"Iowan Old Style\", \"Palatino Linotype\", \"Palatino\", \"Book Antiqua\", \"Georgia\", serif",
+      "--font-data": "ui-monospace, \"SF Mono\", \"Menlo\", \"Consolas\", \"DejaVu Sans Mono\", monospace",
+      "--type-scale": "1",
+      "--type-size-wordmark": "110px",
+      "--type-size-title": "68px",
+      "--type-size-heading": "42px",
+      "--type-size-lede": "19px",
+      "--type-size-body": "16px",
+      "--type-size-label": "13px",
+      "--type-size-meta": "11px",
+      "--type-size-gloss": "19px",
+      "--type-leading-display": "0.95",
+      "--type-leading-body": "1.75",
+      "--type-leading-lede": "1.6",
+      "--type-leading-label": "1",
+      "--type-leading-meta": "1.7",
+      "--type-tracking-label": "0.08",
+      "--type-tracking-meta": "0.06",
+      "--type-tracking-gloss": "0.12",
+      "--type-display-slant": "0",
+      "--type-display-weight": "400",
+      "--space-1": "4px",
+      "--space-2": "8px",
+      "--space-3": "12px",
+      "--space-4": "20px",
+      "--space-5": "32px",
+      "--space-6": "52px",
+      "--space-7": "84px",
+      "--space-8": "136px",
+      "--space-9": "220px",
+      "--ease": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+      "--dur-short": "200ms",
+      "--dur-mid": "400ms",
+      "--dur-long": "700ms",
+      "--dur-theme": "800ms",
+      "--dur-shift": "5200ms",
+      "--motion": "1",
+      "--radius-none": "0px",
+      "--z-fog": "0",
+      "--z-brain": "1",
+      "--z-main": "2",
+      "--z-panel": "3",
+      "--z-seal": "4",
+      "--z-nav": "5",
+      "--z-dialog": "10",
+      "--z-tip": "15",
+      "--z-cursor": "20"
+    },
+    "dark": {
+      "--bg": "oklch(0.2 0.012 70)",
+      "--ink": "oklch(0.92 0.018 85)",
+      "--ink-soft": "oklch(0.7 0.015 85)",
+      "--line": "oklch(0.35 0.012 70)",
+      "--fog": "oklch(0.85 0.02 85)",
+      "--accent": "oklch(0.75 0.1 255)",
+      "--accent-text": "oklch(0.78 0.09 255)",
+      "--seal": "oklch(0.92 0.018 85)",
+      "--veil": "oklch(0.75 0.1 255 / 0.25)",
+      "--dot": "oklch(0.88 0.02 85)",
+      "--dot-dim": "oklch(0.45 0.015 80)",
+      "--dot-hot": "oklch(0.8 0.11 255)",
+      "--thread": "oklch(0.75 0.03 85 / 0.45)",
+      "--region-label": "oklch(0.72 0.015 85)",
+      "--area-1": "oklch(0.78 0.06 235)",
+      "--area-2": "oklch(0.78 0.06 165)",
+      "--area-3": "oklch(0.8 0.07 95)",
+      "--area-4": "oklch(0.74 0.08 40)",
+      "--area-5": "oklch(0.74 0.06 320)",
+      "--area-6": "oklch(0.8 0.05 200)",
+      "--area-7": "oklch(0.72 0.05 280)",
+      "--area-8": "oklch(0.82 0.04 130)",
+      "--font-display": "\"Iowan Old Style\", \"Palatino Linotype\", \"Palatino\", \"Book Antiqua\", \"Georgia\", serif",
+      "--font-text": "\"Iowan Old Style\", \"Palatino Linotype\", \"Palatino\", \"Book Antiqua\", \"Georgia\", serif",
+      "--font-data": "ui-monospace, \"SF Mono\", \"Menlo\", \"Consolas\", \"DejaVu Sans Mono\", monospace",
+      "--type-scale": "1",
+      "--type-size-wordmark": "110px",
+      "--type-size-title": "68px",
+      "--type-size-heading": "42px",
+      "--type-size-lede": "19px",
+      "--type-size-body": "16px",
+      "--type-size-label": "13px",
+      "--type-size-meta": "11px",
+      "--type-size-gloss": "19px",
+      "--type-leading-display": "0.95",
+      "--type-leading-body": "1.75",
+      "--type-leading-lede": "1.6",
+      "--type-leading-label": "1",
+      "--type-leading-meta": "1.7",
+      "--type-tracking-label": "0.08",
+      "--type-tracking-meta": "0.06",
+      "--type-tracking-gloss": "0.12",
+      "--type-display-slant": "0",
+      "--type-display-weight": "400",
+      "--space-1": "4px",
+      "--space-2": "8px",
+      "--space-3": "12px",
+      "--space-4": "20px",
+      "--space-5": "32px",
+      "--space-6": "52px",
+      "--space-7": "84px",
+      "--space-8": "136px",
+      "--space-9": "220px",
+      "--ease": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+      "--dur-short": "200ms",
+      "--dur-mid": "400ms",
+      "--dur-long": "700ms",
+      "--dur-theme": "800ms",
+      "--dur-shift": "5200ms",
+      "--motion": "1",
+      "--radius-none": "0px",
+      "--z-fog": "0",
+      "--z-brain": "1",
+      "--z-main": "2",
+      "--z-panel": "3",
+      "--z-seal": "4",
+      "--z-nav": "5",
+      "--z-dialog": "10",
+      "--z-tip": "15",
+      "--z-cursor": "20"
+    }
+  },
+  "description": "plain ink on paper: light by default, serif, one blue-black ink, no ornament.",
+  "behaviours": {
+    "cursor": "system",
+    "scrollbars": "system",
+    "motion": "full"
+  }
+}

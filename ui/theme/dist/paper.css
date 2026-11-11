@@ -1,0 +1,144 @@
+/* generated from design tokens by ui/theme/scripts/build-tokens.mjs — edit the .tokens.json files, not this. */
+/* theme: paper (paper) */
+
+:root {
+  --theme-id: "paper";
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Palatino", "Book Antiqua", "Georgia", serif;
+  --font-text: "Iowan Old Style", "Palatino Linotype", "Palatino", "Book Antiqua", "Georgia", serif;
+  --font-data: ui-monospace, "SF Mono", "Menlo", "Consolas", "DejaVu Sans Mono", monospace;
+  --type-scale: 1;
+  --type-size-wordmark: 110px;
+  --type-size-title: 68px;
+  --type-size-heading: 42px;
+  --type-size-lede: 19px;
+  --type-size-body: 16px;
+  --type-size-label: 13px;
+  --type-size-meta: 11px;
+  --type-size-gloss: 19px;
+  --type-leading-display: 0.95;
+  --type-leading-body: 1.75;
+  --type-leading-lede: 1.6;
+  --type-leading-label: 1;
+  --type-leading-meta: 1.7;
+  --type-tracking-label: 0.08;
+  --type-tracking-meta: 0.06;
+  --type-tracking-gloss: 0.12;
+  --type-display-slant: 0;
+  --type-display-weight: 400;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 20px;
+  --space-5: 32px;
+  --space-6: 52px;
+  --space-7: 84px;
+  --space-8: 136px;
+  --space-9: 220px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-short: 200ms;
+  --dur-mid: 400ms;
+  --dur-long: 700ms;
+  --dur-theme: 800ms;
+  --dur-shift: 5200ms;
+  --motion: 1;
+  --radius-none: 0px;
+  --z-fog: 0;
+  --z-brain: 1;
+  --z-main: 2;
+  --z-panel: 3;
+  --z-seal: 4;
+  --z-nav: 5;
+  --z-dialog: 10;
+  --z-tip: 15;
+  --z-cursor: 20;
+  --mark: url("../marks/phi-placeholder.svg");
+  --wordmark: url("../marks/wordmark-placeholder.svg");
+}
+
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --bg: oklch(0.97 0.012 85);
+  --ink: oklch(0.23 0.015 260);
+  --ink-soft: oklch(0.47 0.012 260);
+  --line: oklch(0.84 0.012 85);
+  --fog: oklch(0.3 0.015 260);
+  --accent: oklch(0.42 0.12 262);
+  --accent-text: oklch(0.4 0.12 262);
+  --seal: oklch(0.23 0.015 260);
+  --veil: oklch(0.42 0.12 262 / 0.14);
+  --dot: oklch(0.28 0.02 260);
+  --dot-dim: oklch(0.74 0.01 260);
+  --dot-hot: oklch(0.45 0.15 262);
+  --thread: oklch(0.35 0.03 260 / 0.45);
+  --region-label: oklch(0.42 0.015 260);
+  --area-1: oklch(0.45 0.09 262);
+  --area-2: oklch(0.5 0.08 160);
+  --area-3: oklch(0.55 0.09 80);
+  --area-4: oklch(0.5 0.11 30);
+  --area-5: oklch(0.48 0.08 320);
+  --area-6: oklch(0.5 0.07 200);
+  --area-7: oklch(0.45 0.06 290);
+  --area-8: oklch(0.55 0.06 120);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(0.2 0.012 70);
+  --ink: oklch(0.92 0.018 85);
+  --ink-soft: oklch(0.7 0.015 85);
+  --line: oklch(0.35 0.012 70);
+  --fog: oklch(0.85 0.02 85);
+  --accent: oklch(0.75 0.1 255);
+  --accent-text: oklch(0.78 0.09 255);
+  --seal: oklch(0.92 0.018 85);
+  --veil: oklch(0.75 0.1 255 / 0.25);
+  --dot: oklch(0.88 0.02 85);
+  --dot-dim: oklch(0.45 0.015 80);
+  --dot-hot: oklch(0.8 0.11 255);
+  --thread: oklch(0.75 0.03 85 / 0.45);
+  --region-label: oklch(0.72 0.015 85);
+  --area-1: oklch(0.78 0.06 235);
+  --area-2: oklch(0.78 0.06 165);
+  --area-3: oklch(0.8 0.07 95);
+  --area-4: oklch(0.74 0.08 40);
+  --area-5: oklch(0.74 0.06 320);
+  --area-6: oklch(0.8 0.05 200);
+  --area-7: oklch(0.72 0.05 280);
+  --area-8: oklch(0.82 0.04 130);
+}
+
+/* without a stored choice, follow the system */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: oklch(0.2 0.012 70);
+    --ink: oklch(0.92 0.018 85);
+    --ink-soft: oklch(0.7 0.015 85);
+    --line: oklch(0.35 0.012 70);
+    --fog: oklch(0.85 0.02 85);
+    --accent: oklch(0.75 0.1 255);
+    --accent-text: oklch(0.78 0.09 255);
+    --seal: oklch(0.92 0.018 85);
+    --veil: oklch(0.75 0.1 255 / 0.25);
+    --dot: oklch(0.88 0.02 85);
+    --dot-dim: oklch(0.45 0.015 80);
+    --dot-hot: oklch(0.8 0.11 255);
+    --thread: oklch(0.75 0.03 85 / 0.45);
+    --region-label: oklch(0.72 0.015 85);
+    --area-1: oklch(0.78 0.06 235);
+    --area-2: oklch(0.78 0.06 165);
+    --area-3: oklch(0.8 0.07 95);
+    --area-4: oklch(0.74 0.08 40);
+    --area-5: oklch(0.74 0.06 320);
+    --area-6: oklch(0.8 0.05 200);
+    --area-7: oklch(0.72 0.05 280);
+    --area-8: oklch(0.82 0.04 130);
+  }
+}
+
+/* reduced motion: the same theme, calmer. --motion is the switch the app reads. */
+:root[data-motion="reduced"] {
+  --motion: 0;
+  --dur-mid: var(--dur-short);
+  --dur-long: var(--dur-short);
+}

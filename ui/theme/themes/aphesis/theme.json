@@ -1,0 +1,41 @@
+{
+  "id": "aphesis",
+  "name": "aphes.ist",
+  "description": "the default: dark ground, brush and stipple, lowercase, rubedo used rarely. eye closed (dark) and eye open (light).",
+  "defaultMode": "dark",
+  "tokens": "tokens.json",
+  "modes": {
+    "light": "light.tokens.json",
+    "dark": "dark.tokens.json"
+  },
+  "fonts": [
+    {
+      "family": "Special Elite",
+      "src": "../../fonts/SpecialElite-Regular.woff2",
+      "weight": 400
+    }
+  ],
+  "optionalFonts": [
+    {
+      "family": "Aphesis Script",
+      "src": "assets/AphesisScript-VF.woff2",
+      "weight": "300 800",
+      "note": "fetched by scripts/fetch-aphesis-assets.mjs; absent until the owner publishes its licence"
+    }
+  ],
+  "marks": {
+    "mark": {
+      "src": "assets/phi.svg",
+      "fallback": "../../marks/phi-placeholder.svg"
+    },
+    "wordmark": {
+      "fallback": "../../marks/wordmark-placeholder.svg"
+    }
+  },
+  "behaviours": {
+    "cursor": "custom",
+    "scrollbars": "hidden",
+    "motion": "full"
+  },
+  "licence": "tokens: Apache-2.0 (part of anamnesis). Aphesis Script, the φ and the wordmark are not covered: see assets/NOTICE.md."
+}

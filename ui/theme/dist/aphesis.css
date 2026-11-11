@@ -1,0 +1,152 @@
+/* generated from design tokens by ui/theme/scripts/build-tokens.mjs — edit the .tokens.json files, not this. */
+/* theme: aphesis (aphes.ist) */
+
+@font-face {
+  font-family: "Special Elite";
+  src: url("../fonts/SpecialElite-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --theme-id: "aphesis";
+  --font-display: "Aphesis Script", "Special Elite", "Georgia", serif;
+  --font-text: "Special Elite", "Aphesis Script", "Courier New", ui-monospace, monospace;
+  --font-data: ui-monospace, "SF Mono", "Menlo", "Consolas", "DejaVu Sans Mono", monospace;
+  --type-scale: 1;
+  --type-size-wordmark: 110px;
+  --type-size-title: 68px;
+  --type-size-heading: 42px;
+  --type-size-lede: 19px;
+  --type-size-body: 16px;
+  --type-size-label: 13px;
+  --type-size-meta: 11px;
+  --type-size-gloss: 19px;
+  --type-leading-display: 0.95;
+  --type-leading-body: 1.75;
+  --type-leading-lede: 1.6;
+  --type-leading-label: 1;
+  --type-leading-meta: 1.7;
+  --type-tracking-label: 0.22;
+  --type-tracking-meta: 0.14;
+  --type-tracking-gloss: 0.12;
+  --type-display-slant: -12;
+  --type-display-weight: 400;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 20px;
+  --space-5: 32px;
+  --space-6: 52px;
+  --space-7: 84px;
+  --space-8: 136px;
+  --space-9: 220px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-short: 350ms;
+  --dur-mid: 700ms;
+  --dur-long: 1200ms;
+  --dur-theme: 800ms;
+  --dur-shift: 5200ms;
+  --motion: 1;
+  --radius-none: 0px;
+  --z-fog: 0;
+  --z-brain: 1;
+  --z-main: 2;
+  --z-panel: 3;
+  --z-seal: 4;
+  --z-nav: 5;
+  --z-dialog: 10;
+  --z-tip: 15;
+  --z-cursor: 20;
+  --mark: url("../marks/phi-placeholder.svg");
+  --wordmark: url("../marks/wordmark-placeholder.svg");
+}
+
+:root, :root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(0.11 0.004 25);
+  --ink: oklch(0.95 0.004 25);
+  --ink-soft: oklch(0.6 0.008 25);
+  --line: oklch(0.3 0.007 25);
+  --fog: oklch(0.92 0.005 25);
+  --accent: oklch(0.57 0.2 26);
+  --accent-text: oklch(0.66 0.17 26);
+  --seal: oklch(0.57 0.2 26);
+  --veil: oklch(0.57 0.2 26 / 0.28);
+  --dot: oklch(0.88 0.035 235);
+  --dot-dim: oklch(0.5 0.035 242);
+  --dot-hot: oklch(0.97 0.03 230);
+  --thread: oklch(0.72 0.04 238 / 0.55);
+  --region-label: oklch(0.72 0.04 238);
+  --area-1: oklch(0.78 0.06 235);
+  --area-2: oklch(0.78 0.06 165);
+  --area-3: oklch(0.8 0.07 95);
+  --area-4: oklch(0.74 0.08 40);
+  --area-5: oklch(0.74 0.06 320);
+  --area-6: oklch(0.8 0.05 200);
+  --area-7: oklch(0.72 0.05 280);
+  --area-8: oklch(0.82 0.04 130);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: oklch(0.95 0.004 25);
+  --ink: oklch(0.2 0.006 25);
+  --ink-soft: oklch(0.5 0.008 25);
+  --line: oklch(0.8 0.007 25);
+  --fog: oklch(0.2 0.006 25);
+  --accent: oklch(0.47 0.185 26);
+  --accent-text: oklch(0.45 0.18 26);
+  --seal: oklch(0.47 0.185 26);
+  --veil: oklch(0.47 0.185 26 / 0.16);
+  --dot: oklch(0.3 0.03 250);
+  --dot-dim: oklch(0.7 0.02 250);
+  --dot-hot: oklch(0.42 0.13 255);
+  --thread: oklch(0.45 0.05 250 / 0.5);
+  --region-label: oklch(0.45 0.03 250);
+  --area-1: oklch(0.5 0.08 235);
+  --area-2: oklch(0.5 0.08 165);
+  --area-3: oklch(0.55 0.09 95);
+  --area-4: oklch(0.5 0.1 40);
+  --area-5: oklch(0.5 0.08 320);
+  --area-6: oklch(0.52 0.07 200);
+  --area-7: oklch(0.48 0.07 280);
+  --area-8: oklch(0.55 0.06 130);
+}
+
+/* without a stored choice, follow the system */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --bg: oklch(0.95 0.004 25);
+    --ink: oklch(0.2 0.006 25);
+    --ink-soft: oklch(0.5 0.008 25);
+    --line: oklch(0.8 0.007 25);
+    --fog: oklch(0.2 0.006 25);
+    --accent: oklch(0.47 0.185 26);
+    --accent-text: oklch(0.45 0.18 26);
+    --seal: oklch(0.47 0.185 26);
+    --veil: oklch(0.47 0.185 26 / 0.16);
+    --dot: oklch(0.3 0.03 250);
+    --dot-dim: oklch(0.7 0.02 250);
+    --dot-hot: oklch(0.42 0.13 255);
+    --thread: oklch(0.45 0.05 250 / 0.5);
+    --region-label: oklch(0.45 0.03 250);
+    --area-1: oklch(0.5 0.08 235);
+    --area-2: oklch(0.5 0.08 165);
+    --area-3: oklch(0.55 0.09 95);
+    --area-4: oklch(0.5 0.1 40);
+    --area-5: oklch(0.5 0.08 320);
+    --area-6: oklch(0.52 0.07 200);
+    --area-7: oklch(0.48 0.07 280);
+    --area-8: oklch(0.55 0.06 130);
+  }
+}
+
+/* reduced motion: the same theme, calmer. --motion is the switch the app reads. */
+:root[data-motion="reduced"] {
+  --motion: 0;
+  --dur-mid: var(--dur-short);
+  --dur-long: var(--dur-short);
+}
