@@ -1,35 +1,60 @@
-# anamnesis
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.svg">
+  <img alt="anamnesis: the transcendentalist demo brain, 9,233 dated entries drawn as stipple, turning slowly while region names surface and fade" src="assets/readme/hero-light.svg" width="100%">
+</picture>
 
 a local-first second brain that measures itself.
+
+</div>
 
 anamnesis gathers what you write and read (notes, journals, obsidian vaults, pdfs, feeds, web clips, chats) into one brain on your own machine. every item is a dot in a turning 3d stipple cloud; similar items gather into regions that keep their identity as the brain grows, and you can replay how they were born, split and merged. everything that changes the brain is an event in an append-only, hash-chained log, and that log drives a built-in evaluation that asks one question of your own writing:
 
 > is learning recollection? what share of the links i later make by hand was already latent in what i had written?
 
-it is one rust binary with a browser ui, works with no model at all, brings your own model when you want one (local, api key, or your chatgpt plan through openai's sign-in), and is also an mcp server, so claude code, codex, gemini cli and claude desktop can read and write your brain with the subscriptions you already have.
+it is one rust binary with a browser ui. it works with no model at all, brings your own model when you want one (local, api key, or your chatgpt plan through openai's sign-in), and is also an mcp server, so claude code, codex, gemini cli and claude desktop can read and write your brain with the subscriptions you already have.
 
-![the brain: a stipple point cloud in the shape of a brain, with region labels, the view panel on the right and the lineage timeline below](ui/app/docs-screens/brain.png)
+<table>
+<tr>
+<td width="50%"><img alt="the brain: a stipple point cloud in the shape of a brain, with region labels, the view panel on the right and the lineage timeline below" src="ui/app/docs-screens/brain.png"></td>
+<td width="50%"><img alt="chat answering from the brain, with cited items" src="ui/app/docs-screens/chat.png"></td>
+</tr>
+<tr>
+<td><img alt="the evaluation panel: latent links, retrieval, resurfacing, growth, each with an interval and a status" src="ui/app/docs-screens/eval.png"></td>
+<td><img alt="when you wrote: writing over time by speaker" src="ui/app/docs-screens/when-you-wrote.png"></td>
+</tr>
+<tr>
+<td><img alt="regions packed as spheres" src="ui/app/docs-screens/spheres.png"></td>
+<td><img alt="threads: decisions, open questions, plans and rejections found in the notes" src="ui/app/docs-screens/threads.png"></td>
+</tr>
+<tr>
+<td><img alt="a journal entry in the reader, with provenance and link suggestions" src="ui/app/docs-screens/notes.png"></td>
+<td><img alt="settings: models, continue with chatgpt, the claude cli switch and routing" src="ui/app/docs-screens/settings.png"></td>
+</tr>
+</table>
 
-<sub>screenshots show the transcendentalist demo brain (9,233 dated entries from thoreau's and emerson's public-domain journals, embedded locally), served by a real `anamnesis serve`. the evaluation panel reads "measuring" because nobody has used that brain yet: those numbers only exist once a person does.</sub>
-
-| | |
-|---|---|
-| ![chat answering from the brain, with cited items](ui/app/docs-screens/chat.png) | ![the evaluation panel: latent links, retrieval, resurfacing, growth, each with an interval and a status](ui/app/docs-screens/eval.png) |
-| ![when you wrote: writing over time by speaker](ui/app/docs-screens/when-you-wrote.png) | ![regions packed as spheres](ui/app/docs-screens/spheres.png) |
-| ![threads: decisions, open questions, plans and rejections found in the notes](ui/app/docs-screens/threads.png) | ![a journal entry in the reader, with provenance and link suggestions](ui/app/docs-screens/notes.png) |
+<sub>the pictures show the transcendentalist demo brain (9,233 dated entries from thoreau's and emerson's public-domain journals, embedded locally), served by a real `anamnesis serve`. the evaluation panel reads "measuring" because nobody has used that brain yet: those numbers only exist once a person does.</sub>
 
 ## what it does
 
-- **one brain from many sources.** folders and obsidian vaults (wikilinks, embeds, frontmatter), pdfs, rss / atom / json feeds, web clips, json apis, an editor, chat, and anything else through a json-lines plugin protocol. incremental sync, renames and deletes followed.
-- **regions with memory.** hdbscan clusters matched run to run (jaccard, hungarian matching, monic transitions) so a region keeps its id and name; births, splits, merges and deaths are logged and replayable.
-- **a stable 3d layout.** umap-style, warm-started and procrustes-aligned so the brain does not reshuffle as it grows; new items are placed without moving the rest. three forms to morph between: anatomy, plain layout, spheres.
+- **one brain from many sources.** folders and obsidian vaults (wikilinks, embeds, frontmatter), pdfs, rss / atom / json feeds, web clips, json apis, an editor, chat, and anything else through a json-lines plugin protocol. incremental sync; renames and deletes are followed.
+- **regions with memory.** hdbscan clusters matched run to run (jaccard, hungarian matching, monic transitions), so a region keeps its id and name; births, splits, merges and deaths are logged and replayable.
+- **a stable 3d layout.** umap-style, warm-started and procrustes-aligned, so the brain does not reshuffle as it grows; new items are placed without moving the rest. three forms to morph between: anatomy, plain layout, spheres.
 - **provenance everywhere.** every item says who wrote it (you, you in a chat, a model, a model editing you, someone else), where it came from and when. model text never passes for yours.
-- **hybrid search** (bm25 + on-device embeddings, fused) with citation spans; **chat** that answers from your brain and cites it, or with no model, lists what it holds.
+- **hybrid search** (bm25 + on-device embeddings, fused) with citation spans; **chat** that answers from your brain and cites it, or, with no model, lists what it holds.
 - **threads:** decisions, open questions, plans and rejections found in your writing, with the verbatim quote, tracked to resolution.
 - **review:** a few items a day worth seeing again, run as a micro-randomised trial against random picks.
 - **an evaluation you can trust:** held-out controls, intervals, sample sizes, "measuring" until there is enough data, and an honesty table.
 - **privacy by construction:** local by default, per-source privacy flags, an egress ledger of every remote call, an mcp surface with no delete and no fetch.
 - **yours to restyle:** themes, colours, fonts, logo, motion and panel layout, all from settings.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/growth-dark.svg">
+  <img alt="the demo brain growing: each dot appears in the order it was written, from 1820 to 1876, above a timeline of writing per year, with a red ring where a region is born" src="assets/readme/growth-light.svg" width="100%">
+</picture>
+
+the brain keeps its history. every entry carries the date it was written, so the brain can be replayed in that order, and every region carries its lineage: when it was born, what it split from, what it merged into.
 
 ## quick start
 
@@ -43,7 +68,7 @@ cargo build --release -p anamnesis-server
 ./target/release/anamnesis serve --open            # http://127.0.0.1:7368/
 ```
 
-the first run downloads the local embedding model (~465 MB). to try it instantly and offline, add `--hash-embedder` to both commands. [docs/install.md](docs/install.md) has the details; [docs/using.md](docs/using.md) is a tour.
+the first run downloads the local embedding model (~465 MB); add `--hash-embedder` to both commands to try it instantly and offline. the details are in [docs/install.md](docs/install.md#quick-start), and [docs/using.md](docs/using.md) is a tour.
 
 **the demo brain.** to see a brain with half a century of dated writing in it, build the transcendentalist demo (the journals of thoreau and emerson, public domain in the us and brazil) with the optional python lab:
 
@@ -52,11 +77,16 @@ cd lab && uv run anamnesis-lab demo transcendentalist && cd ..
 ./target/release/anamnesis serve --demo --demo-bundle lab/out/transcendentalist/notes
 ```
 
-`--small` builds an offline 290-note sample in seconds. [docs/demo.md](docs/demo.md).
+`--small` builds an offline 290-note sample in seconds. see [docs/demo.md](docs/demo.md).
 
 ## bring your own model
 
-anamnesis never ships or resells a model. it routes each task to a backend you configure, local first; background work never runs on a subscription, and nothing falls back silently to a paid backend. status is the provider's own terms as of 2026-11-11, with dated quotes and links in [docs/models.md](docs/models.md#provider-terms).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/harness-dark.svg">
+  <img alt="the routes to a model (local models, api keys, continue with chatgpt, your installed claude cli, marked grey) and the brain as an mcp server, with threads of stipple flowing into the brain" src="assets/readme/harness-light.svg" width="100%">
+</picture>
+
+anamnesis never ships or resells a model. it routes each task to a backend you configure, local first; background work never runs on a subscription, and nothing falls back silently to a paid backend. the terms column is each provider's own terms as of 2026-11-11, with dated quotes and links in [docs/models.md](docs/models.md#provider-terms).
 
 | provider | route | in anamnesis | terms |
 |---|---|---|---|
@@ -77,41 +107,46 @@ the installed-cli route is off until you turn it on, and shows this notice where
 
 > uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this and could restrict it at any time; the safest routes are the mcp server and an api key. anamnesis never reads your credentials.
 
+the cli route also cleans its environment (no stray api key, endpoint or cloud-provider switch can move it off your login) and, by default, keeps your own claude code setup (`CLAUDE.md`, auto memory, hooks, skills, slash commands) out of anamnesis chats.
+
 ### optional, grey: label requests as anamnesis
 
-off by default. when you turn it on (settings → connections → claude cli · relabel), requests from the installed claude cli are labelled `anamnesis` instead of the cli's own label, which changes how they are likely to be metered against your plan. other tools do the same (openbot; nous research's hermes plugin). anthropic has not documented the weighting or said whether third-party apps may do this, so it could be treated as getting around your plan's limits; it affects only your own account. the project removes the option the moment anthropic says it is not allowed. you see this before it turns on:
+off by default. when you turn it on (settings → connections → claude cli · relabel), requests from the installed claude cli are labelled `anamnesis` instead of the cli's own label, which changes how they are likely to be metered against your plan. other tools do the same (openbot; nous research's hermes plugin). anthropic has not documented the weighting or said whether third-party apps may do this, so it could be treated as getting around your plan's limits; it affects only your own account, and the project removes the option the moment anthropic says it is not allowed. you see this before it turns on:
 
 > label requests as "anamnesis" instead of the cli's own label. claude code meters requests differently depending on how they say they were made; scripted (agent sdk) requests have been reported to count about twice as heavily against your plan limits. with this on, anamnesis's requests identify themselves as coming from anamnesis rather than as agent sdk calls, so they are likely to be metered like interactive use. anthropic has not documented this weighting or said whether third-party apps may do this. it is a grey area: it could be treated as getting around your plan's limits, and anthropic can restrict or suspend accounts without notice. it affects only your own account. anamnesis turns this off for everyone if anthropic says it is not allowed.
-
-the cli route also cleans its environment (no stray api key, endpoint or cloud-provider switch can move it off your login) and, by default, keeps your own claude code setup (CLAUDE.md, auto memory, hooks, skills, slash commands) out of anamnesis chats.
 
 ### what anamnesis will not do
 
 - read your credentials (the claude cli's login, codex's or gemini's auth files, another app's keychain entries)
 - copy tokens: the only token it holds is its own, from openai's sign-in
 - rotate between accounts or fail over from one plan to another
-- relabel traffic without asking: the claude cli's own request label is left alone unless you turn on the optional "label requests as anamnesis" switch (see above), and anamnesis never poses as another client
+- relabel traffic without asking: the claude cli's own request label is left alone unless you turn on the optional "label requests as anamnesis" switch (above), and anamnesis never poses as another client
 - run background jobs (labelling, extraction, anything scheduled) on a subscription
 
 ## privacy
 
 - **local first.** one sqlite file in your data directory; no account, no telemetry. the server binds to `127.0.0.1` and refuses non-loopback hosts. embeddings run on your machine.
-- **egress ledger.** every call to a remote model is checked by an egress gate and logged as an event: provider, model, purpose, item ids, character count. never the text. mcp reads are logged the same way.
-- **privacy flags.** `cloud_ok`, `ask` (chat asks before sending) or `local_only` (never sent to a remote model, withheld from mcp clients), set per source.
-- **mcp is read + append only.** no delete tool, no fetch or send tool, every write attributed to the client, generated text labelled as generated.
-- **keys in the keychain**, never in settings, the log or an export.
+- **egress ledger.** every call to a remote model passes an egress gate and is logged as an event: provider, model, purpose, item ids, character count. never the text. mcp reads are logged the same way.
+- **privacy flags,** set per source: `cloud_ok`, `ask` (chat asks before sending) or `local_only` (never sent to a remote model, withheld from mcp clients).
+- **mcp is read + append only.** no delete tool, no fetch or send tool; every write is attributed to the client, and generated text is labelled as generated.
+- **keys in the keychain,** never in settings, the log or an export.
 
 [docs/privacy.md](docs/privacy.md) says exactly what is and is not covered.
 
 ## the evaluation
 
-built in, on your own use, from the event log ([docs/evaluation.md](docs/evaluation.md)):
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/latent-dark.svg">
+  <img alt="a note is written; one suggested link is shown, another is predicted but held out and never shown; later a hand-drawn link lands on the held-out prediction, marked latent" src="assets/readme/latent-light.svg" width="100%">
+</picture>
 
-- **latent links.** about 20% of link suggestions are held out at random and never shown. later hand-made links that land on held-out suggestions estimate how much of what you link was already predictable from what you had written (an inverse-propensity estimate), next to the shown arm so the effect of suggesting is visible.
-- **retrieval** on your own relevance labels: ndcg@10, p@5, mrr with bootstrap intervals, "measuring" below 25 labelled queries.
+built in, measured on your own use, from the event log ([docs/evaluation.md](docs/evaluation.md)):
+
+- **latent links.** about 20% of link suggestions are held out at random and never shown. later hand-made links that land on held-out suggestions estimate how much of what you link was already predictable from what you had written (an inverse-propensity estimate), next to the shown arm, so the effect of suggesting is visible.
+- **retrieval** on your own relevance labels: ndcg@10, p@5, mrr with bootstrap intervals; "measuring" below 25 labelled queries.
 - **resurfacing** as a micro-randomised trial: each daily slot is the algorithm's pick or a random one, rated useful or not; bayesian intervals and a power-based threshold.
 - **growth and lineage:** items, links and regions over time; births, splits, merges, deaths.
-- every metric has a novelty split (first 28 days vs after), because new features get rated kindly. acceptance rate is shown but labelled as not a quality measure.
+- every metric has a novelty split (first 28 days vs after), because new features get rated kindly. acceptance rate is shown, but labelled as not a measure of quality.
 
 ### the honesty table
 
@@ -171,6 +206,7 @@ every change is an event; items, links, threads, regions and suggestions are pro
 | `ui/theme` | tokens, themes, fonts, settings, layout config ([README](ui/theme/README.md)) |
 | `lab/` | optional python lab: demo-brain builders and benchmarks ([README](lab/README.md)) |
 | `docs/` | [install](docs/install.md) · [using](docs/using.md) · [models](docs/models.md) · [mcp](docs/mcp.md) · [evaluation](docs/evaluation.md) · [privacy](docs/privacy.md) · [connectors](docs/connectors.md) · [theming](docs/theming.md) · [architecture](docs/architecture.md) · [demo](docs/demo.md) · [faq](docs/faq.md) · [http api](docs/contracts.md) |
+| `assets/readme/` | the animated pictures in this readme, drawn from the demo brain's real layout and dates |
 
 contributing: [CONTRIBUTING.md](CONTRIBUTING.md). security: [SECURITY.md](SECURITY.md).
 
@@ -178,4 +214,4 @@ contributing: [CONTRIBUTING.md](CONTRIBUTING.md). security: [SECURITY.md](SECURI
 
 apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)). the bundled Special Elite font is apache-2.0, © 2010 Astigmatic.
 
-the default theme ships the aphes.ist identity assets under their own terms: the Aphesis Script typeface under the [SIL Open Font License 1.1](ui/theme/themes/aphesis/assets/OFL.txt) (reserved font name "Aphesis Script"), and the φ mark and wordmark as trademarks of their owner, not licensed for use by forks. forks should set their own mark (the theme falls back to a placeholder φ without it). see [docs/theming.md](docs/theming.md#the-aphesis-theme-and-its-assets).
+the default theme ships the aphes.ist identity assets under their own terms: the Aphesis Script typeface under the [SIL Open Font License 1.1](ui/theme/themes/aphesis/assets/OFL.txt) (reserved font name "Aphesis Script"), and the φ mark and wordmark as trademarks of their owner, not licensed for use by forks. forks should set their own mark (the theme falls back to a placeholder φ without it). see [docs/theming.md](docs/theming.md#the-aphesis-theme-and-its-assets). the pictures in `assets/readme/` embed subsets of both fonts and the φ under the same terms.
