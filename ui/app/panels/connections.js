@@ -202,7 +202,7 @@ export async function mountConnections(el, ctx) {
         if (!enabled && !askFirst) { draw(true); return; }
         if (enabled) { try { await patchSettings(api, { harness: { claude_cli: { enabled: false } } }); ctx.toast('the claude cli is off.'); setTimeout(reload, 600); } catch (e) { ctx.toast(errText(e)); } }
       });
-      wrap.append(t, cliRow ? meta(cliRow.status || '') : null);
+      wrap.append(t, meta(cliRow ? cliRow.status || '' : enabled ? 'on. it is used once detection finds the cli on this machine.' : 'off.'));
       if (askFirst || enabled) wrap.append(h('p.notice', notice));
       if (askFirst && !enabled) wrap.append(h('div.btnrow',
         h('button.textbtn.strong', { type: 'button', onclick: async () => { try { await patchSettings(api, { harness: { claude_cli: { enabled: true } } }); ctx.toast('enabled, at your request.'); setTimeout(reload, 900); } catch (e) { ctx.toast(errText(e)); } } }, 'enable it, at my request'),
@@ -265,8 +265,8 @@ async function harnessBlock(ctx) {
     const tok = h('code.keep-case.cx-token', '•'.repeat(24));
     let shown = false;
     const reveal = h('button.textbtn', { type: 'button', 'aria-pressed': 'false', onclick: () => { shown = !shown; tok.textContent = shown ? r.token : '•'.repeat(24); reveal.textContent = shown ? 'hide' : 'reveal'; reveal.setAttribute('aria-pressed', String(shown)); } }, 'reveal');
-    wrap.append(h('div.cx-tokrow', h('span.meta', `http token (set ${r.token_env_var || 'ANAMNESIS_MCP_TOKEN'}):`), tok, h('div.btnrow', reveal, copyBtn(r.token, ctx, 'copy token'))),
-      r.http_url ? meta('http endpoint: ', h('span.keep-case', r.http_url)) : null);
+    wrap.append(...[h('div.cx-tokrow', h('span.meta', `http token (set ${r.token_env_var || 'ANAMNESIS_MCP_TOKEN'}):`), tok, h('div.btnrow', reveal, copyBtn(r.token, ctx, 'copy token'))),
+      r.http_url ? meta('http endpoint: ', h('span.keep-case', r.http_url)) : null].filter(Boolean));
   }
   if (r.tools?.length) wrap.append(meta(`${r.tools.length} tools: `, h('span.keep-case', r.tools.join(', '))));
   return wrap;
@@ -346,13 +346,13 @@ export async function mountSources(el, ctx) {
           reload();
         } catch (e) { msg.textContent = errText(e); go.disabled = false; }
       } }, 'add source');
-      form.append(
+      form.append(...[
         m.description ? meta(m.description) : null,
         h('div.form-row', h('label', 'name'), name),
         sf.el,
         h('div.form-row', h('label', 'privacy for its items'), priv),
         m.network_hosts?.length ? meta('contacts: ', h('span.keep-case', m.network_hosts.join(', '))) : null,
-        h('div.btnrow', go, msg));
+        h('div.btnrow', go, msg)].filter(Boolean));
     };
     el.append(sect('add a source', pick, form));
   }
