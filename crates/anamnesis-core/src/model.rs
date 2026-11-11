@@ -138,7 +138,7 @@ pub struct Document {
     pub created_at: Option<Timestamp>,
     pub modified_at: Option<Timestamp>,
     pub tags: Vec<String>,
-    /// Outgoing references found in the text: [[wikilinks]], markdown links, urls.
+    /// Outgoing references found in the text: `[[wikilinks]]`, markdown links, urls.
     pub refs: Vec<String>,
     /// Anything else (frontmatter, author, feed name). Kept verbatim for provenance.
     pub meta: serde_json::Value,
@@ -183,7 +183,7 @@ pub struct Chunk {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LinkKind {
-    /// [[wikilink]] or markdown link written in the text.
+    /// `[[wikilink]]` or markdown link written in the text.
     Written,
     /// Made by hand in the ui / via mcp.
     Manual,
@@ -233,7 +233,7 @@ pub struct Thread {
     pub resolved_by: Option<Id>,
     pub created_at: Timestamp,
     pub updated_at: Timestamp,
-    /// "rule" | "local:<model>" | "<provider>:<model>"
+    /// `"rule"` | `"local:<model>"` | `"<provider>:<model>"`
     pub extractor: String,
 }
 
@@ -314,6 +314,15 @@ pub enum EventKind {
     Egress { provider: String, model: String, purpose: String, items: Vec<Id>, chars: u64 },
     /// A chat turn (the app's own chats are items too; this records the exchange).
     ChatTurn { chat_id: Id, role: String, item_id: Id, cited: Vec<Id> },
+    /// The outgoing references declared by an item's text (wikilink targets, relative paths,
+    /// urls), replacing any earlier set. References that resolve to an item are additionally
+    /// recorded as `LinkAdded { kind: Written }`; the rest stay pending until a matching item
+    /// appears.
+    RefsSet { item_id: Id, refs: Vec<String> },
+    /// A source's name, config, defaults or sync cursor changed.
+    SourceUpdated { source: Source },
+    /// A user setting changed. `value: null` removes the key.
+    SettingSet { key: String, value: serde_json::Value },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -337,4 +346,16 @@ pub struct Hit {
     pub score: f32,
     pub start: usize,
     pub end: usize,
+}
+
+impl From<String> for Id {
+    fn from(s: String) -> Self {
+        Id(s)
+    }
+}
+
+impl From<&str> for Id {
+    fn from(s: &str) -> Self {
+        Id(s.to_string())
+    }
 }
