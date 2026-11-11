@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>anamnesis themes</title>
+<!-- the default theme's css first, so the page is styled before theme.js runs -->
+<link id="anamnesis-theme-css" rel="stylesheet" href="dist/aphesis.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+  body { padding: var(--space-5) max(16px, var(--space-5)); text-transform: lowercase; }
+  main { max-width: 1080px; margin: 0 auto; display: grid; gap: var(--space-6); }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-5); }
+  header .anm-mark { height: 72px; }
+  header .switch { margin-left: auto; display: flex; gap: var(--space-4); flex-wrap: wrap; }
+  .switch button { padding: var(--space-1) 0; color: var(--ink-soft); }
+  .switch button[aria-pressed="true"] { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: .4em; }
+  h2.anm-display { margin: 0 0 var(--space-3); font-size: calc(34px * var(--type-scale)); }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+  .sw { display: grid; grid-template-columns: 34px 1fr; gap: 2px var(--space-2); align-items: center; }
+  .sw i { grid-row: span 2; width: 34px; height: 34px; outline: 1px solid var(--line); }
+  .sw code { font-family: var(--font-data); font-size: 11px; color: var(--ink-soft); }
+  .type { display: grid; gap: var(--space-3); }
+  .type p { margin: 0; }
+  .marks { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; }
+  .marks svg { width: 64px; height: 64px; color: var(--accent); overflow: visible; }
+  .marks svg.fog { color: var(--fog); opacity: .72; }
+  .marks svg.wide { width: 220px; height: 64px; color: var(--ink-soft); }
+  .stage { position: relative; height: 260px; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .stage .anm-meta { position: absolute; left: 0; bottom: 0; }
+  .row { display: flex; gap: var(--space-4); flex-wrap: wrap; align-items: center; }
+  .row button { color: var(--ink-soft); padding: var(--space-1) 0; }
+  .row button:hover { color: var(--accent-text); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="anm-mark" role="img" aria-label="mark"></span>
+    <div>
+      <div class="anm-display anm-title" style="color: var(--seal)">anamnesis</div>
+      <div class="anm-gloss">ἀνάμνησις · recollection</div>
+    </div>
+    <div class="switch anm-label" role="group" aria-label="theme">
+      <button data-theme-btn="aphesis">aphes.ist</button>
+      <button data-theme-btn="paper">paper</button>
+      <button data-theme-btn="mono">mono</button>
+      <span aria-hidden="true" style="color: var(--line)">·</span>
+      <button data-mode-btn="dark">eye closed</button>
+      <button data-mode-btn="light">eye open</button>
+    </div>
+  </header>
+
+  <section>
+    <h2 class="anm-display">colour</h2>
+    <div class="swatches" id="swatches"></div>
+  </section>
+
+  <section class="type">
+    <h2 class="anm-display">type</h2>
+    <div class="anm-display anm-heading">the alchemist</div>
+    <div class="anm-gloss">liber · ἄδυτον · codex · ἀγορά</div>
+    <p class="anm-lede">the archive keeps what the fog would erase.</p>
+    <p>every text here is a draft that learned to stand. is learning recollection? what share of the links i later make by hand was already latent in what i had written?</p>
+    <p class="anm-label">brain · notes · write · today · + add · more</p>
+    <p class="anm-meta">&gt;&gt; solve et coagula · 2026-11-11 · from a note you wrote in march</p>
+    <p class="anm-data">1,618 notes · 34 regions · 0.382 held out · 89% kept</p>
+  </section>
+
+  <section>
+    <h2 class="anm-display">brush &amp; stipple</h2>
+    <div class="marks" id="marks"></div>
+  </section>
+
+  <section>
+    <h2 class="anm-display">brain</h2>
+    <div class="stage"><canvas id="brain" aria-label="a stipple cloud drawn from the brain tokens" role="img"></canvas>
+      <span class="anm-meta anm-on-fog">--dot · --dot-dim · --dot-hot · --thread, re-read on anamnesis:themechange</span></div>
+  </section>
+
+  <section>
+    <h2 class="anm-display">first launch</h2>
+    <div class="row anm-label">
+      <button id="ask">show the motion question</button>
+      <span class="anm-meta" id="motion-state"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="anm-display">settings</h2>
+    <div id="settings"></div>
+  </section>
+</main>
+
+<script type="module">
+  import * as theme from './theme.js';
+  import { askMotionOnce, showMotionDialog } from './motion.js';
+  import { mountSettings } from './settings.js';
+  import { startCursor } from './cursor.js';
+  import { brush, arc, line, curve, stipple, stippleDensity, frame, ring, underline, rng } from './brush.js';
+
+  const q = new URLSearchParams(location.search);
+  await theme.init({ server: false });
+  if (q.get('theme')) await theme.applyTheme(q.get('theme'));
+  if (q.get('mode')) theme.setMode(q.get('mode'));
+  startCursor();
+
+  // ---- header switches
+  const syncButtons = () => {
+    const s = theme.getState();
+    document.querySelectorAll('[data-theme-btn]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeBtn === s.id)));
+    document.querySelectorAll('[data-mode-btn]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modeBtn === s.resolvedMode)));
+    document.getElementById('motion-state').textContent = `motion: ${s.resolvedMotion}${s.motionChosen ? '' : ' (not asked yet: following the system)'}`;
+  };
+  document.querySelectorAll('[data-theme-btn]').forEach((b) => b.addEventListener('click', () => theme.applyTheme(b.dataset.themeBtn)));
+  document.querySelectorAll('[data-mode-btn]').forEach((b) => b.addEventListener('click', () => theme.setMode(b.dataset.modeBtn)));
+
+  // ---- swatches
+  const TOKENS = ['--bg', '--ink', '--ink-soft', '--line', '--fog', '--accent', '--accent-text', '--seal', '--dot', '--dot-dim', '--dot-hot', '--thread', '--region-label', '--area-1', '--area-2', '--area-3', '--area-4', '--area-5'];
+  const drawSwatches = () => {
+    document.getElementById('swatches').innerHTML = TOKENS.map((t) => {
+      const c = theme.tokenRGB(t);
+      return `<div class="sw"><i style="background: var(${t})"></i><span class="anm-label">${t.slice(2)}</span><code>${c?.hex ?? ''}${c && c.alpha < 1 ? ' · ' + Math.round(c.alpha * 100) + '%' : ''}</code></div>`;
+    }).join('');
+  };
+
+  // ---- brush marks (brush.js, no aphes.ist runtime)
+  const svg = (d, cls = '', vb = '0 0 24 24') => `<svg class="${cls}" viewBox="${vb}" aria-hidden="true"><path fill="currentColor" d="${d}"/></svg>`;
+  const eye = brush(curve([2, 12], [12, 3], [22, 12], 40), 1.7, 3) + brush(curve([2, 12], [12, 21], [22, 12], 40), 1.5, 4)
+    + stipple((x, y) => (x - 12) ** 2 + (y - 12) ** 2 < 14, 5, 900, 0.62);
+  const sol = ring(12, 12, 8, 7) + stipple((x, y) => (x - 12) ** 2 + (y - 12) ** 2 < 4, 8, 300, 0.7);
+  const luna = brush(arc(12, 12, 8, Math.PI * 0.35, Math.PI * 1.65, 48), 1.8, 9, 0.35) + brush(arc(15.5, 12, 6.2, Math.PI * 0.55, Math.PI * 1.45, 36), 1.1, 10, 0.4);
+  const brainIcon = brush(arc(12, 12, 9, Math.PI, Math.PI * 2.1, 48, 7), 1.7, 11) + brush(curve([3, 13], [7, 19], [12, 18], 30), 1.4, 12)
+    + brush(curve([12, 18], [18, 20], [21, 12], 30), 1.4, 13) + brush(line(12, 5, 12, 18, 20), 1.0, 14, 0.4)
+    + stipple((x, y) => ((x - 12) / 8) ** 2 + ((y - 12) / 6) ** 2 < 1, 15, 500, 0.55);
+  const threshold = brush([...line(5, 21, 5, 10, 16), ...arc(12, 10, 7, Math.PI, Math.PI * 2, 30), ...line(19, 10, 19, 21, 16)], 1.7, 16, 0.2)
+    + stipple((x, y) => x > 6.4 && x < 17.6 && y < 20.5 && (y > 10 || (x - 12) ** 2 + (y - 10) ** 2 < 30), 17, 1200, 0.6);
+  const fog = stippleDensity((x, y) => 0.5 + 0.5 * Math.sin(x / 9) * Math.cos(y / 7), { width: 220, height: 64, cell: 2, seed: 3 });
+  const stroke = brush(curve([4, 40], [110, -6], [216, 30], 80), 6, 21, 0.35, 0.1) + underline(220, 22, 2.2, 54);
+  document.getElementById('marks').innerHTML = svg(eye) + svg(sol) + svg(luna) + svg(brainIcon) + svg(threshold)
+    + svg(fog, 'wide fog', '0 0 220 64') + svg(stroke, 'wide', '0 0 220 64') + svg(frame(180, 40, 5, 2), 'wide', '-10 -10 200 60');
+
+  // ---- a tiny stipple cloud, reading the brain tokens like the webgl renderer would
+  const canvas = document.getElementById('brain');
+  const ctx = canvas.getContext('2d');
+  const r = rng(7);
+  const pts = [];
+  const centres = [[0.3, 0.45], [0.55, 0.35], [0.72, 0.6], [0.45, 0.7]];
+  for (let i = 0; i < 1400; i++) {
+    const c = centres[i % centres.length];
+    const a = r() * Math.PI * 2, d = Math.pow(r(), 0.7) * 0.16;
+    pts.push({ x: c[0] + Math.cos(a) * d * 1.3, y: c[1] + Math.sin(a) * d, z: r(), hot: i % 97 === 0, dim: i % centres.length === 3 });
+  }
+  let col = {};
+  const readColours = () => {
+    for (const k of ['--bg', '--dot', '--dot-dim', '--dot-hot', '--thread']) col[k] = theme.tokenRGB(k);
+  };
+  const rgba = (c, a = 1) => `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${a * (c.alpha ?? 1)})`;
+  let t0 = performance.now();
+  const draw = (now) => {
+    const w = canvas.clientWidth, h = canvas.clientHeight, dpr = devicePixelRatio || 1;
+    if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    const motion = getComputedStyle(document.documentElement).getPropertyValue('--motion').trim() !== '0';
+    const t = motion ? (now - t0) / 1000 : 0;
+    ctx.strokeStyle = rgba(col['--thread']);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < centres.length; i++) {
+      const [a, b] = [centres[i], centres[(i + 1) % centres.length]];
+      ctx.moveTo(a[0] * w, a[1] * h);
+      ctx.quadraticCurveTo((a[0] + b[0]) / 2 * w, Math.min(a[1], b[1]) * h - 30, b[0] * w, b[1] * h);
+    }
+    ctx.stroke();
+    for (const p of pts) {
+      const ang = t * 0.15 + p.z * 6.28;
+      const x = (p.x + Math.cos(ang) * 0.004) * w, y = (p.y + Math.sin(ang) * 0.006) * h;
+      ctx.fillStyle = rgba(p.hot ? col['--dot-hot'] : p.dim ? col['--dot-dim'] : col['--dot'], p.hot ? 1 : 0.55 + p.z * 0.4);
+      const s = p.hot ? 4 : 2;
+      ctx.fillRect(Math.round(x), Math.round(y), s, s);
+    }
+    requestAnimationFrame(draw);
+  };
+
+  const refresh = () => { syncButtons(); drawSwatches(); readColours(); };
+  window.addEventListener('anamnesis:themechange', refresh);
+  refresh();
+  requestAnimationFrame(draw);
+
+  document.getElementById('ask').addEventListener('click', () => showMotionDialog());
+  await mountSettings(document.getElementById('settings'));
+  window.__ready = true;
+  if (q.get('dialog') === '1') showMotionDialog();
+  else if (!q.has('noask')) askMotionOnce();
+</script>
+</body>
+</html>
