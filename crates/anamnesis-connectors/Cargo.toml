@@ -1,0 +1,9 @@
+[package]
+name = "anamnesis-connectors"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anamnesis-core.workspace = true

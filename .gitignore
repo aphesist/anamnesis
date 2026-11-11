@@ -1,0 +1,10 @@
+/target
+**/node_modules
+lab/.venv
+__pycache__/
+*.pyc
+/data
+.anamnesis/
+*.sqlite
+*.sqlite-*
+lab/cache/
