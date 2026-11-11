@@ -702,3 +702,38 @@ fn empty_log_is_all_hypothesis() {
     assert_eq!(report.links.novelty.feature_start, None);
     assert_eq!(report.links.novelty.first_days.latent.hand_links, 0);
 }
+
+#[test]
+fn growth_claim_follows_the_status_rule() {
+    // A few days: items exist, but fewer than two clustering runs.
+    let cfg = SyntheticConfig {
+        days: 3,
+        ..SyntheticConfig::default()
+    };
+    let events = synthetic::generate(&cfg);
+    let report = evaluate(&events, None, None, &EvalConfig::default());
+    assert!(report.growth.n > 0);
+    assert!(report.growth.regions_over_time.len() < 2);
+    let g = report
+        .honesty
+        .claims
+        .iter()
+        .find(|c| c.key == "growth")
+        .unwrap();
+    assert_eq!(g.status, Status::Measuring);
+    assert_eq!(g.class, ClaimClass::Hypothesis);
+
+    // Over a full log, no claim that is still measuring may be shown as measured or modelled.
+    for days in [3, 30, 180] {
+        let events = synthetic::generate(&SyntheticConfig {
+            days,
+            ..SyntheticConfig::default()
+        });
+        let report = evaluate(&events, None, None, &EvalConfig::default());
+        for c in &report.honesty.claims {
+            if c.status == Status::Measuring || c.n == 0 {
+                assert_eq!(c.class, ClaimClass::Hypothesis, "{} at {days} days", c.key);
+            }
+        }
+    }
+}

@@ -185,21 +185,17 @@ pub fn honesty(r: &EvalReport) -> Honesty {
     ));
 
     let g = &r.growth;
-    claims.push(Claim {
-        key: "growth".into(),
-        claim: "the brain grows and its regions keep their identity over time".into(),
-        class: if g.n > 0 {
-            ClaimClass::Measured
-        } else {
-            ClaimClass::Hypothesis
-        },
-        n: g.n,
-        value: Some(g.n as f64),
-        interval: None,
-        status: Status::from_bool(g.regions_over_time.len() >= 2),
-        basis: "counts from the event log; region transitions from clustering runs".into(),
-        caveat: "region identity depends on the clustering parameters".into(),
-    });
+    claims.push(claim(
+        "growth",
+        "the brain grows and its regions keep their identity over time",
+        ClaimClass::Measured,
+        g.n,
+        Some(g.n as f64),
+        None,
+        Status::from_bool(g.regions_over_time.len() >= 2),
+        "counts from the event log; region transitions from clustering runs",
+        "region identity depends on the clustering parameters",
+    ));
 
     claims.push(Claim {
         key: "thinks_like_me".into(),
@@ -247,5 +243,26 @@ impl Honesty {
             ));
         }
         s
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn measuring_is_always_hypothesis() {
+        assert_eq!(
+            class_for(ClaimClass::Measured, Status::Measuring, 50),
+            ClaimClass::Hypothesis
+        );
+        assert_eq!(
+            class_for(ClaimClass::Modelled, Status::EnoughData, 0),
+            ClaimClass::Hypothesis
+        );
+        assert_eq!(
+            class_for(ClaimClass::Measured, Status::EnoughData, 5),
+            ClaimClass::Measured
+        );
     }
 }
