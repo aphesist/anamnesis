@@ -1,0 +1,62 @@
+/* Fallback theme tokens. ui/theme (the theming package) loads after this file
+   and overrides every value; these exist so ui/app renders on its own.
+   Names follow docs/contracts.md "theme tokens". */
+:root {
+  --bg: oklch(0.135 0.009 255);
+  --ink: oklch(0.93 0.012 245);
+  --ink-soft: oklch(0.66 0.02 245);
+  --line: oklch(0.93 0.012 245 / 0.16);
+  --fog: oklch(0.19 0.016 250);
+  --accent: oklch(0.84 0.07 228);
+  --accent-text: oklch(0.88 0.06 228);
+  --seal: oklch(0.56 0.17 27);
+
+  --dot: oklch(0.8 0.045 238);
+  --dot-dim: oklch(0.42 0.04 245);
+  --dot-hot: oklch(0.98 0.03 215);
+  --thread: oklch(0.78 0.05 235);
+  --region-label: oklch(0.92 0.015 240 / 0.9);
+
+  --font-display: "Aphesis Script", "Special Elite", "Courier Prime", "Courier New", ui-monospace, monospace;
+  --font-text: "Special Elite", "Courier Prime", "Courier New", ui-monospace, monospace;
+  --font-data: ui-monospace, "JetBrains Mono", "DejaVu Sans Mono", "Courier New", monospace;
+  --type-scale: 1;
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-short: 160ms;
+  --dur-mid: 420ms;
+  --dur-long: 900ms;
+  --motion: 1;
+
+  --space-1: 4px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 20px;
+  --space-6: 32px;
+  --space-7: 52px;
+  --space-8: 84px;
+  --space-9: 136px;
+
+  --mark: none;
+  --wordmark: none;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: oklch(0.965 0.006 85);
+  --ink: oklch(0.22 0.012 250);
+  --ink-soft: oklch(0.45 0.015 250);
+  --line: oklch(0.22 0.012 250 / 0.16);
+  --fog: oklch(0.92 0.008 85);
+  --accent: oklch(0.45 0.09 245);
+  --accent-text: oklch(0.4 0.09 245);
+  --dot: oklch(0.32 0.04 250);
+  --dot-dim: oklch(0.7 0.02 250);
+  --dot-hot: oklch(0.5 0.16 27);
+  --thread: oklch(0.35 0.04 250);
+  --region-label: oklch(0.25 0.015 250 / 0.9);
+  color-scheme: light;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion: 0; }
+}
