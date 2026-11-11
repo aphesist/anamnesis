@@ -22,6 +22,7 @@ pub use connector::{
     Batch, ChangeNotice, CheckReport, Connector, Rename, WatchHandle, list_all, validated_check,
     validated_list,
 };
+pub use connectors::files::{META_ORIGIN_EXPLICIT, META_PRIVACY};
 pub use error::{ConnectorError, Result};
 pub use manifest::{
     API_VERSION, Capability, Manifest, PLUGIN_MANIFEST_FILE, RESERVED_CONNECTOR_IDS, Runtime,

@@ -179,6 +179,23 @@ pub fn obsidian_manifest() -> Manifest {
     }
 }
 
+/// `Document.meta` key: the per-document privacy flag (`local_only` | `cloud_ok` | `ask`),
+/// set when the document itself states one (e.g. frontmatter `privacy:`). The server
+/// applies it to the item unless the user set the item's privacy by hand.
+pub const META_PRIVACY: &str = "privacy";
+/// `Document.meta` key: true when `Document.origin` was stated explicitly (frontmatter or
+/// connector config) rather than taken from the connector's default, so the server does
+/// not replace it with the source's `default_origin`.
+pub const META_ORIGIN_EXPLICIT: &str = "origin_explicit";
+
+/// A snake_case enum value from frontmatter (`origin: ai_generated`). Tolerates case and
+/// hyphens (`Local-Only`); anything else is ignored.
+fn frontmatter_enum<T: serde::de::DeserializeOwned>(fm: &Value, key: &str) -> Option<T> {
+    let raw = fm.get(key)?.as_str()?;
+    let norm = raw.trim().to_lowercase().replace(['-', ' '], "_");
+    serde_json::from_value(Value::String(norm)).ok()
+}
+
 static DAILY_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap());
 
 impl FilesConnector {
@@ -278,7 +295,7 @@ impl FilesConnector {
             }
             meta["aliases"] = json!(p.aliases);
             meta["wikilinks"] = Value::Array(wl_meta);
-            // Frontmatter may override kind / origin per note.
+            // Frontmatter may override kind / origin / privacy per note.
             if cfg.kind.is_none()
                 && let Some(k) = p
                     .frontmatter
@@ -288,6 +305,19 @@ impl FilesConnector {
             {
                 doc.kind = k;
             }
+            // A note's own `origin` is more specific than the source's (or config's)
+            // default: an ai-written draft in a folder of owner notes stays ai-written.
+            if let Some(o) = frontmatter_enum::<Origin>(&p.frontmatter, "origin") {
+                doc.origin = o;
+                meta[META_ORIGIN_EXPLICIT] = json!(true);
+            }
+            // `privacy: local_only | cloud_ok | ask` per note; the server applies it.
+            if let Some(pv) = frontmatter_enum::<Privacy>(&p.frontmatter, "privacy") {
+                meta[META_PRIVACY] = json!(pv);
+            }
+        }
+        if cfg.origin.is_some() {
+            meta[META_ORIGIN_EXPLICIT] = json!(true);
         }
         doc.meta = meta;
         doc
