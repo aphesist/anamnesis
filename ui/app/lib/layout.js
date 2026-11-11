@@ -128,11 +128,13 @@ export class Layout {
     if (p.area === 'hidden') { p.area = 'right'; }
     const want = force ?? !p.open;
     if (p.area === 'overlay') { p.open = want; this.save(); this.render(); return; }
+    const tabFocused = document.activeElement?.getAttribute('role') === 'tab';
     for (const q of this.inArea(p.area)) q.open = false;
     p.open = want;
     this.save();
     this.render();
-    if (want) requestAnimationFrame(() => document.getElementById(`tab-${id}`)?.focus({ preventScroll: true }));
+    // re-rendering the tabs drops focus; give it back to keyboard users
+    if (tabFocused) document.getElementById(`tab-${id}`)?.focus({ preventScroll: true });
   }
   open(id) { this.toggle(id, true); }
   move(id) {

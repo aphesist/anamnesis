@@ -1,4 +1,5 @@
 // Thin client for the http api in docs/contracts.md.
+import { parseSSE } from './sse.js';
 // Same-origin by default (the server serves ui/); override with ?api=http://host:port.
 
 const params = new URLSearchParams(location.search);
@@ -54,18 +55,8 @@ export async function streamChat(body, onEvent, signal) {
     const { value, done } = await reader.read();
     if (done) break;
     buf += dec.decode(value, { stream: true });
-    let cut;
-    while ((cut = buf.search(/\r?\n\r?\n/)) >= 0) {
-      const block = buf.slice(0, cut);
-      buf = buf.slice(cut).replace(/^\r?\n\r?\n/, '');
-      let ev = 'message'; const data = [];
-      for (const line of block.split(/\r?\n/)) {
-        if (line.startsWith('event:')) ev = line.slice(6).trim();
-        else if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''));
-      }
-      if (!data.length) continue;
-      let parsed; try { parsed = JSON.parse(data.join('\n')); } catch { parsed = { text: data.join('\n') }; }
-      onEvent(ev, parsed);
-    }
+    const { events, rest } = parseSSE(buf);
+    buf = rest;
+    for (const [ev, data] of events) onEvent(ev, data);
   }
 }

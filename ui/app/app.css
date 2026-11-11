@@ -389,3 +389,4 @@ table.tbl tr:hover td { color: var(--dot-hot); }
 .app:not([data-page="brain"]) .dock-bottom { display: none; }
 .page-brain.alt .slot, .page-brain.alt .labels, .page-brain.alt .caption, .page-brain.alt .peek { display: none; }
 .page-brain.alt .alt-view { inset: 64px var(--space-5) var(--space-5) var(--space-6); background: color-mix(in oklch, var(--bg) 95%, transparent); }
+.walk:focus { outline: none; }

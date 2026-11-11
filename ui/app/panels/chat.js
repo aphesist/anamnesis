@@ -87,7 +87,7 @@ export default {
               cites.append(h('button', { type: 'button', onclick: () => ctx.open(id) }, '· ' + (i != null ? store.cloud.titles[i] : id.slice(-6))));
             }
             setBit(BIT.CITED, idx, { exclusive: false, label: 'cited by the chat' });
-            if (idx.length && store.view.page === 'brain') ctx.brain.focusOn([...cited].map((id) => store.index.get(id)).filter((i) => i != null));
+            if (idx.length && store.view.page === 'brain') ctx.brain.focusOn([...cited].map((id) => store.index.get(id)).filter((i) => i != null), { soft: true });
           } else if (ev === 'usage') {
             usage.textContent = `${data.backend} · ${data.input} in · ${data.output} out${data.estimated ? ' · estimated' : ''}`;
           } else if (ev === 'done') {

@@ -56,7 +56,7 @@ void main() {
   vec3 col = mix(cDot, cDim, fogf * 0.85);
   float alpha = mix(0.9, 0.22, fogf);
   float size = uSize * (0.65 + 0.7 * fract(seed * 7.13));
-  if (uAnyLit > 0.5 && !lit) { alpha *= 0.22; size *= 0.85; }
+  if (uAnyLit > 0.5 && !lit) { alpha *= 0.3; size *= 0.85; }
   if (lit) { col = ((s & 8u) != 0u) ? cCite : cHot; alpha = 1.0; size *= 1.55; }
   if (glow > 0.0) { col = mix(col, cHot, glow); alpha = mix(alpha, 1.0, glow); size *= 1.0 + 0.5 * glow; }
   if (born > 0.0) { col = mix(col, cHot, born); alpha = max(alpha, born); size *= 1.0 + born; }
@@ -68,7 +68,7 @@ void main() {
   float px = size * uProj[1][1] * uViewH * 0.5 / max(depth, 0.05);
   vSize = clamp(px, 1.0, 48.0);
   bool ringed = (s & 72u) != 0u;          // cited | focus get a stipple halo
-  if (ringed) vSize = max(vSize * 1.6, 9.0);
+  if (ringed) vSize = max(vSize * 2.2, 15.0);
   else if (lit) vSize = max(vSize, 3.0);
   // small dots lose ink as they shrink rather than vanishing abruptly
   vAlpha = alpha * min(1.0, px / 1.2);
@@ -114,7 +114,7 @@ void main() {
     // a ring of stipple: dashed by angle so it reads as dots, not a line
     float ang = atan(pc.y, pc.x);
     float dash = step(0.5, fract(ang * 2.546 + vSeed * 3.0));
-    a = max(a * step(r, 0.45), smoothstep(0.1, 0.0, abs(r - 0.82)) * dash);
+    a = max(min(1.0, a * 1.6) * step(r, 0.5), smoothstep(0.09, 0.0, abs(r - 0.84)) * dash);
   }
   a *= vAlpha;
   if (a < 0.004) discard;

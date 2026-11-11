@@ -240,7 +240,8 @@ async function handle(method, url, body) {
   if (p === '/api/chat' && method === 'POST') {
     s.chats++;
     const hits = search(s, body.message || '', 5);
-    const cited = hits.slice(0, 4).map((h) => h.item_id);
+    const seenT = new Set();
+    const cited = hits.filter((h) => !seenT.has(h.title) && seenT.add(h.title)).slice(0, 4).map((h) => h.item_id);
     const backend = body.backend || 'ollama:qwen3-8b';
     const titles = [...new Set(hits.map((h) => h.title))].slice(0, 3).map((t) => `"${t}"`);
     const answer = hits.length

@@ -201,6 +201,8 @@ export class Brain {
     this.buildLabels();
     this.gridVersion = -1;
     this.dirty = true;
+    const w = this.canvas.clientWidth, hgt = this.canvas.clientHeight;
+    if (w && hgt) this.updateLabels(w, hgt);
   }
 
   setMorph(m, instant) {
@@ -237,8 +239,8 @@ export class Brain {
     c[0] /= indices.length; c[1] /= indices.length; c[2] /= indices.length;
     let r = 0;
     for (const i of indices) { this.pos(i, p); r = Math.max(r, Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2])); }
-    const dist = indices.length === 1 ? 1.6 : Math.max(2.2, Math.min(4.4, r * 2.6 + 0.8));
-    this.cam.flyTo(indices.length === 1 ? c : c.map((x) => x * 0.85), opts.dist ?? dist, opts);
+    const dist = indices.length === 1 ? 1.8 : Math.max(indices.length < 12 ? 3.0 : 2.4, Math.min(4.4, r * 2.6 + 0.8));
+    this.cam.flyTo(indices.length === 1 ? c : c.map((x) => x * (opts.soft ? 0.3 : 0.85)), opts.dist ?? (opts.soft ? Math.max(dist, 4.3) : dist), opts);
     this.dirty = true;
   }
 
@@ -249,7 +251,7 @@ export class Brain {
     for (const l of this.labels) l.el.remove();
     this.labels = [];
     const mk = (text, sub, a, b, kind, extra = {}) => {
-      const el = h('button.region-label', { type: 'button', tabindex: '-1', title: sub || '' }, h('span.rl-text', text));
+      const el = h('button.region-label', { type: 'button', tabindex: '-1', title: sub || '', style: { opacity: '0' } }, h('span.rl-text', text));
       el.addEventListener('click', (e) => { e.stopPropagation(); if (extra.region != null) this.onRegion(extra.region); else if (extra.group) emit('group-click', extra.group); });
       this.overlay.append(el);
       this.labels.push({ el, a, b, kind, w: text.length * 7.2 + 8, ...extra });
@@ -278,7 +280,7 @@ export class Brain {
     const tmax = store.tMin + (store.tMax - store.tMin) * store.view.time[1];
     const placed = [];
     const cr = this.canvas.getBoundingClientRect();
-    for (const sel of ['#slot-bottom-left', '#slot-bottom', '.stage-views', '.peek:not([hidden])']) {
+    for (const sel of ['#slot-bottom-left', '#slot-bottom', '.stage-views', '.lit-bar:not([hidden])', '.peek:not([hidden])']) {
       const o = document.querySelector(sel); if (!o || !o.offsetParent) continue;
       const r = o.getBoundingClientRect(); if (!r.width) continue;
       placed.push([r.left - cr.left, r.top - cr.top, r.right - cr.left, r.bottom - cr.top]);
@@ -506,7 +508,7 @@ export class Brain {
     if (store.view.filaments && this.nLinks) {
       gl.useProgram(this.lnk.p);
       this.setUniforms(this.lnk, hgt);
-      gl.uniform1f(this.lnk.u.uLinkAlpha, this.light ? 0.12 : 0.05);
+      gl.uniform1f(this.lnk.u.uLinkAlpha, this.light ? 0.06 : 0.05);
       gl.bindVertexArray(this.linkVao);
       gl.drawArraysInstanced(gl.LINE_STRIP, 0, SEGMENTS + 1, this.nLinks);
     }
