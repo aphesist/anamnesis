@@ -6,9 +6,9 @@
 //! `store: false` and `stream: true` on every request; models from `GET /v1/models`
 //! (`models[]` with `slug`, `display_name`, `visibility == "list"`).
 //! Preview limitations (https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations):
-//! leave out `temperature`, `top_p`, `max_output_tokens`, `metadata`, `background`,
-//! `conversation`, `prompt`, `prompt_cache_retention`, `safety_identifier`, `user` and
-//! `previous_response_id` (history goes in `input`). Hosted tools are unsupported.
+//! leave out the unsupported fields listed in `FORBIDDEN_PARAMS` (temperature, top_p,
+//! max_output_tokens, previous_response_id…; history goes in `input`), no system-role
+//! input items (the system prompt goes in `instructions`). Hosted tools are unsupported.
 //! Errors (https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery):
 //! plan-usage errors stop inference; there is never a switch to another billing path.
 //!
@@ -44,15 +44,20 @@ pub const NOTICE: &str = "uses your chatgpt plan through openai's sign-in for op
 
 /// Request fields the plan flow rejects; they are never sent.
 pub const FORBIDDEN_PARAMS: &[&str] = &[
-    "temperature",
-    "top_p",
-    "max_output_tokens",
-    "metadata",
     "background",
     "conversation",
+    "max_output_tokens",
+    "max_tool_calls",
+    "metadata",
+    "moderation",
+    "multi_agent",
     "prompt",
     "prompt_cache_retention",
     "safety_identifier",
+    "temperature",
+    "top_logprobs",
+    "top_p",
+    "truncation",
     "user",
     "previous_response_id",
 ];
