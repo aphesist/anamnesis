@@ -1,5 +1,6 @@
 [package]
 name = "anamnesis-server"
+description = "anamnesis: the local server binary (http api, background jobs, mcp, ui)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,5 +10,52 @@ repository.workspace = true
 name = "anamnesis"
 path = "src/main.rs"
 
+[lib]
+name = "anamnesis_server"
+path = "src/lib.rs"
+
+[features]
+default = ["embed-ui", "local-embed"]
+# Embed `ui/` into the release binary (debug builds read it from disk).
+embed-ui = ["dep:rust-embed"]
+# On-device embeddings (fastembed / onnx runtime) through anamnesis-embed.
+local-embed = ["anamnesis-embed/local"]
+
 [dependencies]
 anamnesis-core.workspace = true
+anamnesis-connectors.workspace = true
+anamnesis-embed = { path = "../anamnesis-embed", default-features = false }
+anamnesis-mind.workspace = true
+anamnesis-eval.workspace = true
+anamnesis-mcp.workspace = true
+anamnesis-harness.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+async-trait.workspace = true
+sha2.workspace = true
+hex.workspace = true
+
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json", "query", "matched-path", "original-uri"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["fs"] }
+tokio-util = "0.7"
+tokio-stream = "0.1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+clap = { version = "4", features = ["derive", "env"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+dirs = "6"
+getrandom = "0.3"
+mime_guess = "2"
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
+rust-embed = { version = "8", optional = true, features = ["include-exclude"] }
+
+[dev-dependencies]
+tempfile = "3"
+http-body-util = "0.1"
+tower = { version = "0.5", features = ["util"] }
