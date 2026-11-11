@@ -8,7 +8,7 @@ const STEPS = [
   { sel: '.legend', title: 'function (anatomy)', text: 'the regions, named in the manner of anatomy. the names are ornament: nearness is the meaning. click one to light it.' },
   { sel: '.panel-view', title: 'view', text: 'morph from anatomy to layout, group by what things are, split them apart, hide what you do not want to see.', panel: 'view' },
   { sel: '.timebar', title: 'time', text: 'drag back to see the brain as it was. grow replays it: regions are born, split and merge as they did.' },
-  { sel: '#dock-bottom', title: 'when you wrote', text: 'activity by area, decisions and questions over time, the days you wrote. select any mark to light its notes.', panel: 'when' },
+  { sel: '.panel-when', title: 'when you wrote', text: 'activity by area, decisions and questions over time, the days you wrote. select any mark to light its notes.', panel: 'when' },
   { sel: '.panel-chat', title: 'chat', text: 'ask with the model you chose. the dots it cites light up, so you can check every claim.', panel: 'chat' },
   { sel: '.panel-eval', title: 'evaluation', text: 'how well anamnesis is doing, measured on your own use. each number says whether it is measured, modelled or a hypothesis.', panel: 'eval' },
 ];

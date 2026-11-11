@@ -235,7 +235,7 @@ async function handle(method, url, body) {
   if (p === '/api/skills') return json(await load('skills.json'));
   if (p === '/api/backends') return json(await load('backends.json'));
   if (p === '/api/sources') return json({ sources: SOURCES.map((x) => ({ ...x, config: {}, default_origin: 'owner_written', default_privacy: 'cloud_ok', cursor: null, created_at: iso(c.t[0]) })) });
-  if (p === '/api/settings') return json(method === 'GET' ? { motion: null, theme: 'eye-closed' } : body);
+  if (p === '/api/settings') { if (method !== 'GET') s.settings = { ...(s.settings || {}), ...body }; return json(s.settings || {}); }
   if (p === '/api/egress') return json({ entries: [] });
   if (p === '/api/chat' && method === 'POST') {
     s.chats++;

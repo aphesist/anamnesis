@@ -4,6 +4,7 @@ import { icon } from '../lib/icons.js';
 import { store, on, BIT, LIT, setBit, indicesWith } from '../lib/store.js';
 import { theme, rgba } from '../lib/tokens.js';
 import { api } from '../lib/api.js';
+import { shortId } from '../lib/layout.js';
 
 const QUESTION = /\?\s*$|^(what|why|how|when|where|who|which|is|are|do|does|did|can|could|should|would|will|tell|summari[sz]e|explain|find me)\b/i;
 
@@ -11,10 +12,11 @@ export default {
   id: 'sidebar',
   title: 'sidebar',
   mount(el, ctx) {
-    const mark = h('span.mark');
+    // the theme's mark, drawn as a mask in --seal (.anm-mark from ui/theme/theme.css)
+    const mark = h('span.mark.anm-mark', { 'aria-hidden': 'true' });
     const markUrl = getComputedStyle(document.documentElement).getPropertyValue('--mark').trim();
     if (!markUrl || markUrl === 'none') mark.classList.add('fallback');
-    const word = h('div.wordmark', mark, h('span', 'anamnesis'));
+    const word = h('div.wordmark', mark, h('span.anm-display', 'anamnesis'));
 
     // ---------- ask or search ----------
     const input = h('input', { type: 'search', placeholder: 'ask or search', 'aria-label': 'ask or search', autocomplete: 'off', role: 'combobox', 'aria-expanded': 'false', 'aria-controls': 'ask-results', 'aria-autocomplete': 'list' });
@@ -133,13 +135,9 @@ export default {
         item('evaluation', () => ctx.layout.open('eval')),
         h('h4', 'layout'));
       for (const p of ctx.layout.config.panels) {
-        if (p.id === 'sidebar') continue;
-        const title = ctx.layout.registry[p.id]?.title || p.id;
-        const hidden = p.area === 'hidden' || (p.area === 'overlay' && p.open === false);
-        m.append(item(`${hidden ? 'show' : 'hide'} ${title}`, () => {
-          if (p.area === 'overlay') ctx.layout.toggle(p.id, hidden);
-          else if (hidden) ctx.layout.show(p.id); else ctx.layout.hide(p.id);
-        }));
+        if (shortId(p.id) === 'sidebar' || !ctx.layout.registry[shortId(p.id)]) continue;
+        const hidden = p.visible === false || (ctx.layout.place(p).startsWith('slot') && p.open === false);
+        m.append(item(`${hidden ? 'show' : 'hide'} ${ctx.layout.title(p)}`, () => ctx.layout.setVisible(p.id, hidden)));
       }
       m.append(item('reset layout', () => ctx.layout.reset()), h('h4', 'data'), h('a', { href: (new URLSearchParams(location.search).get('api') || '') + '/api/export', role: 'menuitem', download: 'anamnesis-export.jsonl' }, 'export everything'));
     }));

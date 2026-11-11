@@ -15,6 +15,7 @@ const ymOf = (sec) => new Date(sec * 1000).toISOString().slice(0, 7);
 export default {
   id: 'when',
   title: 'when you wrote',
+  tab: 'when',
   mount(el, ctx) {
     let tl = null, threads = [], monthIdx = null, sel = null;
     const mkChart = (title, cls = '') => {

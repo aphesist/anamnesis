@@ -5,9 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>anamnesis</title>
   <meta name="color-scheme" content="dark light">
-  <link rel="stylesheet" href="./fallback-tokens.css">
-  <!-- the theming package (ui/theme) overrides the fallback tokens; missing is fine -->
-  <link rel="stylesheet" href="../theme/theme.css" onerror="this.remove()">
+  <!-- no-theme fallback only: disabled once ui/theme has loaded -->
+  <link id="fallback-tokens" rel="stylesheet" href="./fallback-tokens.css">
+  <!-- the theming package: theme.js swaps this link's href when the theme changes -->
+  <link id="anamnesis-theme-css" rel="stylesheet" href="../theme/dist/aphesis.css">
+  <link rel="stylesheet" href="../theme/theme.css">
   <link rel="stylesheet" href="./app.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='3' fill='%23cfe0f2'/%3E%3C/svg%3E">
 </head>
@@ -31,6 +33,7 @@
           <div id="caption" class="caption" aria-live="polite"></div>
           <section id="brain-list" class="brain-list" aria-label="the brain as a list" tabindex="-1"></section>
         </section>
+        <div id="float" class="float no-orbit" hidden></div>
         <section id="page-notes" class="page page-notes" aria-label="notes" hidden></section>
         <section id="page-write" class="page page-write" aria-label="write" hidden></section>
         <section id="page-today" class="page page-today" aria-label="today" hidden></section>

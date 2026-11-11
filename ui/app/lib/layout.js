@@ -1,98 +1,130 @@
-// Builds the docks from a layout config (see layout-default.js for the shape).
-// Users can move a panel between docks or hide it; the result is saved in
-// localStorage and exposed as window.anamnesis.layout for the settings ui.
+// Builds the panels from the layout config owned by the theming package
+// (ui/theme/layout.js, schema in ui/theme/layouts/layout.schema.json):
+//   { panels: [{ id, label, region: left|right|bottom|overlay, order, open, visible, anchor?, size? }] }
+// and rebuilds on `anamnesis:layoutchange`. Without the theme package it falls
+// back to the embedded default in ../layout-default.js (same schema).
+//
+// Where things go:
+//   left                       -> the sidebar column (only the nav lives there)
+//   right                      -> the tabbed right dock (one open at a time)
+//   bottom                     -> the time scrubber sits on the stage; anything else in the bottom dock
+//   overlay, anchor bottom-left-> the corner slot on the brain (the legend)
+//   overlay, other anchors     -> a floating sheet over the stage (right / left / center), one at a time
+// Floating panels also get a tab in the right dock so they can be found.
 import { DEFAULT_LAYOUT } from '../layout-default.js';
 import { h, clear } from './dom.js';
 import { emit } from './store.js';
 
-const KEY = 'anamnesis.layout.v1';
-const AREAS = ['right', 'bottom', 'hidden'];
+// theme panel ids -> the app's short ids (css classes, registry keys)
+const ALIAS = { 'sidebar-left': 'sidebar', 'view-right': 'view', 'legend-bottom-left': 'legend', 'when-you-wrote': 'when', 'timeline-bottom': 'time' };
+const FULL = Object.fromEntries(Object.entries(ALIAS).map(([a, b]) => [b, a]));
+export const shortId = (id) => ALIAS[id] || id;
+export const fullId = (id) => FULL[id] || id;
+const FALLBACK_KEY = 'anamnesis.layout';
 
+let themeLayout = null; // the theming package's layout module, when present
 export async function loadLayout() {
-  let base = DEFAULT_LAYOUT;
-  try {
-    const r = await fetch(new URL('../../theme/layouts/default.json', import.meta.url));
-    if (r.ok) { const j = await r.json(); if (j && Array.isArray(j.panels)) base = j; }
-  } catch { /* the theme package may not be there yet */ }
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { saved = null; }
-  const merged = structuredClone(base);
-  if (saved && Array.isArray(saved.panels)) {
-    for (const sp of saved.panels) {
-      const p = merged.panels.find((x) => x.id === sp.id);
-      if (p) Object.assign(p, sp);
-    }
+  try { themeLayout = await import('../../theme/layout.js'); } catch { themeLayout = null; }
+  if (themeLayout) {
+    try { return await themeLayout.getLayout(); } catch { /* fall through */ }
   }
-  // any known panel missing from a theme's layout still exists, hidden
-  for (const dp of DEFAULT_LAYOUT.panels) if (!merged.panels.find((p) => p.id === dp.id)) merged.panels.push({ ...dp, area: 'hidden', open: false });
-  return merged;
+  try { const s = JSON.parse(localStorage.getItem(FALLBACK_KEY) || 'null'); if (s && Array.isArray(s.panels)) return s; } catch { /* */ }
+  return structuredClone(DEFAULT_LAYOUT);
 }
 
 export class Layout {
   constructor(config, registry, ctx) {
     this.config = config;
-    this.registry = registry;   // id -> { title, mount(el, ctx), badge?() }
+    this.registry = registry; // short id -> { title, tab?, mount(el, ctx), shown?, badge? }
     this.ctx = ctx;
-    this.mounted = new Map();   // id -> element
-    this.docks = {
-      left: document.getElementById('dock-left'),
-      right: document.getElementById('dock-right'),
-      bottom: document.getElementById('dock-bottom'),
-    };
+    this.mounted = new Map();
+    this.docks = { left: document.getElementById('dock-left'), right: document.getElementById('dock-right'), bottom: document.getElementById('dock-bottom') };
     this.slots = { 'bottom-left': document.getElementById('slot-bottom-left'), bottom: document.getElementById('slot-bottom') };
+    this.float = document.getElementById('float');
+    if (themeLayout) themeLayout.onLayoutChange((l) => { this.config = l; this.render(); });
   }
-  save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ panels: this.config.panels.map(({ id, area, order, open, slot }) => ({ id, area, order, open, slot })) })); } catch { /* private mode */ }
-  }
-  panel(id) { return this.config.panels.find((p) => p.id === id); }
-  inArea(area) { return this.config.panels.filter((p) => p.area === area && this.registry[p.id]).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)); }
 
-  // Mount once, then move the element around: panels keep their state.
+  // ---------- model ----------
+  panel(id) { return this.config.panels.find((p) => shortId(p.id) === shortId(id)); }
+  ensure(id) {
+    let p = this.panel(id);
+    if (!p) { p = { id: fullId(id), label: this.registry[shortId(id)]?.title || id, region: 'right', order: 99, open: false, visible: true }; this.config.panels.push(p); }
+    return p;
+  }
+  place(p) {
+    const s = shortId(p.id);
+    if (!this.registry[s] || p.visible === false) return 'hidden';
+    if (s === 'sidebar') return 'left';
+    if (s === 'time' && (p.region === 'bottom' || p.region === 'overlay')) return 'slot-bottom';
+    if (p.region === 'overlay') return p.anchor === 'bottom-left' || p.anchor === 'bottom-right' ? 'slot-bottom-left' : 'float';
+    if (p.region === 'bottom') return 'bottom';
+    return 'right'; // right, and left for anything but the nav
+  }
+  inPlace(place) { return this.config.panels.filter((p) => this.place(p) === place).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)); }
+  commit() {
+    if (themeLayout) { themeLayout.saveLayout(this.config, 'app'); return; } // the change event re-renders
+    try { localStorage.setItem(FALLBACK_KEY, JSON.stringify(this.config)); } catch { /* */ }
+    this.render();
+  }
+
   el(id) {
-    if (!this.mounted.has(id)) {
-      const def = this.registry[id];
+    const s = shortId(id);
+    if (!this.mounted.has(s)) {
       const body = h('div.panel-body');
-      const wrap = h(`div.panel.panel-${id}`, { 'data-panel': id }, body);
-      this.mounted.set(id, wrap);
-      def.mount(body, this.ctx);
+      const wrap = h(`div.panel.panel-${s}`, { 'data-panel': s }, body);
+      this.mounted.set(s, wrap);
+      this.registry[s].mount(body, this.ctx);
     }
-    return this.mounted.get(id);
+    return this.mounted.get(s);
   }
+  title(p) { const d = this.registry[shortId(p.id)]; return d?.title || p.label || p.id; }
+  tabText(p) { const d = this.registry[shortId(p.id)]; return d?.tab || p.label || d?.title || p.id; }
 
+  // ---------- render ----------
   render() {
-    // left: the sidebar (and anything else placed there) stacked
     const left = this.docks.left;
-    for (const p of this.inArea('left')) if (!left.contains(this.el(p.id))) left.append(this.el(p.id));
-    // overlays
-    for (const p of this.config.panels.filter((x) => x.area === 'overlay' && this.registry[x.id])) {
-      const slot = this.slots[p.slot] || this.slots.bottom;
-      const el = this.el(p.id);
-      if (el.parentElement !== slot) slot.append(el);
-      el.hidden = p.open === false;
+    for (const p of this.inPlace('left')) if (!left.contains(this.el(p.id))) left.append(this.el(p.id));
+    for (const [place, slot] of [['slot-bottom-left', this.slots['bottom-left']], ['slot-bottom', this.slots.bottom]]) {
+      for (const p of this.config.panels.filter((x) => this.place(x) === place)) {
+        const el = this.el(p.id);
+        if (el.parentElement !== slot) slot.append(el);
+        el.hidden = p.open === false;
+      }
     }
     this.renderDock('right');
     this.renderDock('bottom');
-    for (const p of this.config.panels) if (p.area === 'hidden' && this.mounted.has(p.id)) this.mounted.get(p.id).remove();
+    this.renderFloat();
+    for (const p of this.config.panels) if (this.place(p) === 'hidden' && this.mounted.has(shortId(p.id))) this.mounted.get(shortId(p.id)).remove();
     emit('layout', this.config);
+  }
+
+  head(p, place) {
+    const moveLabel = place === 'right' ? 'move down' : place === 'bottom' ? 'float' : 'dock right';
+    return h('div.panel-head',
+      h('h2', this.title(p)),
+      h('div.panel-tools',
+        h('button', { type: 'button', title: 'move this panel', onclick: () => this.move(p.id) }, moveLabel),
+        h('button', { type: 'button', title: place === 'float' ? 'close' : 'hide this panel (restore from more)', onclick: () => (place === 'float' ? this.toggle(p.id, false) : this.hide(p.id)) }, place === 'float' ? 'close' : 'hide')));
   }
 
   renderDock(area) {
     const dock = this.docks[area];
-    const panels = this.inArea(area);
+    const panels = this.inPlace(area);
+    const floats = area === 'right' ? this.inPlace('float') : [];
     clear(dock);
-    dock.hidden = panels.length === 0;
-    if (!panels.length) return;
-    let open = panels.find((p) => p.open);
-    const tabs = h('div.dock-tabs', { role: 'tablist', 'aria-label': area === 'right' ? 'panels' : 'time panels' });
+    dock.hidden = panels.length + floats.length === 0;
+    if (dock.hidden) return;
+    const open = panels.find((p) => p.open);
+    const tabs = h('div.dock-tabs', { role: 'tablist', 'aria-label': area === 'right' ? 'panels' : 'lower panels' });
     const body = h('div.dock-body');
-    for (const p of panels) {
-      const def = this.registry[p.id];
-      const tab = h('button', {
-        type: 'button', role: 'tab', id: `tab-${p.id}`, 'aria-selected': String(p === open), 'aria-controls': `tabpanel-${p.id}`,
-        tabindex: p === open || (!open && p === panels[0]) ? '0' : '-1',
-        onclick: () => this.toggle(p.id),
-      }, def.tab || def.title);
-      const b = def.badge && def.badge();
+    for (const p of [...panels, ...floats]) {
+      const isFloat = floats.includes(p);
+      const sel = isFloat ? !!p.open : p === open;
+      const tab = h('button' + (isFloat ? '.floating' : ''), {
+        type: 'button', role: 'tab', id: `tab-${shortId(p.id)}`, 'aria-selected': String(sel), 'aria-controls': `tabpanel-${shortId(p.id)}`,
+        tabindex: sel || (!open && p === panels[0]) ? '0' : '-1', onclick: () => this.toggle(p.id),
+      }, this.tabText(p));
+      const b = this.registry[shortId(p.id)].badge?.();
       if (b) tab.append(h('span.badge', String(b)));
       tabs.append(tab);
     }
@@ -100,54 +132,62 @@ export class Layout {
       const list = [...tabs.querySelectorAll('[role=tab]')];
       const k = list.indexOf(document.activeElement);
       if (k < 0) return;
-      let n = -1;
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') n = (k + 1) % list.length;
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') n = (k - 1 + list.length) % list.length;
+      const n = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? (k + 1) % list.length : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? (k - 1 + list.length) % list.length : -1;
       if (n >= 0) { e.preventDefault(); list[n].focus(); }
     });
     dock.append(tabs, body);
     if (open) {
-      const def = this.registry[open.id];
-      const el = this.el(open.id);
-      const head = h('div.panel-head',
-        h('h2', def.title),
-        h('div.panel-tools',
-          h('button', { type: 'button', title: 'move this panel', onclick: () => this.move(open.id) }, area === 'right' ? 'move down' : 'move right'),
-          h('button', { type: 'button', title: 'hide this panel (restore from more)', onclick: () => this.hide(open.id) }, 'hide')));
-      const tp = h('div', { role: 'tabpanel', id: `tabpanel-${open.id}`, 'aria-labelledby': `tab-${open.id}` }, head, el);
-      body.append(tp);
-      this.registry[open.id].shown?.(this.ctx);
+      body.append(h('div', { role: 'tabpanel', id: `tabpanel-${shortId(open.id)}`, 'aria-labelledby': `tab-${shortId(open.id)}` }, this.head(open, area), this.el(open.id)));
+      this.registry[shortId(open.id)].shown?.(this.ctx);
     }
     dock.classList.toggle('open', !!open);
     dock.classList.toggle('collapsed', !open && area === 'right');
+    if (area === 'right') dock.style.width = open && !dock.classList.contains('collapsed') ? Math.max(300, Math.min(560, open.size || 340)) + 'px' : '';
   }
 
+  renderFloat() {
+    const f = this.float;
+    const open = this.inPlace('float').find((p) => p.open);
+    clear(f);
+    f.hidden = !open;
+    if (!open) return;
+    f.dataset.anchor = open.anchor || 'right';
+    f.style.setProperty('--float-size', (open.size || (open.anchor === 'center' ? 680 : 420)) + 'px');
+    f.append(h('div', { role: 'dialog', 'aria-modal': 'false', 'aria-label': this.title(open), id: `tabpanel-${shortId(open.id)}` }, this.head(open, 'float'), this.el(open.id)));
+    this.registry[shortId(open.id)].shown?.(this.ctx);
+  }
+
+  // ---------- actions ----------
   toggle(id, force) {
-    const p = this.panel(id);
-    if (!p) return;
-    if (p.area === 'hidden') { p.area = 'right'; }
+    const p = this.ensure(id);
+    if (p.visible === false) p.visible = true;
+    const place = this.place(p);
     const want = force ?? !p.open;
-    if (p.area === 'overlay') { p.open = want; this.save(); this.render(); return; }
-    const tabFocused = document.activeElement?.getAttribute('role') === 'tab';
-    for (const q of this.inArea(p.area)) q.open = false;
+    if (place === 'right' || place === 'bottom' || place === 'float') for (const q of this.inPlace(place)) q.open = false;
     p.open = want;
-    this.save();
-    this.render();
-    // re-rendering the tabs drops focus; give it back to keyboard users
-    if (tabFocused) document.getElementById(`tab-${id}`)?.focus({ preventScroll: true });
+    const tabFocused = document.activeElement?.getAttribute('role') === 'tab';
+    this.commit();
+    if (!themeLayout) { /* rendered synchronously in commit */ }
+    if (tabFocused) requestAnimationFrame(() => document.getElementById(`tab-${shortId(id)}`)?.focus({ preventScroll: true }));
   }
   open(id) { this.toggle(id, true); }
   move(id) {
-    const p = this.panel(id);
-    const next = p.area === 'right' ? 'bottom' : 'right';
-    for (const q of this.inArea(next)) q.open = false;
-    p.area = next; p.open = true;
-    this.save(); this.render();
+    const p = this.ensure(id);
+    const place = this.place(p);
+    if (place === 'right') p.region = 'bottom';
+    else if (place === 'bottom') { p.region = 'overlay'; p.anchor = p.anchor && p.anchor !== 'bottom-left' ? p.anchor : 'center'; }
+    else p.region = 'right';
+    for (const q of this.inPlace(this.place(p))) q.open = false;
+    p.open = true;
+    this.commit();
   }
-  hide(id) { const p = this.panel(id); p.area = 'hidden'; p.open = false; this.save(); this.render(); this.ctx.toast(`${this.registry[id].title} hidden. bring it back from more → layout.`); }
-  show(id, area = 'right') { const p = this.panel(id); if (p.area === 'hidden') p.area = area; this.toggle(id, true); }
-  reset() { try { localStorage.removeItem(KEY); } catch { /* */ } this.config = structuredClone(DEFAULT_LAYOUT); this.render(); }
-  set(config) { if (config && Array.isArray(config.panels)) { this.config = config; this.save(); this.render(); } }
+  hide(id) { const p = this.ensure(id); p.visible = false; p.open = false; this.commit(); this.ctx.toast(`${this.title(p)} hidden. bring it back from more → layout.`); }
+  setVisible(id, v) { const p = this.ensure(id); p.visible = v; if (v && this.place(p) !== 'slot-bottom-left' && this.place(p) !== 'slot-bottom') { for (const q of this.inPlace(this.place(p))) q.open = false; } p.open = v; this.commit(); }
+  async reset() {
+    if (themeLayout) { await themeLayout.resetLayout('default'); return; }
+    try { localStorage.removeItem(FALLBACK_KEY); } catch { /* */ }
+    this.config = structuredClone(DEFAULT_LAYOUT); this.render();
+  }
+  set(config) { if (config && Array.isArray(config.panels)) { this.config = config; this.commit(); } }
   get() { return structuredClone(this.config); }
 }
-export { AREAS };

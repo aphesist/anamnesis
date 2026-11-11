@@ -6,7 +6,7 @@
   --ink: oklch(0.93 0.012 245);
   --ink-soft: oklch(0.66 0.02 245);
   --line: oklch(0.93 0.012 245 / 0.16);
-  --fog: oklch(0.19 0.016 250);
+  --fog: oklch(0.92 0.006 245);
   --accent: oklch(0.84 0.07 228);
   --accent-text: oklch(0.88 0.06 228);
   --seal: oklch(0.56 0.17 27);
@@ -29,14 +29,14 @@
   --motion: 1;
 
   --space-1: 4px;
-  --space-2: 4px;
-  --space-3: 8px;
-  --space-4: 12px;
-  --space-5: 20px;
-  --space-6: 32px;
-  --space-7: 52px;
-  --space-8: 84px;
-  --space-9: 136px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 20px;
+  --space-5: 32px;
+  --space-6: 52px;
+  --space-7: 84px;
+  --space-8: 136px;
+  --space-9: 220px;
 
   --mark: none;
   --wordmark: none;

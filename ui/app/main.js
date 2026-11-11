@@ -1,7 +1,7 @@
 // anamnesis ui entry point. No build step: plain es modules.
 import { store, setCloud, defaultView, setView, on, emit, setBit, clearBit, clearLit, BIT, LIT, applyFilters, regionOf, titleOf, kindOf, SPEAKERS, indicesWith } from './lib/store.js';
 import { api } from './lib/api.js';
-import { theme, onTheme, refreshTheme } from './lib/tokens.js';
+import { theme, onTheme, refreshTheme, useThemeApi } from './lib/tokens.js';
 import { h, clear, fmtDate } from './lib/dom.js';
 import { loadLayout, Layout } from './lib/layout.js';
 
@@ -10,8 +10,20 @@ if (params.get('mock') === '1') {
   const { installMock } = await import('./mock/mock.js');
   installMock();
 }
-// The theming package's runtime (fonts, settings, first-launch); optional.
-try { await import('../theme/theme.js'); } catch { /* not installed yet */ }
+// The theming package's runtime (tokens, fonts, cursor, first-launch, settings).
+// Optional: without it the app runs on fallback-tokens.css.
+let themeApi = null;
+try {
+  themeApi = await import('../theme/theme.js');
+  await themeApi.init();
+  const fb = document.getElementById('fallback-tokens');
+  if (fb) fb.disabled = true;
+  useThemeApi(themeApi);
+  try { (await import('../theme/cursor.js')).startCursor(); } catch (e) { console.warn('cursor', e); }
+} catch (e) {
+  console.warn('ui/theme not loaded, using fallback tokens', e);
+  themeApi = null;
+}
 refreshTheme();
 
 const { Brain } = await import('./brain/index.js');
@@ -86,7 +98,7 @@ const ctx = {
   get layout() { return layout; },
   altView(mode) { setView({ mode }); },
 };
-window.anamnesis = { ctx, store, brain };
+window.anamnesis = { ctx, store, brain, theme: themeApi };
 
 // ---------- pages ----------
 const pageMounted = new Set();
@@ -195,5 +207,28 @@ try {
 }
 showPage((location.hash.match(/^#\/(\w+)/) || [])[1] || 'brain');
 renderAlt();
+
+// settings (owned by ui/theme): a sheet over the stage
+let settingsSheet = null;
+async function openSettings() {
+  if (!themeApi) { ctx.toast('settings come with the theme package, which is not installed.'); return; }
+  if (settingsSheet) { settingsSheet.hidden = false; settingsSheet.focus({ preventScroll: true }); return; }
+  const { mountSettings } = await import('../theme/settings.js');
+  const body = h('div.sheet-body');
+  const close = h('button.textbtn.sheet-close', { type: 'button', onclick: () => { settingsSheet.hidden = true; } }, 'close');
+  settingsSheet = h('aside.sheet.no-orbit', { role: 'dialog', 'aria-modal': 'false', 'aria-label': 'settings', tabindex: '-1' },
+    h('div.panel-head', h('h2', 'settings'), h('div.panel-tools', close)), body);
+  settingsSheet.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); settingsSheet.hidden = true; } });
+  document.getElementById('main').append(settingsSheet);
+  await mountSettings(body, { onLayoutChange: (l) => { if (l && l.panels) { layout.config = l; layout.render(); } } });
+  settingsSheet.focus({ preventScroll: true });
+}
+window.addEventListener('anamnesis:opensettings', openSettings);
+ctx.openSettings = openSettings;
+
+// first launch: ask once whether to keep the motion (the theme sets --motion / data-motion)
+if (themeApi && !params.has('nomotionask')) {
+  import('../theme/motion.js').then((m) => m.askMotionOnce()).then(() => refreshTheme()).catch((e) => console.warn('motion dialog', e));
+}
 document.documentElement.classList.toggle('reduced', theme().motion === 0);
 document.body.dataset.ready = '1';
