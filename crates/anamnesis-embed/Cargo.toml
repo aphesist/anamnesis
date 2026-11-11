@@ -1,9 +1,25 @@
 [package]
 name = "anamnesis-embed"
+description = "anamnesis: embedding backends (local onnx, ollama, openai-compatible, hashing)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+default = ["local"]
+# On-device ONNX inference through fastembed. ONNX Runtime binaries are fetched
+# by `ort` at build time; model weights are downloaded on first use into the
+# configured cache directory.
+local = ["dep:fastembed"]
+
 [dependencies]
-anamnesis-core.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+dirs = "6"
+ureq = { version = "3.5", default-features = false, features = ["rustls", "platform-verifier", "json", "gzip"] }
+fastembed = { version = "7.7", default-features = false, features = ["ort-download-binaries-native-tls", "hf-hub-native-tls"], optional = true }
+
+[dev-dependencies]
