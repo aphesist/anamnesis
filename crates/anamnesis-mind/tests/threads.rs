@@ -1,6 +1,7 @@
 use anamnesis_core::{Id, ThreadKind, ThreadStatus};
 use anamnesis_mind::threads::{
-    extract_rules, extraction_prompt, find_verbatim, validate_extraction, validate_extraction_str,
+    RULE_EXTRACTOR, extract_rules, extraction_prompt, find_verbatim, is_rule_extractor,
+    validate_extraction, validate_extraction_str,
 };
 use chrono::Utc;
 
@@ -14,7 +15,7 @@ fn kinds(text: &str) -> Vec<(ThreadKind, ThreadStatus, String)> {
 #[test]
 fn english_rules() {
     let text = "Long day. I decided to move the archive to sqlite. I won't add social login.\n\
-                How should the review queue weigh old notes?\n\
+                How should I weigh old notes in the review queue?\n\
                 - [ ] write the readme\n- [x] fix the importer\n\
                 I'll sketch the timeline tomorrow. The weather was fine.\n\
                 ```\nlet q = a?b;\nI decided nothing here\n```\n";
@@ -35,7 +36,7 @@ fn english_rules() {
     assert!(k.contains(&(
         ThreadKind::OpenQuestion,
         ThreadStatus::Open,
-        "How should the review queue weigh old notes?".into()
+        "How should I weigh old notes in the review queue?".into()
     )));
     assert!(k.contains(&(
         ThreadKind::Plan,
@@ -161,4 +162,161 @@ fn model_answers_are_validated() {
     );
     let p = extraction_prompt("t", "texto");
     assert!(p.user.contains("texto") && p.schema["properties"]["items"].is_object());
+}
+
+fn found(text: &str) -> Vec<(ThreadKind, String)> {
+    extract_rules(&Id("i".into()), text, Utc::now())
+        .into_iter()
+        .map(|t| (t.kind, t.quote))
+        .collect()
+}
+
+fn assert_kind(text: &str, kind: ThreadKind) {
+    let f = found(text);
+    assert!(
+        f.iter()
+            .any(|(k, q)| *k == kind && text.contains(q.as_str())),
+        "expected {kind:?} in {text:?}, got {f:?}"
+    );
+}
+
+fn assert_none(text: &str) {
+    let f = found(text);
+    assert!(f.is_empty(), "expected nothing in {text:?}, got {f:?}");
+}
+
+#[test]
+fn open_questions_need_first_person_deliberation_or_a_marker() {
+    // true positives, english
+    for t in [
+        "Should I move the archive to sqlite before the trip?",
+        "I wonder whether the review queue needs a random arm.",
+        "How do I keep the drafts from piling up?",
+        "What if I wrote one page a day instead?",
+        "Question: does spaced repetition help with essays",
+        "Q: is the latent share stable across months",
+        "- [ ] is the importer fast enough?",
+        "I haven't decided between the two editions.",
+        "## Open questions\n\n- can the layout stay stable when regions merge?\n- is a week enough data?",
+        "## open questions\nhow stable is the clustering?",
+    ] {
+        assert_kind(t, ThreadKind::OpenQuestion);
+    }
+    // true positives, portuguese
+    for t in [
+        "Será que vale a pena reler o Mênon agora?",
+        "Não sei se mantenho o capítulo dois.",
+        "Devo publicar o ensaio antes de março?",
+        "Preciso decidir entre as duas editoras.",
+        "Pergunta: a memória é reconhecimento",
+        "## Perguntas\n\n- a revisão diária funciona?",
+        "Me pergunto se o modo offline basta.",
+    ] {
+        assert_kind(t, ThreadKind::OpenQuestion);
+    }
+}
+
+#[test]
+fn rhetorical_and_quoted_questions_are_not_threads() {
+    for t in [
+        // a bare question mark, no first person
+        "What is the use of a house if you haven't got a tolerable planet to put it on?",
+        "How many a man has dated a new era in his life from the reading of a book?",
+        // addressed to the reader
+        "Should you not rather go to the woods?",
+        "Why should we be in such desperate haste to succeed?",
+        // negative, rhetorical
+        "Shall I not have intelligence with the earth?",
+        "Am I not partly leaves and vegetable mould myself?",
+        // inside quotation marks or a block quote
+        "He asked me, \"Should I sell the farm?\" and I said nothing.",
+        "\"Should I go on?\" she said.",
+        "> Should I stay or should I go?",
+        // a paragraph dense with questions is rhetoric
+        "What is nature? What is a man? Should I ask what a river is? Who knows?",
+        // portuguese
+        "O que é a memória senão reconhecimento?",
+        "Você não acha que devo parar?",
+        "Não é verdade que a vida é curta?",
+        "Ele perguntou: \"Devo ficar?\"",
+        // too short
+        "ok?",
+    ] {
+        assert_none(t);
+    }
+}
+
+#[test]
+fn decisions_rejections_and_plans_need_a_first_person_commitment() {
+    for (t, k) in [
+        (
+            "I decided to keep the journal in plain text.",
+            ThreadKind::Decision,
+        ),
+        ("We settled on a weekly review.", ThreadKind::Decision),
+        (
+            "Decision: the demo ships without login.",
+            ThreadKind::Decision,
+        ),
+        ("Optei pelo modelo local.", ThreadKind::Decision),
+        ("Resolvi publicar só em abril.", ThreadKind::Decision),
+        (
+            "I decided not to publish the second volume.",
+            ThreadKind::Rejection,
+        ),
+        (
+            "I'm not going to rewrite the importer.",
+            ThreadKind::Rejection,
+        ),
+        (
+            "Desisti de traduzir o livro inteiro.",
+            ThreadKind::Rejection,
+        ),
+        (
+            "Não vou fazer login social por enquanto.",
+            ThreadKind::Rejection,
+        ),
+        ("I'll call the printer tomorrow.", ThreadKind::Plan),
+        (
+            "I plan to walk to the cliffs every morning.",
+            ThreadKind::Plan,
+        ),
+        ("TODO: back up the vault", ThreadKind::Plan),
+        ("Vou reler o capítulo amanhã.", ThreadKind::Plan),
+        ("Pretendo terminar o rascunho em maio.", ThreadKind::Plan),
+    ] {
+        assert_kind(t, k);
+    }
+    for t in [
+        // third person, or no commitment
+        "He decided to go to Europe.",
+        "The town decided to build a new road.",
+        "The decision is not mine to make.",
+        "I will tell you what I think of the railroad.",
+        "I should like to keep some book of natural history.",
+        "We need to be awake to the morning.",
+        "I want to live deliberately.",
+        "Vou te contar uma coisa.",
+        "Eu não vou dizer que foi fácil, mas foi bom.",
+        // "resolvi" as "i solved"
+        "Resolvi o problema da importação.",
+        // conditional
+        "If I decided to stay, the house would be enough.",
+        // quoted
+        "\"I decided to leave,\" he said.",
+        // "todo dia" is "every day"
+        "Todo dia a mesma coisa.",
+    ] {
+        assert_none(t);
+    }
+}
+
+#[test]
+fn rule_threads_carry_the_extractor_version() {
+    let t = extract_rules(&Id("i".into()), "I decided to stay.", Utc::now());
+    assert_eq!(t.len(), 1);
+    assert_eq!(t[0].extractor, RULE_EXTRACTOR);
+    assert!(is_rule_extractor(RULE_EXTRACTOR));
+    assert!(is_rule_extractor("rule"));
+    assert!(!is_rule_extractor("local:qwen3"));
 }

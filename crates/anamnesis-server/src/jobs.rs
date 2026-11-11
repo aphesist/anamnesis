@@ -16,6 +16,7 @@ use anamnesis_harness::{CallContext, ChatEvent, ChatRequest, Message, Task};
 use anamnesis_mind::layout::views;
 use anamnesis_mind::regions::apply_labels;
 use anamnesis_mind::resurface::{ReviewInfo, ReviewParams, Scheduler, SrsCard};
+use anamnesis_mind::threads::{RULE_EXTRACTOR, is_rule_extractor};
 use anamnesis_mind::{
     ItemMeta, LinkParams, LinkSuggester, MindParams, MindState, daily_review, extract_rules,
     full_run, place_new, split_for_holdout,
@@ -598,38 +599,102 @@ pub async fn run_suggestions(app: &Arc<App>, brain: &Arc<Brain>) -> Result<usize
 // ---------------------------------------------------------------------------------------
 // threads
 
+/// Setting that records which rule extractor produced the stored rule threads. When it
+/// differs from [`RULE_EXTRACTOR`], every item is re-extracted once (`rethread`).
+const RULE_VERSION_SETTING: &str = "threads_rule_extractor";
+
+/// Is an item's text the owner's own? Its origin must be an owner origin, and a
+/// frontmatter that declares another origin (`origin: external`) wins: an essay or an
+/// article imported from a folder holds someone else's questions and decisions.
+fn owner_text(it: &Item) -> bool {
+    if it.deleted || !it.origin.is_owner() {
+        return false;
+    }
+    let declared = it
+        .meta
+        .get("frontmatter")
+        .and_then(|f| f.get("origin"))
+        .and_then(|o| serde_json::from_value::<anamnesis_core::Origin>(o.clone()).ok());
+    declared.is_none_or(|o| o.is_owner())
+}
+
+/// A thread nobody has touched since it was extracted (no status change, no link).
+fn untouched(t: &anamnesis_core::Thread) -> bool {
+    t.updated_at == t.created_at && t.resolved_by.is_none()
+}
+
 /// Rule-based threads for items created or changed since the last pass (owner-written
 /// text only: decisions and questions are the user's, not an article's).
+///
+/// Re-extracting an item replaces its earlier rule threads: one the rules still find is
+/// kept (with its id and status; its `extractor` is brought up to date), one they no longer
+/// find is withdrawn (`ThreadRemoved`) unless the user has touched it. When the extractor
+/// version changed since the last pass, every item is re-extracted once.
+/// Returns the number of threads added.
 pub async fn run_threads(brain: &Arc<Brain>) -> Result<usize> {
     let seen = brain.job_state().threads_hash;
-    let (n, processed) = brain
+    let (n, removed, rethread, processed) = brain
         .db(move |s| {
+            let stored = s
+                .get_setting(RULE_VERSION_SETTING)?
+                .and_then(|v| v.as_str().map(str::to_string));
+            let rethread = stored.as_deref() != Some(RULE_EXTRACTOR);
             let items = s.list_items(&ItemFilter::default())?;
+            let mut by_item: HashMap<Id, Vec<anamnesis_core::Thread>> = HashMap::new();
+            for t in s.threads(&ThreadFilter::default())? {
+                by_item.entry(t.item_id.clone()).or_default().push(t);
+            }
+            let actor = sys("mind:threads");
             let mut n = 0;
+            let mut stale = Vec::new();
             let mut processed = Vec::new();
             for it in items {
-                if seen.get(&it.id.0) == Some(&it.content_hash) {
+                if !rethread && seen.get(&it.id.0) == Some(&it.content_hash) {
                     continue;
                 }
-                if it.origin.is_owner() {
-                    let existing = s.threads(&ThreadFilter {
-                        item_id: Some(it.id.clone()),
-                        ..Default::default()
-                    })?;
-                    let quotes: HashSet<&str> = existing.iter().map(|t| t.quote.as_str()).collect();
-                    for t in extract_rules(&it.id, &it.body, it.created_at) {
-                        if quotes.contains(t.quote.as_str()) {
-                            continue;
-                        }
-                        s.upsert_thread(t, sys("mind:threads"))?;
-                        n += 1;
+                let existing = by_item.remove(&it.id).unwrap_or_default();
+                let fresh = if owner_text(&it) {
+                    extract_rules(&it.id, &it.body, it.created_at)
+                } else {
+                    Vec::new()
+                };
+                for e in existing.iter().filter(|e| is_rule_extractor(&e.extractor)) {
+                    let found = fresh.iter().any(|t| t.quote == e.quote && t.kind == e.kind);
+                    if found && e.extractor != RULE_EXTRACTOR {
+                        let mut up = e.clone();
+                        up.extractor = RULE_EXTRACTOR.to_string();
+                        s.upsert_thread(up, actor.clone())?;
+                    } else if !found && untouched(e) {
+                        stale.push(e.id.clone());
                     }
+                }
+                for t in fresh {
+                    // the same span may already be a thread (kept above, or from a model)
+                    if existing.iter().any(|e| e.quote == t.quote) {
+                        continue;
+                    }
+                    s.upsert_thread(t, actor.clone())?;
+                    n += 1;
                 }
                 processed.push((it.id.0, it.content_hash));
             }
-            Ok((n, processed))
+            let removed = s.remove_threads(&stale, actor)?;
+            if rethread {
+                s.set_setting(RULE_VERSION_SETTING, json!(RULE_EXTRACTOR))?;
+            }
+            Ok((n, removed, rethread, processed))
         })
         .await?;
+    if rethread || removed > 0 {
+        tracing::info!(
+            "threads: {RULE_EXTRACTOR} {} — {n} added, {removed} withdrawn",
+            if rethread {
+                "re-read every item"
+            } else {
+                "pass"
+            }
+        );
+    }
     if !processed.is_empty() {
         let mut js = brain.job_state();
         js.threads_hash.extend(processed);
