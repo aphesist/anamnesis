@@ -18,6 +18,12 @@ pub struct HdbscanParams {
     pub min_samples: usize,
     /// If nothing splits, return a single cluster instead of all-noise.
     pub allow_single_cluster: bool,
+    /// Clusters with more points than this are never selected when they have
+    /// child clusters (excess-of-mass then descends into the children).
+    /// `None` = no limit.
+    pub max_cluster_size: Option<usize>,
+    /// Select the leaves of the condensed tree instead of excess of mass.
+    pub leaf: bool,
 }
 
 /// Union-find with path halving.
@@ -154,6 +160,7 @@ pub fn hdbscan(x: &Rows, knn: &Knn, params: HdbscanParams) -> Vec<i32> {
     node_cluster[root] = 0;
     let mut cluster_parent: Vec<usize> = vec![usize::MAX];
     let mut cluster_birth: Vec<f64> = vec![0.0];
+    let mut cluster_size: Vec<usize> = vec![n];
     let mut cluster_children: Vec<Vec<usize>> = vec![vec![]];
     // points falling out: (point, cluster, lambda)
     let mut fall: Vec<(usize, usize, f64)> = Vec::with_capacity(n);
@@ -190,6 +197,7 @@ pub fn hdbscan(x: &Rows, knn: &Knn, params: HdbscanParams) -> Vec<i32> {
                 let id = cluster_parent.len();
                 cluster_parent.push(c);
                 cluster_birth.push(lam);
+                cluster_size.push(size[ch]);
                 cluster_children.push(vec![]);
                 stability.push(0.0);
                 cluster_children[c].push(id);
@@ -220,7 +228,10 @@ pub fn hdbscan(x: &Rows, knn: &Knn, params: HdbscanParams) -> Vec<i32> {
     let mut subtree = vec![0f64; nclusters];
     for c in (1..nclusters).rev() {
         let child_sum: f64 = cluster_children[c].iter().map(|&k| subtree[k]).sum();
-        if cluster_children[c].is_empty() || stability[c] >= child_sum {
+        let leaf = cluster_children[c].is_empty();
+        let too_big = params.max_cluster_size.is_some_and(|m| cluster_size[c] > m);
+        let take = leaf || (!params.leaf && !too_big && stability[c] >= child_sum);
+        if take {
             selected[c] = true;
             subtree[c] = stability[c];
             // deselect descendants
@@ -285,6 +296,8 @@ mod tests {
                 min_cluster_size: 15,
                 min_samples: 5,
                 allow_single_cluster: true,
+                max_cluster_size: None,
+                leaf: false,
             },
         );
         let distinct: std::collections::BTreeSet<i32> =

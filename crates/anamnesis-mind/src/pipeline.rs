@@ -61,6 +61,7 @@ pub fn full_run(
         RegionExtras {
             texts,
             anatomy_xyz: Some(&anatomy_xyz),
+            layout_xyz: Some(&lay.layout.xyz),
         },
     );
     let views = views(&lay.layout, &regions.assignment);

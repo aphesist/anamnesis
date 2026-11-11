@@ -85,6 +85,7 @@ fn transitions_and_stable_ids() {
         RegionExtras {
             texts: Some(&texts1),
             anatomy_xyz: None,
+            ..Default::default()
         },
     );
     assert!(!run1.unsorted);

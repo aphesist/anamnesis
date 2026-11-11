@@ -1,7 +1,10 @@
 //! Regions with stable identity.
 //!
-//! A full run clusters the item vectors (HDBSCAN on the shared kNN graph),
-//! then matches the new clusters to the previous run's regions by member
+//! A full run clusters the items — HDBSCAN on the 3D layout when the
+//! pipeline passes it (as BERTopic clusters a UMAP projection, with a size cap
+//! so excess of mass cannot keep one giant cluster, and kNN-vote absorption of
+//! noise), else HDBSCAN on the shared kNN graph of the reduced space — then
+//! matches the new clusters to the previous run's regions by member
 //! overlap and classifies MONIC-style transitions (Spiliopoulou et al.,
 //! KDD 2006):
 //!
@@ -31,11 +34,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::anatomy::{AnatomyHint, AnatomyRequest, assign_anatomy};
 use crate::hdbscan::{HdbscanParams, hdbscan};
+use crate::knn::knn_graph;
 use crate::labels::{RegionLabelInput, c_tf_idf, fallback_label, representatives};
 use crate::linalg::{Rows, centroid, cosine, dot, normalize};
 use crate::space::Space;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RegionParams {
     /// Below this many items, don't cluster ("unsorted").
     pub min_items: usize,
@@ -55,6 +60,32 @@ pub struct RegionParams {
     /// Clusters whose cohesion (mean member cosine to centroid, in the full
     /// space) is below this fraction of the median cluster's are dissolved.
     pub min_relative_cohesion: f32,
+    /// No region may hold more than this share of the corpus while it can
+    /// still be split into child clusters (keeps excess-of-mass from
+    /// returning one or two giant regions). `None` = no limit.
+    pub max_cluster_share: Option<f32>,
+    /// Pick the finest clusters (leaves of the condensed tree) instead of
+    /// excess of mass, when clustering in the reduced space.
+    pub leaf: bool,
+    /// When the layout is known, cluster on it (HDBSCAN, leaf selection)
+    /// instead of in the reduced space, as BERTopic clusters a UMAP
+    /// projection: density contrast in tens of dimensions is weak for
+    /// sentence embeddings, so HDBSCAN there marks most items as noise.
+    pub cluster_on_layout: bool,
+    /// Min cluster size on the layout; `None` = `max(10, n / 300)`.
+    pub layout_min_cluster_size: Option<usize>,
+    /// Min samples on the layout.
+    pub layout_min_samples: usize,
+    /// On the layout: leaf selection (finest clusters) instead of excess of mass.
+    pub layout_leaf: bool,
+    /// On the layout: no region may hold more than this share of the corpus
+    /// (and more than 250 items) while it can still split (excess of mass
+    /// otherwise tends to keep one giant cluster on a continuous cloud).
+    /// `None` = no limit.
+    pub layout_max_share: Option<f32>,
+    /// On the layout, an unsorted item joins the region most of its layout
+    /// neighbours belong to when at least this share of them do.
+    pub layout_vote: f32,
 }
 
 impl Default for RegionParams {
@@ -71,6 +102,14 @@ impl Default for RegionParams {
             assign_slack: 0.05,
             keywords: 10,
             min_relative_cohesion: 0.5,
+            max_cluster_share: None,
+            leaf: false,
+            cluster_on_layout: true,
+            layout_min_cluster_size: None,
+            layout_min_samples: 10,
+            layout_leaf: false,
+            layout_max_share: Some(0.05),
+            layout_vote: 0.35,
         }
     }
 }
@@ -167,6 +206,9 @@ pub struct RegionExtras<'a> {
     pub texts: Option<&'a [String]>,
     /// Positions in the "anatomy" layout view, for naming new regions.
     pub anatomy_xyz: Option<&'a [[f32; 3]]>,
+    /// The normalised 3D layout (aligned with ids). With
+    /// [`RegionParams::cluster_on_layout`], clustering runs on it.
+    pub layout_xyz: Option<&'a [[f32; 3]]>,
 }
 
 fn quantile(mut v: Vec<f32>, q: f32) -> f32 {
@@ -178,23 +220,68 @@ fn quantile(mut v: Vec<f32>, q: f32) -> f32 {
     v[i.min(v.len() - 1)]
 }
 
+/// A region of up to this many items is never split just for its size.
+const LAYOUT_MIN_CAP: usize = 250;
+
 /// Raw clustering: lists of member positions (sorted, deterministic order:
 /// larger clusters first) plus unsorted positions.
 pub fn cluster(space: &Space, params: &RegionParams) -> (Vec<Vec<usize>>, Vec<usize>) {
+    cluster_with_layout(space, params, None)
+}
+
+/// [`cluster`], on the 3D layout when one is given (see
+/// [`RegionParams::cluster_on_layout`]).
+pub fn cluster_with_layout(
+    space: &Space,
+    params: &RegionParams,
+    layout: Option<&[[f32; 3]]>,
+) -> (Vec<Vec<usize>>, Vec<usize>) {
     let n = space.len();
     if n < params.min_items.max(2) {
         return (vec![], (0..n).collect());
     }
-    let mcs = params.min_cluster_size.unwrap_or_else(|| (n / 150).max(10));
-    let labels = hdbscan(
-        &space.reduced,
-        &space.knn,
-        HdbscanParams {
-            min_cluster_size: mcs,
-            min_samples: params.min_samples,
-            allow_single_cluster: true,
-        },
-    );
+    let layout = layout.filter(|l| params.cluster_on_layout && l.len() == n);
+    let layout_graph = layout.map(|l| {
+        let rows = Rows::from_vecs(&l.iter().map(|p| p.to_vec()).collect::<Vec<_>>());
+        let g = knn_graph(&rows, space.knn.k.max(params.layout_min_samples));
+        (rows, g)
+    });
+    let labels = match &layout_graph {
+        Some((rows, g)) => {
+            let mcs = params
+                .layout_min_cluster_size
+                .unwrap_or_else(|| (n / 300).max(10));
+            hdbscan(
+                rows,
+                g,
+                HdbscanParams {
+                    min_cluster_size: mcs,
+                    min_samples: params.layout_min_samples,
+                    allow_single_cluster: true,
+                    max_cluster_size: params
+                        .layout_max_share
+                        .map(|f| ((n as f32 * f).ceil() as usize).max(LAYOUT_MIN_CAP.max(4 * mcs))),
+                    leaf: params.layout_leaf,
+                },
+            )
+        }
+        None => {
+            let mcs = params.min_cluster_size.unwrap_or_else(|| (n / 150).max(10));
+            hdbscan(
+                &space.reduced,
+                &space.knn,
+                HdbscanParams {
+                    min_cluster_size: mcs,
+                    min_samples: params.min_samples,
+                    allow_single_cluster: true,
+                    max_cluster_size: params
+                        .max_cluster_share
+                        .map(|f| ((n as f32 * f).ceil() as usize).max(mcs)),
+                    leaf: params.leaf,
+                },
+            )
+        }
+    };
     let nl = labels.iter().copied().max().unwrap_or(-1);
     let mut clusters: Vec<Vec<usize>> = vec![vec![]; (nl + 1).max(0) as usize];
     #[inline]
@@ -244,6 +331,9 @@ pub fn cluster(space: &Space, params: &RegionParams) -> (Vec<Vec<usize>>, Vec<us
     }
     let mut clusters = kept;
     noise.sort_unstable();
+    if let Some((_, g)) = &layout_graph {
+        noise = absorb_by_vote(&mut clusters, noise, g, n, params.layout_vote);
+    }
     // absorb noise points that sit within a cluster's typical spread
     let cents: Vec<Vec<f32>> = clusters.iter().map(|m| centroid(x, m)).collect();
     let thresholds: Vec<f32> = clusters
@@ -257,7 +347,15 @@ pub fn cluster(space: &Space, params: &RegionParams) -> (Vec<Vec<usize>>, Vec<us
         })
         .collect();
     let mut unsorted = vec![];
+    // on the layout, the vote above already absorbed what belongs somewhere;
+    // centroid cosines in the full space are too flat for anisotropic
+    // embeddings to tell an outlier from a member
+    let by_centroid = layout_graph.is_none();
     for i in noise {
+        if !by_centroid {
+            unsorted.push(i);
+            continue;
+        }
         let mut best: Option<(f32, usize)> = None;
         for (k, c) in cents.iter().enumerate() {
             let s = dot(x.row(i), c);
@@ -277,6 +375,58 @@ pub fn cluster(space: &Space, params: &RegionParams) -> (Vec<Vec<usize>>, Vec<us
     (clusters, unsorted)
 }
 
+/// Label propagation on the layout's kNN graph: an unsorted point joins the
+/// cluster that at least `share` of its neighbours belong to. Repeats while
+/// anything changes (a few passes). Returns the points left unsorted.
+fn absorb_by_vote(
+    clusters: &mut [Vec<usize>],
+    mut noise: Vec<usize>,
+    g: &crate::knn::Knn,
+    n: usize,
+    share: f32,
+) -> Vec<usize> {
+    if g.k == 0 {
+        return noise;
+    }
+    let mut label = vec![usize::MAX; n];
+    for (c, m) in clusters.iter().enumerate() {
+        for &i in m {
+            label[i] = c;
+        }
+    }
+    let need = ((g.k as f32 * share).ceil() as usize).max(1);
+    for _ in 0..8 {
+        let mut joined = vec![];
+        let mut rest = vec![];
+        for &i in &noise {
+            let mut counts: HashMap<usize, usize> = HashMap::new();
+            for &j in g.neighbors(i) {
+                let l = label[j as usize];
+                if l != usize::MAX {
+                    *counts.entry(l).or_default() += 1;
+                }
+            }
+            match counts
+                .into_iter()
+                .max_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(&a.0)))
+            {
+                Some((c, k)) if k >= need => joined.push((i, c)),
+                _ => rest.push(i),
+            }
+        }
+        if joined.is_empty() {
+            break;
+        }
+        // synchronous update: decisions of a pass don't see each other
+        for (i, c) in joined {
+            label[i] = c;
+            clusters[c].push(i);
+        }
+        noise = rest;
+    }
+    noise
+}
+
 /// Run clustering and identity matching against `previous`.
 pub fn recompute_regions(
     ids: &[Id],
@@ -288,7 +438,7 @@ pub fn recompute_regions(
 ) -> RegionRun {
     assert_eq!(ids.len(), space.len(), "ids and vectors must align");
     let x = &space.normed;
-    let (clusters, unsorted) = cluster(space, params);
+    let (clusters, unsorted) = cluster_with_layout(space, params, extras.layout_xyz);
     let is_unsorted = clusters.is_empty();
     let nc = clusters.len();
     let no = previous.regions.len();
