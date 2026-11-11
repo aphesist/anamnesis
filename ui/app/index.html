@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>anamnesis</title>
+  <meta name="color-scheme" content="dark light">
+  <link rel="stylesheet" href="./fallback-tokens.css">
+  <!-- the theming package (ui/theme) overrides the fallback tokens; missing is fine -->
+  <link rel="stylesheet" href="../theme/theme.css" onerror="this.remove()">
+  <link rel="stylesheet" href="./app.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='3' fill='%23cfe0f2'/%3E%3C/svg%3E">
+</head>
+<body>
+  <a class="skip" href="#brain">skip to the brain</a>
+  <a class="skip" href="#brain-list">skip to the brain as a list</a>
+  <div id="app" class="app" data-page="brain">
+    <nav id="dock-left" class="dock dock-left" aria-label="anamnesis"></nav>
+
+    <div class="center">
+      <main id="main" class="main">
+        <section id="page-brain" class="page page-brain" aria-label="brain">
+          <canvas id="brain" tabindex="0" aria-label="the brain: a cloud of dots, one per item. arrow keys turn it, plus and minus zoom. the same content is available as a list." aria-describedby="brain-help"></canvas>
+          <p id="brain-help" class="sr-only">use the region list or the brain as a list to reach items with the keyboard.</p>
+          <div id="labels" class="labels" aria-hidden="true"></div>
+          <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+          <div id="alt-view" class="alt-view no-orbit" hidden></div>
+          <div class="stage-views no-orbit" role="tablist" aria-label="view the selection as"></div>
+          <div id="slot-bottom-left" class="slot slot-bottom-left no-orbit"></div>
+          <div id="slot-bottom" class="slot slot-bottom no-orbit"></div>
+          <div id="caption" class="caption" aria-live="polite"></div>
+          <section id="brain-list" class="brain-list" aria-label="the brain as a list" tabindex="-1"></section>
+        </section>
+        <section id="page-notes" class="page page-notes" aria-label="notes" hidden></section>
+        <section id="page-write" class="page page-write" aria-label="write" hidden></section>
+        <section id="page-today" class="page page-today" aria-label="today" hidden></section>
+      </main>
+      <section id="dock-bottom" class="dock dock-bottom" aria-label="time panels"></section>
+    </div>
+
+    <aside id="dock-right" class="dock dock-right" aria-label="view and panels"></aside>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="modal-root"></div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
