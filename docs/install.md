@@ -12,7 +12,7 @@ anamnesis is one rust binary, `anamnesis`, that serves the ui, the http api and 
 ## build
 
 ```sh
-git clone https://github.com/aphesimos/anamnesis
+git clone https://github.com/aphesist/anamnesis
 cd anamnesis
 cargo build --release -p anamnesis-server
 ./target/release/anamnesis --help

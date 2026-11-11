@@ -6,7 +6,7 @@ members = ["crates/*"]
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
-repository = "https://github.com/aphesimos/anamnesis"
+repository = "https://github.com/aphesist/anamnesis"
 rust-version = "1.90"
 
 [workspace.dependencies]

@@ -10,7 +10,7 @@ use crate::error::{ConnectorError, Result};
 pub const USER_AGENT: &str = concat!(
     "anamnesis/",
     env!("CARGO_PKG_VERSION"),
-    " (+https://github.com/aphesimos/anamnesis)"
+    " (+https://github.com/aphesist/anamnesis)"
 );
 
 /// Responses larger than this are cut off with an error.

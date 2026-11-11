@@ -6,7 +6,7 @@
 //
 // usage: node ui/theme/scripts/fetch-aphesis-assets.mjs [--force] [--dry-run] [--quiet]
 //   ANAMNESIS_SKIP_ASSET_FETCH=1   skip entirely (offline installs, packagers)
-//   APHESIS_ASSET_BASE=<url>       another mirror of https://raw.githubusercontent.com/aphesimos/aphesis
+//   APHESIS_ASSET_BASE=<url>       another mirror of https://raw.githubusercontent.com/aphesist/aphesis
 // No dependencies; node 18+ (global fetch).
 
 import { createHash } from 'node:crypto';
@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dest = join(root, 'themes', 'aphesis', 'assets');
-const base = (process.env.APHESIS_ASSET_BASE || 'https://raw.githubusercontent.com/aphesimos/aphesis').replace(/\/$/, '');
+const base = (process.env.APHESIS_ASSET_BASE || 'https://raw.githubusercontent.com/aphesist/aphesis').replace(/\/$/, '');
 const args = new Set(process.argv.slice(2));
 const force = args.has('--force');
 const dry = args.has('--dry-run');

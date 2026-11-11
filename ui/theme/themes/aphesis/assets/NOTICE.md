@@ -1,6 +1,6 @@
 # aphesis theme assets: not part of the anamnesis licence
 
-This folder is where the default `aphesis` theme looks for the aphes.ist identity assets. They belong to the owner of aphes.ist (github.com/aphesimos/aphesis) and are **not** covered by anamnesis's Apache-2.0 licence.
+This folder is where the default `aphesis` theme looks for the aphes.ist identity assets. They belong to the owner of aphes.ist (github.com/aphesist/aphesis) and are **not** covered by anamnesis's Apache-2.0 licence.
 
 | file | what | terms |
 |---|---|---|

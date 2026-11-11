@@ -208,7 +208,7 @@ AUTHOR_TAGS = {THOREAU: "thoreau", EMERSON: "emerson"}
 def _fixture(name: str, sid: str, title: str, author_p: Person, kind: str, published: int, parse: dict) -> Source:
     return Source(
         id=sid, title=title, author=author_p.name, persons=[author_p], published=published,
-        url=name, page_url="https://github.com/aphesimos/anamnesis/tree/main/lab", fmt="fixture",
+        url=name, page_url="https://github.com/aphesist/anamnesis/tree/main/lab", fmt="fixture",
         kind=kind, edition=f"{title} (lab fixture)", host="bundled fixture", parse=parse,
     )
 

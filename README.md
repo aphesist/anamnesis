@@ -35,7 +35,7 @@ it is one rust binary with a browser ui, works with no model at all, brings your
 build from source (rust 1.90+; the first build downloads the onnx runtime for local embeddings):
 
 ```sh
-git clone https://github.com/aphesimos/anamnesis
+git clone https://github.com/aphesist/anamnesis
 cd anamnesis
 cargo build --release -p anamnesis-server
 ./target/release/anamnesis import ~/notes          # a folder or an obsidian vault

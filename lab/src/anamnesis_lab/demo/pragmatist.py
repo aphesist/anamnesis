@@ -80,7 +80,7 @@ HUBS = [
 SMALL_SOURCES = [
     Source(
         id="fixture-james-letters", title="Fixture letters in the James shape", author=JAMES, persons=[P_JAMES],
-        published=1920, url="james_letters.txt", page_url="https://github.com/aphesimos/anamnesis/tree/main/lab",
+        published=1920, url="james_letters.txt", page_url="https://github.com/aphesist/anamnesis/tree/main/lab",
         fmt="fixture", kind="letters", edition="lab fixture", host="bundled fixture",
         parse=dict(_LETTERS_PARSE, wrapper="pg"),
     ),
