@@ -469,3 +469,119 @@ async fn tiny_brains_do_not_break_the_jobs() {
         assert_eq!(cloud["ids"].as_array().unwrap().len(), i + 1);
     }
 }
+
+mod fake {
+    use anamnesis_harness::*;
+    use async_trait::async_trait;
+    use std::sync::{Arc, Mutex};
+
+    /// A metered (non-local) backend that answers with a citation and records prompts.
+    pub struct Remote {
+        pub prompts: Arc<Mutex<Vec<String>>>,
+    }
+
+    #[async_trait]
+    impl Backend for Remote {
+        fn id(&self) -> &str {
+            "remote"
+        }
+        fn kind(&self) -> BackendKind {
+            BackendKind::OpenaiCompatible
+        }
+        fn label(&self) -> String {
+            "remote".into()
+        }
+        fn default_model(&self) -> &str {
+            "m1"
+        }
+        fn provider(&self) -> &str {
+            "example"
+        }
+        fn capabilities(&self) -> Capabilities {
+            Capabilities {
+                streaming: true,
+                tools: false,
+                json_schema: false,
+                max_context: None,
+                vision: false,
+                cost_model: CostModel::Metered,
+                background_allowed: true,
+                forbidden_params: vec![],
+                terms: Terms::Allowed,
+                maturity: Maturity::Stable,
+                notice: None,
+            }
+        }
+        async fn available(&self) -> Availability {
+            Availability::ready()
+        }
+        async fn chat(&self, req: ChatRequest) -> Result<ChatStream> {
+            self.prompts.lock().unwrap().push(req.system.clone().unwrap_or_default());
+            let evs = vec![
+                ChatEvent::Token { text: "from your notes [1]".into() },
+                ChatEvent::Usage(Usage { input: 10, output: 4, estimated: false, reported_cost_usd: None }),
+                ChatEvent::Done { stop_reason: None },
+            ];
+            Ok(Box::pin(futures_util::stream::iter(evs)))
+        }
+    }
+}
+
+async fn chat_text(r: &Router, body: Value) -> String {
+    let req = Request::post("/api/chat")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap();
+    let res = r.clone().oneshot(req).await.unwrap();
+    String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn remote_chat_respects_privacy_and_logs_egress() {
+    let env = setup().await;
+    let prompts = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let router = anamnesis_harness::Router::new(
+        vec![Arc::new(fake::Remote { prompts: prompts.clone() })],
+        anamnesis_harness::RoutingSettings { chat: Some("remote".into()), ..Default::default() },
+        Arc::new(anamnesis_harness::Limits::new(Default::default())),
+        Default::default(),
+    );
+    router.refresh().await;
+    env.app.set_router(Some(Arc::new(router)));
+    let cloud = get(&env.router, "/api/cloud").await;
+    let compost = Id(id_by_title(&cloud, "compost"));
+    let seeds = Id(id_by_title(&cloud, "seeds"));
+    env.app
+        .brain()
+        .with_store(|s| {
+            for (id, p) in [(&compost, Privacy::LocalOnly), (&seeds, Privacy::Ask)] {
+                let mut it = s.get_item(id)?.unwrap();
+                it.privacy = p;
+                s.append(Actor::User, anamnesis_core::EventKind::ItemUpdated { item: it })?;
+            }
+            Ok(())
+        })
+        .unwrap();
+
+    // an ask item in the context needs consent first
+    let text = chat_text(&env.router, json!({ "message": "seeds compost garden beds" })).await;
+    assert!(text.contains("event: consent_required"), "{text}");
+    assert!(text.contains(&seeds.0));
+    assert!(prompts.lock().unwrap().is_empty(), "nothing was sent");
+
+    // approved: the call goes out, without the local-only item, and is logged
+    let text = chat_text(&env.router, json!({ "message": "seeds compost garden beds", "approved": [seeds] })).await;
+    assert!(text.contains("event: done"), "{text}");
+    assert!(text.contains("\"backend\":\"remote\""), "{text}");
+    let sent = prompts.lock().unwrap().last().cloned().unwrap();
+    assert!(!sent.contains("turn the compost every week"), "local-only text left the machine");
+    assert!(sent.contains("save seeds"), "approved item is in the prompt");
+    let eg = get(&env.router, "/api/egress").await;
+    let e = &eg["entries"][0]["kind"];
+    assert_eq!(e["provider"], "example");
+    assert_eq!(e["purpose"], "chat");
+    assert!(!e["items"].as_array().unwrap().iter().any(|i| i == &json!(compost.0)));
+    assert!(e["chars"].as_u64().unwrap() > 0);
+    let be = get(&env.router, "/api/backends").await;
+    assert_eq!(be["routing"]["chat"], "remote");
+}
