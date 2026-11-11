@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::linalg::{Rows, dot};
 
 /// English + Portuguese stopwords (lowercase). Not exhaustive; enough to keep
-/// function words out of region keywords.
+/// function words, filler and speech verbs out of region keywords.
 const STOPWORDS: &[&str] = &[
     // english
     "the",
@@ -166,6 +166,112 @@ const STOPWORDS: &[&str] = &[
     "jpg",
     "pdf",
     "md",
+    // filler, archaic and speech words that name no topic ("said", "apparently", "o'er")
+    "said",
+    "says",
+    "saying",
+    "tell",
+    "tells",
+    "told",
+    "asked",
+    "answered",
+    "replied",
+    "apparently",
+    "perhaps",
+    "indeed",
+    "quite",
+    "rather",
+    "almost",
+    "always",
+    "never",
+    "ever",
+    "often",
+    "once",
+    "twice",
+    "already",
+    "though",
+    "although",
+    "thus",
+    "hence",
+    "therefore",
+    "whether",
+    "whereas",
+    "wherein",
+    "whereof",
+    "thereby",
+    "however",
+    "somewhat",
+    "thee",
+    "thou",
+    "thy",
+    "thine",
+    "hath",
+    "doth",
+    "ye",
+    "o'er",
+    "e'er",
+    "ne'er",
+    "'tis",
+    "twas",
+    "'twas",
+    "whew",
+    "alas",
+    "part",
+    "prime",
+    "made",
+    "seen",
+    "saw",
+    "went",
+    "gone",
+    "going",
+    "came",
+    "got",
+    "give",
+    "gave",
+    "given",
+    "found",
+    "find",
+    "think",
+    "thought",
+    "seem",
+    "seems",
+    "seemed",
+    "look",
+    "looked",
+    "looks",
+    "set",
+    "sir",
+    "mrs",
+    "among",
+    "little",
+    "great",
+    "nothing",
+    "something",
+    "anything",
+    "everything",
+    "first",
+    "last",
+    "next",
+    "three",
+    "four",
+    "five",
+    "half",
+    "whole",
+    "enough",
+    "far",
+    "men",
+    "away",
+    "back",
+    "down",
+    "ago",
+    "goes",
+    "keep",
+    "kept",
+    "left",
+    "right",
+    "till",
+    "unto",
+    "cannot",
     // portuguese
     "que",
     "não",
@@ -304,6 +410,39 @@ const STOPWORDS: &[&str] = &[
     "algum",
     "quase",
     "dia",
+    // portuguese filler
+    "disse",
+    "dizer",
+    "diz",
+    "dizia",
+    "parte",
+    "apenas",
+    "feito",
+    "ver",
+    "vez",
+    "vezes",
+    "tão",
+    "tao",
+    "lá",
+    "cá",
+    "aí",
+    "pois",
+    "ora",
+    "enfim",
+    "logo",
+    "tudo",
+    "nada",
+    "fez",
+    "faz",
+    "ficou",
+    "fica",
+    "primeiro",
+    "primeira",
+    "grande",
+    "pouco",
+    "pouca",
+    "muitos",
+    "muitas",
 ];
 
 /// Lowercase word tokens of length ≥ 3, minus stopwords and pure numbers.
@@ -352,27 +491,125 @@ pub fn c_tf_idf(classes: &[Vec<&str>], top: usize) -> Vec<Vec<(String, f32)>> {
     }
     let nclasses = classes.iter().filter(|c| !c.is_empty()).count().max(1) as f32;
     let a = total_words as f32 / classes.len().max(1) as f32;
-    counts
-        .into_iter()
+    let mut ranked: Vec<Vec<(String, f32)>> = counts
+        .iter()
         .map(|m| {
             let len: u32 = m.values().sum();
             let mut v: Vec<(String, f32)> = m
-                .into_iter()
-                .filter(|(_, c)| *c >= 1)
-                .map(|(w, c)| {
-                    let f = global[&w] as f32;
+                .iter()
+                .filter(|(w, _)| !common_adverb(w, spread[*w] as f32 / nclasses))
+                .map(|(w, &c)| {
+                    let f = global[w] as f32;
                     // words that occur in most classes ("said", "men") say little
                     // about any one of them
-                    let class_idf = (1.0 + nclasses / spread[&w] as f32).ln();
-                    let weight = c as f32 / len.max(1) as f32 * (1.0 + a / f).ln() * class_idf;
-                    (w, weight)
+                    let class_idf = (1.0 + nclasses / spread[w] as f32).ln();
+                    let weight = c as f32 / len.max(1) as f32
+                        * (1.0 + a / f).ln()
+                        * class_idf
+                        * part_of_speech_weight(w);
+                    (w.clone(), weight)
                 })
                 .collect();
             v.sort_by(|x, y| y.1.total_cmp(&x.1).then_with(|| x.0.cmp(&y.0)));
-            v.truncate(top);
             v
         })
-        .collect()
+        .collect();
+    let sizes: Vec<u32> = counts.iter().map(|m| m.values().sum()).collect();
+    diversify(&mut ranked, &sizes);
+    for v in &mut ranked {
+        v.truncate(top);
+    }
+    ranked
+}
+
+/// How many region labels may share a word before it is passed over in the
+/// smaller regions' labels (when they have other keywords to offer).
+const MAX_LABELS_PER_WORD: usize = 2;
+/// Words a label is made of (see [`fallback_label`]).
+const LABEL_WORDS: usize = 3;
+
+/// Reorders each class's keywords so that the first [`LABEL_WORDS`] (the
+/// label) avoid words already used by [`MAX_LABELS_PER_WORD`] larger classes:
+/// "men · nature · poetry", "men · house · life", "england · men · said" become
+/// distinct names. Classes are visited from the largest; a class keeps a
+/// repeated word only when it has nothing else among its top candidates.
+fn diversify(ranked: &mut [Vec<(String, f32)>], sizes: &[u32]) {
+    const POOL: usize = 12;
+    let mut order: Vec<usize> = (0..ranked.len()).collect();
+    order.sort_by(|&x, &y| sizes[y].cmp(&sizes[x]).then(x.cmp(&y)));
+    let mut used: HashMap<String, usize> = HashMap::new();
+    for c in order {
+        let v = &mut ranked[c];
+        let pool = v.len().min(POOL);
+        let mut first: Vec<usize> = Vec::with_capacity(LABEL_WORDS);
+        for (k, (w, _)) in v.iter().enumerate().take(pool) {
+            if first.len() == LABEL_WORDS {
+                break;
+            }
+            // "berries · berry", "flowers · flower": one form is enough
+            let twin = first.iter().any(|&j| stem(&v[j].0) == stem(w));
+            if !twin && used.get(w).copied().unwrap_or(0) < MAX_LABELS_PER_WORD {
+                first.push(k);
+            }
+        }
+        // too few fresh words: fill up with the best of the rest, in order
+        for k in 0..pool {
+            if first.len() == LABEL_WORDS {
+                break;
+            }
+            if !first.contains(&k) {
+                first.push(k);
+            }
+        }
+        first.sort_unstable();
+        for &k in &first {
+            *used.entry(v[k].0.clone()).or_default() += 1;
+        }
+        let mut reordered: Vec<(String, f32)> = first.iter().map(|&k| v[k].clone()).collect();
+        reordered.extend(
+            v.iter()
+                .enumerate()
+                .filter(|(k, _)| !first.contains(k))
+                .map(|(_, e)| e.clone()),
+        );
+        *v = reordered;
+    }
+}
+
+/// A crude singular for comparing label words: "berries" → "berry",
+/// "flowers" → "flower", "summer's" → "summer" ("glass" stays).
+fn stem(w: &str) -> String {
+    let w = w.strip_suffix("'s").unwrap_or(w);
+    if let Some(b) = w.strip_suffix("ies").filter(|b| b.chars().count() >= 2) {
+        return format!("{b}y");
+    }
+    match w.strip_suffix('s') {
+        Some(b) if !b.ends_with('s') && b.chars().count() >= 3 => b.to_string(),
+        _ => w.to_string(),
+    }
+}
+
+/// An "-ly" adverb ("apparently", "probably", "certainly") spread over many
+/// classes: it describes how the notes are written, not what they are about.
+/// Short "-ly" words ("lily", "holy", "july", "italy") are kept.
+fn common_adverb(w: &str, spread_share: f32) -> bool {
+    w.chars().count() >= 7 && w.ends_with("ly") && spread_share >= 0.2
+}
+
+/// Names are mostly nouns: without a tagger, lean away from words that look
+/// like verb forms ("walked", "looking"); long words only, so "seed", "bed"
+/// and "king" are untouched, and a few common nouns are exempt.
+fn part_of_speech_weight(w: &str) -> f32 {
+    const NOUNS: &[&str] = &[
+        "morning", "evening", "spring", "string", "building", "painting", "writing", "wedding",
+        "ceiling", "clothing", "hundred", "sacred",
+    ];
+    let n = w.chars().count();
+    if n >= 6 && (w.ends_with("ed") || w.ends_with("ing")) && !NOUNS.contains(&w) {
+        0.7
+    } else {
+        1.0
+    }
 }
 
 /// Deterministic lowercase label from keywords: the top three joined by " · ".
@@ -553,6 +790,80 @@ mod tests {
         let label = fallback_label(&kw[1].iter().map(|(w, _)| w.clone()).collect::<Vec<_>>());
         assert!(label.contains("sourdough"));
         assert_eq!(label, label.to_lowercase());
+    }
+
+    #[test]
+    fn filler_and_speech_words_are_not_keywords() {
+        let t = tokenize("Apparently he said o'er the pond, whew, the prime part was ice");
+        for w in ["said", "o'er", "whew", "prime", "part"] {
+            assert!(!t.contains(&w.to_string()), "{w}");
+        }
+        assert!(t.contains(&"pond".to_string()));
+        assert!(t.contains(&"ice".to_string()));
+    }
+
+    #[test]
+    fn common_adverbs_are_dropped_and_labels_do_not_repeat_words() {
+        // "suddenly" is in every class; "river" is in the three biggest, which
+        // each have other words to offer
+        let classes: Vec<Vec<&str>> = vec![
+            vec![
+                "river suddenly fish",
+                "river fish trout",
+                "river trout suddenly pickerel",
+                "river",
+            ],
+            vec![
+                "river suddenly snow",
+                "river snow ice",
+                "river ice suddenly thaw",
+                "river",
+            ],
+            vec![
+                "river suddenly bird",
+                "river bird song",
+                "river song suddenly nest",
+                "river",
+            ],
+            vec!["suddenly pine wood", "pine wood oak", "oak pine suddenly"],
+        ];
+        let kw = c_tf_idf(&classes, 5);
+        for k in &kw {
+            assert!(!k.iter().any(|(w, _)| w == "suddenly"));
+        }
+        let labels: Vec<String> = kw
+            .iter()
+            .map(|k| fallback_label(&k.iter().map(|(w, _)| w.clone()).collect::<Vec<_>>()))
+            .collect();
+        let with_river = labels
+            .iter()
+            .filter(|l| l.split(" · ").any(|w| w == "river"))
+            .count();
+        assert!(with_river <= MAX_LABELS_PER_WORD, "{labels:?}");
+        assert!(labels[3].contains("pine"));
+    }
+
+    #[test]
+    fn labels_keep_one_form_of_a_word() {
+        assert_eq!(stem("berries"), stem("berry"));
+        assert_eq!(stem("flowers"), "flower");
+        assert_eq!(stem("summer's"), "summer");
+        assert_eq!(stem("glass"), "glass");
+        let classes: Vec<Vec<&str>> = vec![
+            vec!["flowers flower flowers meadow", "flower flowers bloom"],
+            vec!["snow ice", "ice snow cold"],
+        ];
+        let kw = c_tf_idf(&classes, 5);
+        let label = fallback_label(&kw[0].iter().map(|(w, _)| w.clone()).collect::<Vec<_>>());
+        assert_eq!(label.matches("flower").count(), 1, "{label}");
+    }
+
+    #[test]
+    fn verb_forms_rank_below_nouns() {
+        assert!(part_of_speech_weight("walked") < 1.0);
+        assert!(part_of_speech_weight("looking") < 1.0);
+        assert_eq!(part_of_speech_weight("morning"), 1.0);
+        assert_eq!(part_of_speech_weight("seed"), 1.0);
     }
 
     #[test]
