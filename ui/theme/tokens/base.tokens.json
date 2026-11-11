@@ -1,0 +1,684 @@
+{
+  "$description": "anamnesis base tokens (W3C Design Tokens Format 2025.10). Themes override these per mode in themes/<id>/{tokens,light,dark}.tokens.json. Every token that is emitted becomes a css custom property named after its path (flattened groups drop out of the name).",
+  "color": {
+    "$type": "color",
+    "$description": "Primitives. Resolvable as aliases, never emitted as css.",
+    "$extensions": {
+      "ist.anamnesis": {
+        "emit": false
+      }
+    },
+    "neutral": {
+      "50": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.975,
+            0.003,
+            25
+          ]
+        }
+      },
+      "100": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.95,
+            0.004,
+            25
+          ]
+        }
+      },
+      "150": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.92,
+            0.005,
+            25
+          ]
+        }
+      },
+      "200": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.88,
+            0.006,
+            25
+          ]
+        }
+      },
+      "300": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.8,
+            0.007,
+            25
+          ]
+        }
+      },
+      "400": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.7,
+            0.008,
+            25
+          ]
+        }
+      },
+      "500": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.6,
+            0.008,
+            25
+          ]
+        }
+      },
+      "600": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.5,
+            0.008,
+            25
+          ]
+        }
+      },
+      "700": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.4,
+            0.008,
+            25
+          ]
+        }
+      },
+      "800": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.3,
+            0.007,
+            25
+          ]
+        }
+      },
+      "850": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.25,
+            0.006,
+            25
+          ]
+        }
+      },
+      "900": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.2,
+            0.006,
+            25
+          ]
+        }
+      },
+      "950": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.15,
+            0.005,
+            25
+          ]
+        }
+      },
+      "975": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.11,
+            0.004,
+            25
+          ]
+        }
+      },
+      "$description": "One neutral scale with a slight red bias (hue 25), so the greys belong to the seal. Screens never use it directly: only the role tokens."
+    },
+    "rubedo": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.57,
+          0.2,
+          26
+        ]
+      },
+      "$description": "The red of the seal (dark-mode value; light overrides it). Red is rare."
+    },
+    "rubedo-text": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.66,
+          0.17,
+          26
+        ]
+      },
+      "$description": "Red for text (dark-mode value)."
+    },
+    "cool": {
+      "50": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.97,
+            0.03,
+            230
+          ]
+        }
+      },
+      "200": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.88,
+            0.035,
+            235
+          ]
+        }
+      },
+      "400": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.72,
+            0.04,
+            238
+          ]
+        }
+      },
+      "600": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.5,
+            0.035,
+            242
+          ]
+        }
+      },
+      "800": {
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.32,
+            0.03,
+            245
+          ]
+        }
+      },
+      "$description": "Cool blue-white for the stipple brain."
+    }
+  },
+  "role": {
+    "$type": "color",
+    "$extensions": {
+      "ist.anamnesis": {
+        "flatten": true
+      }
+    },
+    "$description": "The eight colour roles. Everything on screen is one of these.",
+    "bg": {
+      "$value": "{color.neutral.975}",
+      "$description": "The ground of every screen, under the fog."
+    },
+    "ink": {
+      "$value": "{color.neutral.100}",
+      "$description": "Primary text and titles on bg."
+    },
+    "ink-soft": {
+      "$value": "{color.neutral.500}",
+      "$description": "Secondary text, glosses, meta, tooltips. 4.5:1 or better on bg."
+    },
+    "line": {
+      "$value": "{color.neutral.800}",
+      "$description": "Decorative hairlines only. Never the only sign of a control or a state."
+    },
+    "fog": {
+      "$value": "{color.neutral.150}",
+      "$description": "The colour of stipple cells, drawn at 55-72% over bg."
+    },
+    "accent": {
+      "$value": "{color.rubedo}",
+      "$description": "Focus, icons, moments of impact. Rare."
+    },
+    "accent-text": {
+      "$value": "{color.rubedo-text}",
+      "$description": "Accent when it is text."
+    },
+    "seal": {
+      "$value": "{color.rubedo}",
+      "$description": "The mark."
+    },
+    "veil": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.57,
+          0.2,
+          26
+        ],
+        "alpha": 0.28
+      },
+      "$description": "Selection veil under accent-text."
+    }
+  },
+  "brain": {
+    "$type": "color",
+    "$extensions": {
+      "ist.anamnesis": {
+        "flatten": true
+      }
+    },
+    "$description": "The 3d stipple brain. The webgl renderer re-reads these on anamnesis:themechange.",
+    "dot": {
+      "$value": "{color.cool.200}",
+      "$description": "A note at rest."
+    },
+    "dot-dim": {
+      "$value": "{color.cool.600}",
+      "$description": "A note outside the current selection or filter."
+    },
+    "dot-hot": {
+      "$value": "{color.cool.50}",
+      "$description": "A lit note: selected, hovered, resurfaced."
+    },
+    "thread": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.72,
+          0.04,
+          238
+        ],
+        "alpha": 0.55
+      },
+      "$description": "Filaments (links). Suggestions draw it dashed and fainter."
+    },
+    "region-label": {
+      "$value": "{color.cool.400}",
+      "$description": "Region names floating in the cloud."
+    }
+  },
+  "area": {
+    "1": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.78,
+          0.06,
+          235
+        ]
+      }
+    },
+    "2": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.78,
+          0.06,
+          165
+        ]
+      }
+    },
+    "3": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.8,
+          0.07,
+          95
+        ]
+      }
+    },
+    "4": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.74,
+          0.08,
+          40
+        ]
+      }
+    },
+    "5": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.74,
+          0.06,
+          320
+        ]
+      }
+    },
+    "6": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.8,
+          0.05,
+          200
+        ]
+      }
+    },
+    "7": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.72,
+          0.05,
+          280
+        ]
+      }
+    },
+    "8": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.82,
+          0.04,
+          130
+        ]
+      }
+    },
+    "$type": "color",
+    "$description": "Categorical colours for regions/areas in charts and legends; muted so the stipple stays calm."
+  },
+  "font": {
+    "$type": "fontFamily",
+    "display": {
+      "$value": [
+        "Special Elite",
+        "Georgia",
+        "serif"
+      ],
+      "$description": "Wordmark, titles, headings, glosses."
+    },
+    "text": {
+      "$value": [
+        "Special Elite",
+        "Courier New",
+        "ui-monospace",
+        "monospace"
+      ],
+      "$description": "Everything people read and operate."
+    },
+    "data": {
+      "$value": [
+        "ui-monospace",
+        "SF Mono",
+        "Menlo",
+        "Consolas",
+        "DejaVu Sans Mono",
+        "monospace"
+      ],
+      "$description": "Counts, tables, axes: tabular figures, plainer than the text face."
+    }
+  },
+  "type": {
+    "$description": "Type scale. Sizes are multiplied by --type-scale where they are used.",
+    "scale": {
+      "$type": "number",
+      "$value": 1,
+      "$description": "A multiplier the user can change in settings."
+    },
+    "size": {
+      "$type": "dimension",
+      "wordmark": {
+        "$value": {
+          "value": 110,
+          "unit": "px"
+        }
+      },
+      "title": {
+        "$value": {
+          "value": 68,
+          "unit": "px"
+        }
+      },
+      "heading": {
+        "$value": {
+          "value": 42,
+          "unit": "px"
+        }
+      },
+      "lede": {
+        "$value": {
+          "value": 19,
+          "unit": "px"
+        }
+      },
+      "body": {
+        "$value": {
+          "value": 16,
+          "unit": "px"
+        }
+      },
+      "label": {
+        "$value": {
+          "value": 13,
+          "unit": "px"
+        }
+      },
+      "meta": {
+        "$value": {
+          "value": 11,
+          "unit": "px"
+        }
+      },
+      "gloss": {
+        "$value": {
+          "value": 19,
+          "unit": "px"
+        }
+      }
+    },
+    "leading": {
+      "$type": "number",
+      "display": {
+        "$value": 0.95
+      },
+      "body": {
+        "$value": 1.75
+      },
+      "lede": {
+        "$value": 1.6
+      },
+      "label": {
+        "$value": 1
+      },
+      "meta": {
+        "$value": 1.7
+      }
+    },
+    "tracking": {
+      "$type": "number",
+      "$description": "Letter spacing in em.",
+      "label": {
+        "$value": 0.22
+      },
+      "meta": {
+        "$value": 0.14
+      },
+      "gloss": {
+        "$value": 0.12
+      }
+    },
+    "display-slant": {
+      "$type": "number",
+      "$value": -12,
+      "$description": "slnt axis for display text (variable fonts that have it)."
+    },
+    "display-weight": {
+      "$type": "fontWeight",
+      "$value": 400
+    }
+  },
+  "space": {
+    "1": {
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      }
+    },
+    "2": {
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      }
+    },
+    "3": {
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      }
+    },
+    "4": {
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      }
+    },
+    "5": {
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      }
+    },
+    "6": {
+      "$value": {
+        "value": 52,
+        "unit": "px"
+      }
+    },
+    "7": {
+      "$value": {
+        "value": 84,
+        "unit": "px"
+      }
+    },
+    "8": {
+      "$value": {
+        "value": 136,
+        "unit": "px"
+      }
+    },
+    "9": {
+      "$value": {
+        "value": 220,
+        "unit": "px"
+      }
+    },
+    "$type": "dimension",
+    "$description": "Fibonacci steps on 4px: from step 3 on, each is about φ times the one before."
+  },
+  "ease": {
+    "$type": "cubicBezier",
+    "$value": [
+      0.2,
+      0.7,
+      0.2,
+      1
+    ],
+    "$description": "easing-settle: things arrive and settle; nothing bounces."
+  },
+  "dur": {
+    "$type": "duration",
+    "short": {
+      "$value": {
+        "value": 350,
+        "unit": "ms"
+      },
+      "$description": "Tooltips, cursor fade, small state changes."
+    },
+    "mid": {
+      "$value": {
+        "value": 700,
+        "unit": "ms"
+      },
+      "$description": "Letter wave, panels."
+    },
+    "long": {
+      "$value": {
+        "value": 1200,
+        "unit": "ms"
+      },
+      "$description": "Scenes entering; camera moves use minimum-jerk easing in js."
+    },
+    "theme": {
+      "$value": {
+        "value": 800,
+        "unit": "ms"
+      },
+      "$description": "Theme cross-fade."
+    },
+    "shift": {
+      "$value": {
+        "value": 5200,
+        "unit": "ms"
+      },
+      "$description": "The slow theme wave, where the app draws one."
+    }
+  },
+  "motion": {
+    "$type": "number",
+    "$value": 1,
+    "$description": "1 full motion, 0 reduced. Set by the motion choice; reduced also shortens dur-mid and dur-long."
+  },
+  "radius": {
+    "$type": "dimension",
+    "none": {
+      "$value": {
+        "value": 0,
+        "unit": "px"
+      }
+    }
+  },
+  "z": {
+    "$type": "number",
+    "fog": {
+      "$value": 0
+    },
+    "brain": {
+      "$value": 1
+    },
+    "main": {
+      "$value": 2
+    },
+    "panel": {
+      "$value": 3
+    },
+    "seal": {
+      "$value": 4
+    },
+    "nav": {
+      "$value": 5
+    },
+    "dialog": {
+      "$value": 10
+    },
+    "tip": {
+      "$value": 15
+    },
+    "cursor": {
+      "$value": 20
+    }
+  }
+}

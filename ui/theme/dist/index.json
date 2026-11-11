@@ -1,0 +1,89 @@
+{
+  "generated": "scripts/build-tokens.mjs",
+  "themes": [
+    {
+      "id": "aphesis",
+      "name": "aphes.ist",
+      "description": "the default: dark ground, brush and stipple, lowercase, rubedo used rarely. eye closed (dark) and eye open (light).",
+      "defaultMode": "dark",
+      "css": "aphesis.css",
+      "values": "aphesis.json",
+      "manifest": "../themes/aphesis/theme.json",
+      "behaviours": {
+        "cursor": "custom",
+        "scrollbars": "hidden",
+        "motion": "full"
+      },
+      "preview": {
+        "light": {
+          "--bg": "#f1eded",
+          "--ink": "#191515",
+          "--accent": "#ab0d19",
+          "--dot": "#222f3c"
+        },
+        "dark": {
+          "--bg": "#050404",
+          "--ink": "#f1eded",
+          "--accent": "#d43031",
+          "--dot": "#c2dcec"
+        }
+      }
+    },
+    {
+      "id": "mono",
+      "name": "mono",
+      "description": "neutral and high contrast: black and white, one signal colour, system sans.",
+      "defaultMode": "dark",
+      "css": "mono.css",
+      "values": "mono.json",
+      "manifest": "../themes/mono/theme.json",
+      "behaviours": {
+        "cursor": "system",
+        "scrollbars": "system",
+        "motion": "full"
+      },
+      "preview": {
+        "light": {
+          "--bg": "#ffffff",
+          "--ink": "#000000",
+          "--accent": "#0032e2",
+          "--dot": "#030303"
+        },
+        "dark": {
+          "--bg": "#000000",
+          "--ink": "#ffffff",
+          "--accent": "#fadf27",
+          "--dot": "#f2f2f2"
+        }
+      }
+    },
+    {
+      "id": "paper",
+      "name": "paper",
+      "description": "plain ink on paper: light by default, serif, one blue-black ink, no ornament.",
+      "defaultMode": "light",
+      "css": "paper.css",
+      "values": "paper.json",
+      "manifest": "../themes/paper/theme.json",
+      "behaviours": {
+        "cursor": "system",
+        "scrollbars": "system",
+        "motion": "full"
+      },
+      "preview": {
+        "light": {
+          "--bg": "#f9f5ec",
+          "--ink": "#191d24",
+          "--accent": "#264a8e",
+          "--dot": "#232933"
+        },
+        "dark": {
+          "--bg": "#1a1510",
+          "--ink": "#eae4d7",
+          "--accent": "#82b1ed",
+          "--dot": "#ddd7c9"
+        }
+      }
+    }
+  ]
+}

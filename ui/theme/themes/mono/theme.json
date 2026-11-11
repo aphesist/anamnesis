@@ -1,0 +1,27 @@
+{
+  "id": "mono",
+  "name": "mono",
+  "description": "neutral and high contrast: black and white, one signal colour, system sans.",
+  "defaultMode": "dark",
+  "tokens": "tokens.json",
+  "modes": {
+    "light": "light.tokens.json",
+    "dark": "dark.tokens.json"
+  },
+  "fonts": [],
+  "optionalFonts": [],
+  "marks": {
+    "mark": {
+      "fallback": "../../marks/phi-placeholder.svg"
+    },
+    "wordmark": {
+      "fallback": "../../marks/wordmark-placeholder.svg"
+    }
+  },
+  "behaviours": {
+    "cursor": "system",
+    "scrollbars": "system",
+    "motion": "full"
+  },
+  "licence": "Apache-2.0 (part of anamnesis)."
+}

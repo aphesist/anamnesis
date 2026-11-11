@@ -1,0 +1,150 @@
+{
+  "role": {
+    "$type": "color",
+    "bg": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "ink": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    "ink-soft": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.84,
+          0,
+          0
+        ]
+      }
+    },
+    "line": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.55,
+          0,
+          0
+        ]
+      }
+    },
+    "fog": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.92,
+          0,
+          0
+        ]
+      }
+    },
+    "accent": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.9,
+          0.18,
+          100
+        ]
+      }
+    },
+    "accent-text": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.92,
+          0.17,
+          100
+        ]
+      }
+    },
+    "seal": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    "veil": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.9,
+          0.18,
+          100
+        ],
+        "alpha": 0.3
+      }
+    }
+  },
+  "brain": {
+    "$type": "color",
+    "dot": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.96,
+          0,
+          0
+        ]
+      }
+    },
+    "dot-dim": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.5,
+          0,
+          0
+        ]
+      }
+    },
+    "dot-hot": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.9,
+          0.18,
+          100
+        ]
+      }
+    },
+    "thread": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.85,
+          0,
+          0
+        ],
+        "alpha": 0.6
+      }
+    },
+    "region-label": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.9,
+          0,
+          0
+        ]
+      }
+    }
+  }
+}
