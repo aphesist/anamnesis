@@ -26,7 +26,10 @@ const root = () => doc()?.documentElement;
 
 const DEFAULT_STATE = {
   id: 'aphesis',
-  mode: 'system', // 'system' | 'light' | 'dark'
+  // 'theme': the theme's own default (aphesis: always dark; a theme whose manifest says
+  // "modeFollowsSystem": true follows the os). 'system' | 'light' | 'dark' are explicit choices.
+  mode: 'theme',
+  modeV: 2,
   motion: null, // null until the person chooses: then 'full' | 'reduced'
   cursor: null, // null follows the theme's behaviours
   scrollbars: null,
@@ -65,6 +68,7 @@ export async function init(opts = {}) {
     const remote = await serverGet();
     if (remote?.theme) state = { ...state, ...sanitizeRemote(remote.theme) };
   }
+  migrateMode();
   watchSystem();
   await applyTheme(state.id, { persist: false, reason: 'init' });
   return getState();
@@ -138,8 +142,9 @@ export async function applyTheme(id, { persist = true, reason = 'theme' } = {}) 
 }
 
 export function setMode(mode) {
-  if (!['system', 'light', 'dark'].includes(mode)) throw new Error('mode is system, light or dark');
+  if (!MODES.includes(mode)) throw new Error('mode is theme, system, light or dark');
   state.mode = mode;
+  state.modeV = 2;
   applySwitches();
   save();
   emit('mode');
@@ -330,7 +335,7 @@ export async function importTheme(data) {
   if (!data || data.format !== 'anamnesis-theme') throw new Error('not an anamnesis theme file');
   let id = data.base ?? 'aphesis';
   if (data.theme?.tokens) id = await registerTheme(data.theme);
-  state.mode = ['system', 'light', 'dark'].includes(data.mode) ? data.mode : state.mode;
+  state.mode = MODES.includes(data.mode) ? data.mode : state.mode;
   if (data.motion !== undefined) state.motion = data.motion === 'reduced' || data.motion === 'full' ? data.motion : state.motion;
   if (data.cursor !== undefined) state.cursor = data.cursor ?? null;
   if (data.scrollbars !== undefined) state.scrollbars = data.scrollbars ?? null;
@@ -585,13 +590,29 @@ function writeOverrides() {
   doc()?.head.appendChild(el); // always last, so it wins over a theme sheet inserted later
 }
 
+const MODES = ['theme', 'system', 'light', 'dark'];
+
+// Before modeV 2 the default was 'system', stored even when nobody chose it: read that as the
+// theme's own default, so the aphes.ist theme opens dark whatever the os prefers.
+function migrateMode() {
+  if (state.modeV !== 2) {
+    if (state.mode === 'system' || !MODES.includes(state.mode)) state.mode = 'theme';
+    state.modeV = 2;
+  }
+}
+
+function themeDefaultMode() {
+  return current?.manifest?.defaultMode === 'light' ? 'light' : 'dark';
+}
+
 function resolvedMode() {
   if (state.mode === 'light' || state.mode === 'dark') return state.mode;
+  if (state.mode !== 'system' && !current?.manifest?.modeFollowsSystem) return themeDefaultMode();
   const mq = globalThis.matchMedia?.('(prefers-color-scheme: light)');
   if (mq?.matches) return 'light';
   const mqd = globalThis.matchMedia?.('(prefers-color-scheme: dark)');
   if (mqd?.matches) return 'dark';
-  return current?.manifest?.defaultMode === 'light' ? 'light' : 'dark';
+  return themeDefaultMode();
 }
 
 export function osPrefersReducedMotion() {
@@ -624,7 +645,7 @@ function watchSystem() {
   if (systemQuery || !globalThis.matchMedia) return;
   systemQuery = matchMedia('(prefers-color-scheme: dark)');
   systemQuery.addEventListener?.('change', () => {
-    if (state.mode !== 'system') return;
+    if (state.mode !== 'system' && !(state.mode === 'theme' && current?.manifest?.modeFollowsSystem)) return;
     applySwitches();
     emit('system');
   });
@@ -708,7 +729,7 @@ const isPlainObject = (v) => v != null && typeof v === 'object' && !Array.isArra
 
 function sanitizeRemote(t) {
   const out = {};
-  for (const k of ['id', 'mode', 'motion', 'cursor', 'scrollbars', 'typeScale', 'overrides', 'fonts', 'logo']) if (k in t) out[k] = t[k];
+  for (const k of ['id', 'mode', 'modeV', 'motion', 'cursor', 'scrollbars', 'typeScale', 'overrides', 'fonts', 'logo']) if (k in t) out[k] = t[k];
   return out;
 }
 

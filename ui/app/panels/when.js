@@ -4,13 +4,57 @@
 // mark lights its items in the brain; dragging across the streams brushes the
 // time window, which the shader applies as a uniform range.
 import { h, clear, fmtDate } from '../lib/dom.js';
-import { store, on, setView, BIT, SPEAKERS } from '../lib/store.js';
+import { store, on, setView, BIT, SPEAKERS, toNorm, fromNorm } from '../lib/store.js';
 import { theme, rgba, areaColor } from '../lib/tokens.js';
 import { api } from '../lib/api.js';
 import { stackedStreams, calendar, columns, monthAxis } from '../lib/stipple.js';
 
 const TH_KINDS = [['decision', 'decisions'], ['open_question', 'open questions'], ['plan', 'plans'], ['rejection', 'rejections']];
 const ymOf = (sec) => new Date(sec * 1000).toISOString().slice(0, 7);
+
+// The server sends one bin per calendar month from the first item to the last. Decades of
+// journals plus one note written today make thousands of months, mostly empty: drop long empty
+// stretches (keeping one empty bin as a visible break) and merge neighbouring months so the
+// charts hold at most MAX_BINS columns. Bins keep the label of their first month.
+const MAX_BINS = 120, LONG_GAP = 24;
+export function compactTimeline(tl) {
+  const m = tl.months.length;
+  const total = new Float64Array(m);
+  const add = (arr) => { if (arr) for (let k = 0; k < m; k++) total[k] += arr[k] || 0; };
+  for (const br of tl.by_region) add(br.counts);
+  for (const v of Object.values(tl.by_speaker || {})) add(v);
+  // runs of kept months
+  const keep = [];
+  for (let k = 0; k < m;) {
+    if (total[k] > 0) { keep.push(k); k++; continue; }
+    let e = k; while (e < m && total[e] === 0) e++;
+    if (e - k >= LONG_GAP && k > 0 && e < m) keep.push(-1); // a break marker
+    else for (let j = k; j < e; j++) keep.push(j);
+    k = e;
+  }
+  const group = Math.max(1, Math.ceil(keep.length / MAX_BINS));
+  const bins = []; // arrays of month indices (a break is an empty array)
+  let cur = [];
+  for (const k of keep) {
+    if (k < 0) { if (cur.length) bins.push(cur); bins.push([]); cur = []; continue; }
+    cur.push(k);
+    if (cur.length >= group) { bins.push(cur); cur = []; }
+  }
+  if (cur.length) bins.push(cur);
+  if (bins.length === m && group === 1) return { ...tl, binOf: new Map(tl.months.map((ym, k) => [ym, k])) };
+  const sum = (arr) => bins.map((b) => b.reduce((a, k) => a + (arr?.[k] || 0), 0));
+  const binOf = new Map();
+  bins.forEach((b, i) => { for (const k of b) binOf.set(tl.months[k], i); });
+  const months = bins.map((b, i) => (b.length ? tl.months[b[0]] : tl.months[bins[i + 1]?.[0] ?? m - 1]));
+  return {
+    ...tl,
+    months,
+    binOf,
+    by_region: tl.by_region.map((br) => ({ ...br, counts: sum(br.counts) })),
+    by_speaker: Object.fromEntries(Object.entries(tl.by_speaker || {}).map(([k, v]) => [k, sum(v)])),
+    threads_by_month: Object.fromEntries(Object.entries(tl.threads_by_month || {}).map(([k, v]) => [k, sum(v)])),
+  };
+}
 
 export default {
   id: 'when',
@@ -55,7 +99,7 @@ export default {
       const regs = store.cloud.regions;
       const rIndex = new Map(regs.map((r, k) => [r.id, k]));
       const t0 = store.view.time[0], t1 = store.view.time[1];
-      windowNote.textContent = t0 > 0 || t1 < 1 ? `window: ${fmtDate(store.tMin + t0 * (store.tMax - store.tMin))} – ${fmtDate(store.tMin + t1 * (store.tMax - store.tMin))}` : 'all time';
+      windowNote.textContent = t0 > 0 || t1 < 1 ? `window: ${fmtDate(fromNorm(t0))} – ${fmtDate(fromNorm(t1))}` : 'all time';
 
       // (a) streams by region
       const series = tl.by_region.map((br) => ({ values: br.counts, color: areaColor(rIndex.get(br.region_id) ?? 0, 0.95), r: rIndex.get(br.region_id) }));
@@ -78,9 +122,12 @@ export default {
       // (c) calendar
       const litDay = selKey && selKey.chart === 'cal' ? selKey.iso : null;
       const litFn = litDay ? Object.assign((iso) => iso === litDay, { color: rgba(c['dot-hot'], 1) }) : null;
-      hitCal = calendar(cal.canvas, tl.days, { color: rgba(c.dot, 0.95), soft: rgba(c['ink-soft'], 0.9), lit: litFn });
+      // the calendar ends at the last day of the main body of writing, not at a stray late note
+      // (or at the day the selection points to)
+      const days = calDays();
+      hitCal = calendar(cal.canvas, days, { color: rgba(c.dot, 0.95), soft: rgba(c['ink-soft'], 0.9), lit: litFn });
       const total = tl.days.reduce((a, d) => a + d.count, 0);
-      clear(cal.keys).append(h('span', `${tl.days.length} days written · ${total} items · denser dots, more written`));
+      clear(cal.keys).append(h('span', `${tl.days.length} days written · ${total} items · denser dots, more written · up to ${fmtDate(Date.parse(days[days.length - 1]?.date + 'T12:00:00Z') / 1000)}`));
       cal.canvas.setAttribute('aria-label', `calendar of days written: ${tl.days.length} days. arrow keys move by day and week, enter lights that day.`);
 
       // (d) speakers
@@ -90,6 +137,15 @@ export default {
       clear(spk.keys).append(...SPEAKERS.map((label, si) => h('button', { type: 'button', style: { color: ss[si].color }, onclick: () => selectSpk(si, null) }, h('i'), h('span', { style: { color: 'var(--ink-soft)' } }, label))));
       spk.canvas.setAttribute('aria-label', 'monthly volume by speaker: you, assistants, other.');
     }
+
+    function calDays() {
+      const days = tl.days;
+      if (litDay0()) { const k = days.findIndex((d) => d.date === litDay0()); if (k >= 0) return days.slice(0, k + 1 + Math.min(60, days.length - k - 1)); }
+      let end = days.length;
+      while (end > 1 && Date.parse(days[end - 1].date) - Date.parse(days[end - 2].date) > 180 * 864e5) end--;
+      return end < days.length * 0.9 ? days : days.slice(0, end);
+    }
+    const litDay0 = () => (selKey && selKey.chart === 'cal' ? selKey.iso : null);
 
     function drawWindow(canvas, m) {
       const t0 = store.view.time[0], t1 = store.view.time[1];
@@ -107,7 +163,7 @@ export default {
     const monthOfPoint = () => {
       if (monthIdx) return monthIdx;
       const map = new Map(tl.months.map((ym, k) => [ym, k]));
-      monthIdx = Int16Array.from(store.cloud.t, (t) => map.get(ymOf(t)) ?? -1);
+      monthIdx = Int16Array.from(store.cloud.t, (t) => tl.binOf.get(ymOf(t)) ?? map.get(ymOf(t)) ?? -1);
       return monthIdx;
     };
     function selectStream(si, k) {
@@ -119,7 +175,7 @@ export default {
     }
     function selectLife(si, k) {
       const kind = TH_KINDS[si][0];
-      const ids = new Set(threads.filter((t) => t.kind === kind && (k == null || t.created_at.slice(0, 7) === tl.months[k])).map((t) => t.item_id));
+      const ids = new Set(threads.filter((t) => t.kind === kind && (k == null || tl.binOf.get(t.created_at.slice(0, 7)) === k)).map((t) => t.item_id));
       selKey = { chart: 'life', s: si, k };
       const idx = lightWhere((i) => ids.has(store.cloud.ids[i]), `${TH_KINDS[si][1]}${k == null ? '' : ', ' + tl.months[k]}`);
       if (!idx.length) ctx.toast('the notes behind those marks are not in this brain view.');
@@ -146,7 +202,7 @@ export default {
         const w = streams.canvas.clientWidth;
         const a = Math.max(0, Math.min(1, (Math.min(x, brush.x0) - 4) / (w - 8))), b = Math.max(0, Math.min(1, (Math.max(x, brush.x0) - 4) / (w - 8)));
         // months -> normalised time of the cloud
-        const toT = (f) => { const k = f * (tl.months.length - 1); const ym = tl.months[Math.round(k)]; const sec = Date.parse(ym + '-01T00:00:00Z') / 1000; return Math.max(0, Math.min(1, (sec - store.tMin) / (store.tMax - store.tMin))); };
+        const toT = (f) => { const k = f * (tl.months.length - 1); const ym = tl.months[Math.round(k)]; const sec = Date.parse(ym + '-01T00:00:00Z') / 1000; return Math.max(0, Math.min(1, toNorm(sec))); };
         setView({ time: [toT(a), Math.max(toT(a) + 0.01, toT(b) + 0.03)] });
         render();
       }
@@ -183,7 +239,8 @@ export default {
 
     const load = async () => {
       try { [tl, threads] = await Promise.all([api.timeline(), api.threads().then((r) => r.threads || [])]); } catch (e) { clear(el).append(h('p.empty', 'the timeline could not be read.')); return; }
-      cursor.cal = tl.days.length - 1;
+      tl = compactTimeline(tl);
+      cursor.cal = calDays().length - 1;
       cursor.streams.k = cursor.life.k = cursor.spk.k = tl.months.length - 1;
       monthIdx = null;
       render();

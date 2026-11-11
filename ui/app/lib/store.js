@@ -54,9 +54,47 @@ export function setCloud(cloud) {
   for (const t of cloud.t) { if (t < lo) lo = t; if (t > hi) hi = t; }
   if (!(hi > lo)) hi = lo + 1;
   store.tMin = lo; store.tMax = hi;
-  store.tNorm = Float32Array.from(cloud.t, (t) => (t - lo) / (hi - lo));
+  store.tKnots = timeKnots(cloud.t, lo, hi);
+  store.tNorm = Float32Array.from(cloud.t, (t) => toNorm(t));
   emit('cloud', cloud);
 }
+
+// The time axis (scrubber, histograms, the shader's window) is piecewise linear: a long empty
+// stretch (journals from the 1850s and one note written today) is squeezed to a sliver, so the
+// years that hold the writing are not crushed into a corner. Knots are [seconds, norm] pairs.
+function timeKnots(ts, lo, hi) {
+  const span = hi - lo;
+  const sorted = Float64Array.from(ts).sort();
+  const GAP = span * 0.08, SLIVER = 0.03;
+  const gaps = [];
+  for (let k = 1; k < sorted.length; k++) if (sorted[k] - sorted[k - 1] > GAP) gaps.push([sorted[k - 1], sorted[k]]);
+  if (!gaps.length) return [[lo, 0], [hi, 1]];
+  const empty = gaps.reduce((a, [x, y]) => a + (y - x), 0);
+  const full = span - empty, room = 1 - SLIVER * gaps.length;
+  const knots = [[lo, 0]];
+  let at = 0, prev = lo;
+  for (const [x, y] of gaps) {
+    at += full > 0 ? ((x - prev) / full) * room : 0; knots.push([x, at]);
+    at += SLIVER; knots.push([y, at]);
+    prev = y;
+  }
+  knots.push([hi, 1]);
+  return knots;
+}
+function interp(v, a, b) {
+  const k = store.tKnots;
+  if (!k || k.length < 2) return a === 0 ? (v - store.tMin) / (store.tMax - store.tMin) : store.tMin + v * (store.tMax - store.tMin);
+  if (v <= k[0][a]) return k[0][b] + (v - k[0][a]) * ((k[1][b] - k[0][b]) / ((k[1][a] - k[0][a]) || 1));
+  for (let j = 1; j < k.length; j++) {
+    if (v <= k[j][a]) { const [p, q] = [k[j - 1], k[j]]; return p[b] + ((v - p[a]) / ((q[a] - p[a]) || 1)) * (q[b] - p[b]); }
+  }
+  const [p, q] = [k[k.length - 2], k[k.length - 1]];
+  return q[b] + (v - q[a]) * ((q[b] - p[b]) / ((q[a] - p[a]) || 1));
+}
+/** seconds -> position on the time axis (0..1 inside the brain's span) */
+export function toNorm(sec) { return interp(sec, 0, 1); }
+/** position on the time axis -> seconds */
+export function fromNorm(t) { return interp(t, 1, 0); }
 
 let flagsQueued = false;
 function flagsChanged() {

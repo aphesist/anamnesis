@@ -251,6 +251,9 @@ input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 0; bo
 .timebar .mark { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 9.5px; color: var(--ink-soft); white-space: nowrap; pointer-events: auto; }
 .timebar .mark::after { content: ""; display: block; width: 1px; height: 6px; margin: 1px auto 0; background: var(--accent); opacity: 0.7; }
 .timebar .mark.past { color: var(--ink); }
+.timebar .mark.end { transform: translateX(-85%); }
+.timebar .mark.start { transform: translateX(-15%); }
+.timebar .mark.cluster { padding: 0 4px; border: 1px solid var(--line); border-bottom: 0; border-radius: 2px 2px 0 0; letter-spacing: 0.04em; }
 
 /* ---------- charts ---------- */
 .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: var(--space-3) var(--space-5); }
@@ -300,6 +303,8 @@ select.quiet option { background: var(--bg); color: var(--ink); }
 .chat-msg .who { font-size: 10px; letter-spacing: 0.14em; color: var(--ink-soft); }
 .chat-msg.you .text { color: var(--ink-soft); }
 .chat-msg .text { white-space: pre-wrap; }
+.chat-msg .cite-mark { font-family: var(--font-data); font-size: 0.72em; vertical-align: 0.35em; color: var(--accent-text); padding: 0 2px; margin-right: 2px; border-bottom: 1px dotted currentColor; }
+.chat-msg .cite-mark:hover { color: var(--dot-hot); }
 .chat-msg .cites { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 6px; font-size: 11px; }
 .chat-msg .cites button { color: var(--accent-text); text-transform: none; }
 .chat-msg .usage { font-size: 10px; color: var(--ink-soft); margin-top: 4px; font-family: var(--font-data); }

@@ -21,3 +21,9 @@ test('only http links become anchors', () => {
   assert.ok(!renderMarkdown('[x](javascript:alert(1))').includes('<a href="javascript'));
   assert.ok(renderMarkdown('[x](https://example.org)').includes('href="https://example.org"'));
 });
+
+test('aliased wikilinks show the alias and keep the target', () => {
+  const out = renderMarkdown('but Mr. [[Henry David Thoreau|Thoreau]] walked');
+  assert.ok(out.includes('data-title="Henry David Thoreau">Thoreau</a>'));
+  assert.ok(!out.includes('|'));
+});

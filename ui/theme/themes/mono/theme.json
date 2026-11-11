@@ -3,6 +3,7 @@
   "name": "mono",
   "description": "neutral and high contrast: black and white, one signal colour, system sans.",
   "defaultMode": "dark",
+  "modeFollowsSystem": true,
   "tokens": "tokens.json",
   "modes": {
     "light": "light.tokens.json",

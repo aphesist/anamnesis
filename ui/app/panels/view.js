@@ -103,8 +103,8 @@ export default {
         ctx.brain.cam.reset();
         syncers.forEach((s) => s.sync());
         ctx.toast('the view is reset. nothing was deleted.');
-      } }, 'reset the view'),
-      h('span.meta', 'camera, filters, layout — never data'));
+      }, style: { whiteSpace: 'nowrap' } }, 'reset the view'),
+      h('span.meta', { style: { textAlign: 'right' } }, 'camera, filters, layout — never data'));
 
     el.append(form, groups, show, motion, walk, demo, reset);
     on('theme', () => syncers.forEach((s) => s.sync()));

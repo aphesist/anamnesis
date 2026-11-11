@@ -158,9 +158,14 @@ export function monthAxis(canvas, months, color, pad = [6, 4, 14, 4]) {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   g.fillStyle = color; g.font = '9px ' + getComputedStyle(canvas).fontFamily;
   const m = months.length;
+  // a year label where the year changes, but never closer than a label's width to the last one
+  let lastX = -Infinity, lastY = '';
   months.forEach((ym, k) => {
-    if (!ym.endsWith('-01') && k !== 0) return;
+    const y = ym.slice(0, 4);
+    if (y === lastY && k !== 0) return;
     const x = pad[3] + (k / Math.max(1, m - 1)) * (w - pad[1] - pad[3]);
-    g.fillText(ym.slice(0, 4), Math.min(w - 24, x), h - 2);
+    if (x - lastX < 34) return;
+    lastX = x; lastY = y;
+    g.fillText(y, Math.min(w - 24, x), h - 2);
   });
 }

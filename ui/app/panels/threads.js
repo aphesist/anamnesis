@@ -23,10 +23,13 @@ export default {
       const idx = threads.map((t) => store.index.get(t.item_id)).filter((i) => i != null);
       ctx.light(idx, `${KINDS.find((k) => k[0] === kind)[1]} threads`);
     });
+    // a brain of journals can hold thousands of threads: draw them a page at a time
+    const PAGE = 60;
+    let shown = PAGE;
     const render = () => {
       clear(list);
       if (!threads.length) { list.append(h('li.empty', 'nothing here.')); return; }
-      for (const t of threads) {
+      for (const t of threads.slice(0, shown)) {
         const sel = h('select.quiet', { 'aria-label': `status of: ${t.statement}` }, ...STATUSES.map((s) => h('option', { value: s, selected: s === t.status }, s)));
         sel.addEventListener('change', async () => {
           const prev = t.status;
@@ -37,13 +40,17 @@ export default {
         list.append(h('li',
           h('div', h('span.kind-tag', t.kind.replace('_', ' ')), ' ', h(`span.status.${t.status}`, t.status)),
           h('button.item-title', { type: 'button', onclick: () => { if (i != null) ctx.light([i], t.statement); } }, t.statement),
-          t.quote ? h('div.meta.keep-case', `“${t.quote}”`) : null,
+          t.quote && t.quote.trim() !== t.statement.trim() ? h('div.meta.keep-case', `“${t.quote}”`) : null,
           h('div.btnrow', h('span.meta', fmtDate(t.created_at)), i != null ? h('button.textbtn', { type: 'button', onclick: () => ctx.open(t.item_id) }, 'open the note') : null, sel, h('span.meta', t.extractor))));
+      }
+      if (threads.length > shown) {
+        list.append(h('li.more', h('button.textbtn', { type: 'button', onclick: () => { shown += PAGE * 2; render(); } }, `show more (${threads.length - shown} left of ${threads.length})`)));
       }
     };
     async function load() {
       try { threads = (await api.threads(kind, status)).threads || []; } catch { threads = []; }
       threads.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+      shown = PAGE;
       render();
     }
     load();

@@ -18,6 +18,12 @@ export class OrbitCamera {
     this.shift = [0, 0]; // lens shift in ndc, to keep the brain clear of overlays
   }
   update(dt, aspect) {
+    // the lens shift eases toward its target (a floating panel opening beside the brain)
+    let shifting = false;
+    if (this.shiftTarget) for (let k = 0; k < 2; k++) {
+      const d = this.shiftTarget[k] - this.shift[k];
+      if (Math.abs(d) > 1e-3) { this.shift[k] += d * Math.min(1, dt * (this.motion > 0 ? 5 : 60)); shifting = true; } else this.shift[k] = this.shiftTarget[k];
+    }
     const before = this.yaw + this.pitch * 7 + this.dist * 13 + this.target[0] * 17 + this.target[1] * 19 + this.target[2] * 23;
     if (this.flight) {
       const f = this.flight;
@@ -61,7 +67,7 @@ export class OrbitCamera {
     mul(this.viewProj, this.proj, this.view);
     const after = this.yaw + this.pitch * 7 + this.dist * 13 + this.target[0] * 17 + this.target[1] * 19 + this.target[2] * 23;
     if (after !== before || this._aspect !== aspect) { this.version++; this._aspect = aspect; }
-    return this.flight != null || this.vYaw !== 0 || this.vPitch !== 0 || this.vZoom !== 0 || (this.turning && this.motion > 0);
+    return shifting || this.flight != null || this.vYaw !== 0 || this.vPitch !== 0 || this.vZoom !== 0 || (this.turning && this.motion > 0);
   }
   drag(dx, dy, dt) {
     this.flight = null;

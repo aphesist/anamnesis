@@ -11,6 +11,23 @@ import { createConsent, setChat, resetConsent, withApprovals, onConsentRequired,
 import { gradeControl } from '../lib/grade.js';
 
 let unread = 0;
+
+// Once an answer has finished streaming: [[target|alias]] wikilinks read as their alias, and
+// [n] markers become small links to the n-th cited note (the order the server cited them in).
+function tidy(textEl, citedIds) {
+  const parts = [...textEl.childNodes];
+  if (parts.some((n) => n.nodeType !== 3)) return; // an error or note was appended: leave it
+  const text = textEl.textContent
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+    .replace(/\[\[([^\]]+)\]\]/g, '$1');
+  clear(textEl);
+  for (const bit of text.split(/(\[\d{1,2}\])/)) {
+    const m = bit.match(/^\[(\d{1,2})\]$/);
+    const id = m ? citedIds[+m[1] - 1] : null;
+    if (id) textEl.append(h('button.cite-mark', { type: 'button', title: 'open the cited note', onclick: () => window.anamnesis?.ctx.open(id) }, m[1]));
+    else textEl.append(bit);
+  }
+}
 export default {
   id: 'chat',
   title: 'chat',
@@ -159,6 +176,7 @@ export default {
         textEl.append(h('span.soft', e.name === 'AbortError' ? ' (stopped)' : ' (the model could not be reached)'));
       } finally {
         caret.remove();
+        tidy(textEl, [...cited]);
         busy = null; send.hidden = false; stop.hidden = true;
         if (cited.size) cites.prepend(h('span.meta.cite-hint', 'relevant? tap 0–3'));
         if (!document.querySelector('.panel-chat')?.isConnected) { unread++; ctx.layout.render(); }

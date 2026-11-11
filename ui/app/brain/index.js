@@ -3,7 +3,7 @@
 import { OrbitCamera } from './camera.js';
 import { POINT_VS, POINT_FS, LINK_VS, LINK_FS, SHELL_VS, SHELL_FS } from './shaders.js';
 import { normalise, anatomy, groupsFor, spheres, split, hash, shell } from './layouts.js';
-import { store, on, emit, BIT, LIT, groupKey, regionOf } from '../lib/store.js';
+import { store, on, emit, BIT, LIT, groupKey, regionOf, fromNorm } from '../lib/store.js';
 import { theme, onTheme } from '../lib/tokens.js';
 import { h } from '../lib/dom.js';
 
@@ -151,8 +151,12 @@ export class Brain {
     const kindIdx = { written: 0, manual: 1, accepted_suggestion: 2 };
     const lb = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, lb);
-    gl.bufferData(gl.ARRAY_BUFFER, Int32Array.from(links.flatMap((l) => [l[0], l[1], kindIdx[l[2]] ?? 0])), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(1); gl.vertexAttribIPointer(1, 3, gl.INT, 0, 0); gl.vertexAttribDivisor(1, 1);
+    // the busier end of each link: threads converging on a hub note are thinned so they do not
+    // drown the view (the shader brings a hovered or lit item's own threads back up)
+    const deg = new Uint16Array(n);
+    for (const l of links) { deg[l[0]]++; deg[l[1]]++; }
+    gl.bufferData(gl.ARRAY_BUFFER, Int32Array.from(links.flatMap((l) => [l[0], l[1], kindIdx[l[2]] ?? 0, Math.max(deg[l[0]], deg[l[1]])])), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(1); gl.vertexAttribIPointer(1, 4, gl.INT, 0, 0); gl.vertexAttribDivisor(1, 1);
     gl.bindVertexArray(null);
     this.dirty = true;
     this.buildLabels();
@@ -252,10 +256,16 @@ export class Brain {
     for (const l of this.labels) l.el.remove();
     this.labels = [];
     const mk = (text, sub, a, b, kind, extra = {}) => {
-      const el = h('button.region-label', { type: 'button', tabindex: '-1', title: sub || '', style: { opacity: '0' } }, h('span.rl-text', text));
+      const span = h('span.rl-text', text);
+      const el = h('button.region-label', { type: 'button', tabindex: '-1', title: sub || '', style: { opacity: '0' } }, span);
       el.addEventListener('click', (e) => { e.stopPropagation(); if (extra.region != null) this.onRegion(extra.region); else if (extra.group) emit('group-click', extra.group); });
+      el.addEventListener('pointerenter', () => { this.labelHover = extra.region ?? null; this.dirty = true; });
+      el.addEventListener('pointerleave', () => { this.labelHover = null; this.dirty = true; });
       this.overlay.append(el);
-      this.labels.push({ el, a, b, kind, w: text.length * 7.2 + 8, ...extra });
+      // "ice · snow · water" -> "ice · snow" when the stage is crowded
+      const words = String(text).split(' · ');
+      const short = words.length > 2 ? words.slice(0, 2).join(' · ') : text;
+      this.labels.push({ el, span, a, b, kind, full: text, short, text, w: text.length * 7.2 + 8, shown: false, ...extra });
     };
     const centreOf = new Map(this.layoutCentres.map((g) => [g.key, g.pos]));
     // region means in the layout, for regions when grouped by something else
@@ -269,46 +279,78 @@ export class Brain {
       mk(reg.label, reg.anatomy || '', this.regionA[r], b, v.groupBy === 'region' ? 'both' : 'a', { region: r, born: Date.parse(reg.born_at) / 1000 });
     });
     if (v.groupBy !== 'region') {
-      for (const g of this.layoutCentres) mk(g.key, `${g.count} items`, g.pos, g.pos, 'b', { group: g.key });
+      for (const g of this.layoutCentres) mk(g.key, `${g.count} items`, g.pos, g.pos, 'b', { group: g.key, count: g.count });
     } else if (centreOf.has('unsorted')) {
       const g = this.layoutCentres.find((x) => x.key === 'unsorted');
-      mk('unsorted', `${g.count} items`, g.pos, g.pos, 'b', { group: 'unsorted' });
+      mk('unsorted', `${g.count} items`, g.pos, g.pos, 'b', { group: 'unsorted', count: g.count });
     }
   }
 
+  // Screen-space decluttering: project every label, rank by region size and nearness to the camera
+  // (with a little hysteresis so labels do not flicker as the brain turns), then place greedily:
+  // a label is shown only if its box stays inside the stage and clear of panels and of every label
+  // already placed. Hovered and selected regions are placed first and always shown. When more than
+  // MAX_LABELS regions are visible, labels shrink to their top two keywords.
   updateLabels(w, hgt) {
+    const MAX_LABELS = w < 700 ? 8 : 12, PAD = 6, EDGE = 8;
     const vp = this.cam.viewProj, m = this.morph;
-    const tmax = store.tMin + (store.tMax - store.tMin) * store.view.time[1];
-    const placed = [];
+    const tmax = fromNorm(store.view.time[1]);
+    const obstacles = [];
     const cr = this.canvas.getBoundingClientRect();
-    for (const sel of ['#slot-bottom-left', '#slot-bottom', '.stage-views', '.lit-bar:not([hidden])', '.peek:not([hidden])']) {
-      const o = document.querySelector(sel); if (!o || !o.offsetParent) continue;
-      const r = o.getBoundingClientRect(); if (!r.width) continue;
-      placed.push([r.left - cr.left, r.top - cr.top, r.right - cr.left, r.bottom - cr.top]);
+    for (const sel of ['#slot-bottom-left', '#slot-bottom', '.stage-views', '.lit-bar:not([hidden])', '.peek:not([hidden])', '.demo-banner:not([hidden])', '.float:not([hidden])', '.sheet:not([hidden])', '#caption']) {
+      for (const o of document.querySelectorAll(sel)) {
+        if (!o.offsetParent) continue;
+        const r = o.getBoundingClientRect(); if (!r.width || !r.height) continue;
+        obstacles.push([r.left - cr.left - PAD, r.top - cr.top - PAD, r.right - cr.left + PAD, r.bottom - cr.top + PAD]);
+      }
     }
-    const order = [...this.labels].sort((x, y) => (store.cloud.regions[y.region]?.size || 0) - (store.cloud.regions[x.region]?.size || 0));
-    for (const l of order) {
+    const hoverPoint = this.hover >= 0 ? store.cloud?.region[this.hover] : -1;
+    const lit = store.litLabel;
+    const cand = [];
+    for (const l of this.labels) {
       let op = l.kind === 'a' ? 1 - m : l.kind === 'b' ? m : 1;
-      if (l.born && l.born > tmax + 1) op = 0;
+      // a region born after the window closes is not there yet (at "now" every region is)
+      if (l.born && l.born > tmax + 1 && store.view.time[1] < 0.999) op = 0;
       const p = [0, 1, 2].map((d) => l.a[d] + (l.b[d] - l.a[d]) * m);
       const x = vp[0] * p[0] + vp[4] * p[1] + vp[8] * p[2] + vp[12];
       const y = vp[1] * p[0] + vp[5] * p[1] + vp[9] * p[2] + vp[13];
       const wc = vp[3] * p[0] + vp[7] * p[1] + vp[11] * p[2] + vp[15];
       if (wc <= 0.05) op = 0;
-      const sx = (x / wc * 0.5 + 0.5) * w, sy = (0.5 - y / wc * 0.5) * hgt;
-      const depthFade = Math.max(0.35, Math.min(1, 1.6 - wc * 0.22));
-      op *= depthFade;
-      if (op > 0.15) {
-        if (!l.mw) l.mw = l.el.offsetWidth || l.w;
-        const box = [sx - l.mw / 2 - 6, sy - 10, sx + l.mw / 2 + 6, sy + 10];
-        if (placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) op *= 0.0;
-        else placed.push(box);
-      }
-      const lit = l.region != null && this.glowTarget[l.region] > 0.3;
-      l.el.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%, -50%)`;
-      l.el.style.opacity = (lit ? 1 : op).toFixed(3);
-      l.el.classList.toggle('lit', lit);
-      l.el.style.pointerEvents = op > 0.3 ? 'auto' : 'none';
+      l.sx = (x / wc * 0.5 + 0.5) * w; l.sy = (0.5 - y / wc * 0.5) * hgt;
+      op *= Math.max(0.6, Math.min(1, 1.7 - wc * 0.2));
+      l.op = op;
+      const reg = l.region != null ? store.cloud.regions[l.region] : null;
+      l.forced = op > 0.05 && l.region != null && (this.glowTarget[l.region] > 0.3 || this.labelHover === l.region || hoverPoint === l.region || (!!lit && reg?.label === lit));
+      // bigger and nearer first; labels already showing keep a head start
+      const size = reg ? reg.size || 1 : (l.count || 50);
+      l.prio = op > 0.15 ? Math.sqrt(size) / Math.max(0.5, wc) * (l.shown ? 1.35 : 1) * (l.kind === 'b' && m > 0.5 ? 1.5 : 1) : -1;
+      if (op > 0.15 || l.forced) cand.push(l);
+    }
+    const crowded = cand.length > MAX_LABELS;
+    cand.sort((x, y) => (y.forced - x.forced) || (y.prio - x.prio));
+    const placed = [];
+    let count = 0;
+    for (const l of cand) {
+      const text = crowded && !l.forced ? l.short : l.full;
+      if (text !== l.text) { l.text = text; l.span.textContent = text; }
+      l.mw ??= {}; l.mh ??= 20;
+      if (!l.mw[text]) { const r = l.el.getBoundingClientRect(); if (r.width) { l.mw[text] = r.width; l.mh = r.height; } }
+      const bw = l.mw[text] || text.length * 8 + 12, bh = l.mh;
+      const box = [l.sx - bw / 2 - PAD, l.sy - bh / 2 - PAD / 2, l.sx + bw / 2 + PAD, l.sy + bh / 2 + PAD / 2];
+      const inside = box[0] > EDGE && box[1] > EDGE && box[2] < w - EDGE && box[3] < hgt - EDGE;
+      const hit = (b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]);
+      // hovered and selected regions always show (they come first, so the others make way)
+      const ok = l.forced || (inside && count < MAX_LABELS && !placed.some(hit) && !obstacles.some(hit));
+      l.show = ok;
+      if (ok) { placed.push(box); if (!l.forced) count++; }
+    }
+    for (const l of this.labels) {
+      const show = cand.includes(l) && l.show;
+      l.shown = show;
+      l.el.style.transform = `translate(${(l.sx ?? 0).toFixed(1)}px, ${(l.sy ?? 0).toFixed(1)}px) translate(-50%, -50%)`;
+      l.el.style.opacity = show ? (l.forced ? 1 : l.op).toFixed(3) : '0';
+      l.el.classList.toggle('lit', !!l.forced);
+      l.el.style.pointerEvents = show && l.op > 0.3 ? 'auto' : 'none';
     }
   }
 
@@ -509,7 +551,7 @@ export class Brain {
     if (store.view.filaments && this.nLinks) {
       gl.useProgram(this.lnk.p);
       this.setUniforms(this.lnk, hgt);
-      gl.uniform1f(this.lnk.u.uLinkAlpha, this.light ? 0.06 : 0.05);
+      gl.uniform1f(this.lnk.u.uLinkAlpha, this.light ? 0.05 : 0.04);
       gl.bindVertexArray(this.linkVao);
       gl.drawArraysInstanced(gl.LINE_STRIP, 0, SEGMENTS + 1, this.nLinks);
     }

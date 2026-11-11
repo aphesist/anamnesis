@@ -1,7 +1,7 @@
 // Histogram: a precise 2d companion to the brain. Counts by time, area or kind,
 // with the current selection drawn hot on top. Click a bar to light it.
 import { h, clear } from '../lib/dom.js';
-import { store, LIT, BIT, kindOf, regionOf } from '../lib/store.js';
+import { store, LIT, BIT, kindOf, regionOf, fromNorm } from '../lib/store.js';
 import { theme, rgba } from '../lib/tokens.js';
 import { setup, stippleRect } from '../lib/stipple.js';
 
@@ -20,7 +20,7 @@ export default {
       if (!store.cloud) return;
       const c = store.cloud, n = store.n, f = store.flags;
       const keyOf = by === 'time' ? (i) => Math.min(47, Math.floor(store.tNorm[i] * 48)) : by === 'area' ? (i) => (c.region[i] < 0 ? c.regions.length : c.region[i]) : (i) => c.kind[i];
-      const names = by === 'time' ? Array.from({ length: 48 }, (_, k) => { const d = new Date((store.tMin + (k / 48) * (store.tMax - store.tMin)) * 1000); return d.toISOString().slice(0, 7); }) : by === 'area' ? [...c.regions.map((r) => r.label), 'unsorted'] : c.kinds;
+      const names = by === 'time' ? Array.from({ length: 48 }, (_, k) => { const d = new Date(fromNorm(k / 48) * 1000); return d.toISOString().slice(0, 7); }) : by === 'area' ? [...c.regions.map((r) => r.label), 'unsorted'] : c.kinds;
       buckets = names.map((name) => ({ name, all: [], lit: 0 }));
       for (let i = 0; i < n; i++) { if (f[i] & BIT.FILTERED) continue; const b = buckets[keyOf(i)]; if (!b) continue; b.all.push(i); if (f[i] & LIT) b.lit++; }
       if (by !== 'time') buckets = buckets.filter((b) => b.all.length).sort((a, b) => b.all.length - a.all.length);

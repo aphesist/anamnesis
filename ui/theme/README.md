@@ -66,7 +66,7 @@ switches on `<html>`, set by `theme.js`: `data-theme="light|dark"`, `data-motion
 |---|---|
 | `init({ server, defaultTheme })` | applies the stored theme; `server: 'auto'` (default) reads/writes `/api/settings` when served over http |
 | `listThemes()` | built-in and imported themes |
-| `applyTheme(id)` / `setMode('system'\|'light'\|'dark')` | switch theme / mode |
+| `applyTheme(id)` / `setMode('theme'\|'system'\|'light'\|'dark')` | switch theme / mode ('theme' is the default: the theme's own `defaultMode`, or the os when its manifest sets `modeFollowsSystem`; aphes.ist opens dark) |
 | `setMotion('full'\|'reduced'\|null)` | `null` follows the os until the person chooses |
 | `setCursor('custom'\|'system'\|null)`, `setScrollbars('hidden'\|'system'\|null)` | `null` follows the theme |
 | `setToken(name, value, 'all'\|'light'\|'dark')`, `setOverrides`, `clearOverrides` | override any token |
