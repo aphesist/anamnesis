@@ -164,10 +164,14 @@ pub struct SignInStatus {
     pub message: String,
 }
 
-/// Find an executable named `name` in a PATH-style list.
+/// Find an executable named `name` in a PATH-style list. On windows every extension in
+/// `PATHEXT` that can be started (`.exe`, `.com`, `.cmd`, `.bat`) is tried, in that
+/// variable's order, so a native `claude.exe` wins over an npm `claude.cmd` shim in the
+/// same directory.
 pub fn which_in(name: &str, path: &OsStr) -> Option<PathBuf> {
+    let exts = exe_extensions();
     for dir in std::env::split_paths(path) {
-        for cand in candidates(&dir, name) {
+        for cand in candidates(&dir, name, &exts) {
             if is_executable(&cand) {
                 return Some(cand);
             }
@@ -176,15 +180,62 @@ pub fn which_in(name: &str, path: &OsStr) -> Option<PathBuf> {
     None
 }
 
-fn candidates(dir: &Path, name: &str) -> Vec<PathBuf> {
+/// Extensions tried by [`which_in`]: empty on unix (the bare name), from `PATHEXT` on
+/// windows.
+fn exe_extensions() -> Vec<String> {
     if cfg!(windows) {
-        ["exe", "cmd", "bat"]
-            .iter()
+        let raw = std::env::var("PATHEXT").unwrap_or_default();
+        pathext_list(&raw)
+    } else {
+        Vec::new()
+    }
+}
+
+/// The startable extensions in a `PATHEXT` value, lowercased and without the dot, in
+/// order; the windows default when the value names none of them.
+pub(crate) fn pathext_list(raw: &str) -> Vec<String> {
+    const STARTABLE: &[&str] = &["exe", "com", "cmd", "bat"];
+    let mut out: Vec<String> = Vec::new();
+    for e in raw.split(';') {
+        let e = e.trim().trim_start_matches('.').to_ascii_lowercase();
+        if STARTABLE.contains(&e.as_str()) && !out.contains(&e) {
+            out.push(e);
+        }
+    }
+    if out.is_empty() {
+        out = ["com", "exe", "bat", "cmd"].map(String::from).to_vec();
+    }
+    out
+}
+
+fn candidates(dir: &Path, name: &str, exts: &[String]) -> Vec<PathBuf> {
+    if exts.is_empty() {
+        vec![dir.join(name)]
+    } else {
+        exts.iter()
             .map(|e| dir.join(format!("{name}.{e}")))
             .collect()
-    } else {
-        vec![dir.join(name)]
     }
+}
+
+/// Where installers put `claude` when it is not on the server's PATH (a server started
+/// before the install, or from a shortcut, can have an older PATH than a new terminal).
+/// Only binary locations; nothing in them is read.
+fn fallback_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if cfg!(windows) {
+        // the native installer, then npm's global prefix
+        if let Some(profile) = std::env::var_os("USERPROFILE") {
+            dirs.push(PathBuf::from(profile).join(".local").join("bin"));
+        }
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            dirs.push(PathBuf::from(appdata).join("npm"));
+        }
+    } else {
+        dirs.push(PathBuf::from("/opt/homebrew/bin"));
+        dirs.push(PathBuf::from("/usr/local/bin"));
+    }
+    dirs
 }
 
 fn is_executable(p: &Path) -> bool {
@@ -202,6 +253,102 @@ fn is_executable(p: &Path) -> bool {
     #[cfg(not(unix))]
     {
         true
+    }
+}
+
+/// How a located `claude` is started.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Launch {
+    /// Run the file itself: a native `claude.exe`, or any unix executable.
+    Direct(PathBuf),
+    /// An npm shim (`claude.cmd`) resolved to `node <script>`, so no cmd.exe is involved
+    /// and arguments reach the cli exactly as given.
+    Node { node: PathBuf, script: PathBuf },
+    /// A batch file that could not be resolved. Started through std's batch-file support
+    /// (cmd.exe), which quotes every argument and refuses, rather than passes on, one it
+    /// cannot quote safely. Multi-line arguments therefore go through files.
+    Batch(PathBuf),
+}
+
+impl Launch {
+    /// Decide how to start `bin`. `path` is the PATH used to find `node` when the shim's
+    /// directory has none.
+    pub(crate) fn for_binary(bin: &Path, path: Option<&OsStr>) -> Launch {
+        let ext = bin
+            .extension()
+            .map(|e| e.to_string_lossy().to_ascii_lowercase())
+            .unwrap_or_default();
+        if ext != "cmd" && ext != "bat" {
+            return Launch::Direct(bin.to_path_buf());
+        }
+        match resolve_npm_shim(bin, path) {
+            Some((node, script)) => Launch::Node { node, script },
+            None => Launch::Batch(bin.to_path_buf()),
+        }
+    }
+
+    fn command(&self) -> Command {
+        match self {
+            Launch::Direct(p) | Launch::Batch(p) => Command::new(p),
+            Launch::Node { node, script } => {
+                let mut c = Command::new(node);
+                c.arg(script);
+                c
+            }
+        }
+    }
+
+    fn is_batch(&self) -> bool {
+        matches!(self, Launch::Batch(_))
+    }
+}
+
+/// Resolve an npm / pnpm / yarn `.cmd` shim to the javascript file it runs and the node
+/// that should run it. The shim's own text names the script relative to its directory
+/// (`"%dp0%\node_modules\@anthropic-ai\claude-code\cli.js"` for npm, `%~dp0\…` for
+/// others); failing that, the package's usual place next to the shim is tried.
+pub(crate) fn resolve_npm_shim(shim: &Path, path: Option<&OsStr>) -> Option<(PathBuf, PathBuf)> {
+    let dir = shim.parent()?;
+    let text = std::fs::read_to_string(shim).unwrap_or_default();
+    let from_text = text.split('"').find_map(|part| {
+        let rel = part
+            .strip_prefix("%dp0%\\")
+            .or_else(|| part.strip_prefix("%~dp0\\"))
+            .or_else(|| part.strip_prefix("%~dp0"))?;
+        let lower = rel.to_ascii_lowercase();
+        if !(lower.ends_with(".js") || lower.ends_with(".mjs") || lower.ends_with(".cjs")) {
+            return None;
+        }
+        let rel: PathBuf = rel.split(['\\', '/']).filter(|c| !c.is_empty()).collect();
+        Some(dir.join(rel))
+    });
+    let script = from_text
+        .into_iter()
+        .chain(std::iter::once(
+            dir.join("node_modules")
+                .join("@anthropic-ai")
+                .join("claude-code")
+                .join("cli.js"),
+        ))
+        .find(|p| p.is_file())?;
+    // npm shims prefer a node.exe sitting next to them, then node on PATH
+    let local = dir.join(if cfg!(windows) { "node.exe" } else { "node" });
+    let node = if local.is_file() {
+        local
+    } else {
+        which_in("node", path?)?
+    };
+    Some((node, script))
+}
+
+/// Deletes a file when dropped (the system prompt handed to a batch-launched cli).
+struct RemoveOnDrop(Option<PathBuf>);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        if let Some(p) = self.0.take() {
+            let _ = std::fs::remove_file(p);
+        }
     }
 }
 
@@ -263,16 +410,29 @@ impl ClaudeCli {
         if let Some(b) = &self.cfg.binary {
             return is_executable(b).then(|| b.clone());
         }
+        if let Some(p) = &self.cfg.search_path {
+            // an explicit search path is the whole search (tests, locked-down setups)
+            return which_in("claude", p);
+        }
+        if let Some(found) = std::env::var_os("PATH").and_then(|p| which_in("claude", &p)) {
+            return Some(found);
+        }
+        let extra = std::env::join_paths(fallback_dirs()).ok()?;
+        which_in("claude", &extra)
+    }
+
+    /// How to start `bin` (resolves windows npm shims to `node <script>`).
+    pub(crate) fn launch(&self, bin: &Path) -> Launch {
         let path = self
             .cfg
             .search_path
             .clone()
-            .or_else(|| std::env::var_os("PATH"))?;
-        which_in("claude", &path)
+            .or_else(|| std::env::var_os("PATH"));
+        Launch::for_binary(bin, path.as_deref())
     }
 
     fn command(&self, bin: &Path) -> Command {
-        let mut c = Command::new(bin);
+        let mut c = self.launch(bin).command();
         for k in SCRUBBED_ENV.iter().chain(AUTH_ENV) {
             c.env_remove(k);
         }
@@ -289,7 +449,7 @@ impl ClaudeCli {
         c
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(crate) fn command_for_test(&self, bin: &Path) -> Command {
         self.command(bin)
     }
@@ -688,12 +848,25 @@ impl Backend for ClaudeCli {
             .locate()
             .ok_or_else(|| HarnessError::Unavailable("claude cli not found on PATH".into()))?;
         let mut cmd = self.command(&bin);
-        cmd.args(self.args(&req)).stdin(Stdio::piped());
         let dir = match &self.cfg.work_dir {
             Some(d) => d.clone(),
             None => std::env::temp_dir().join("anamnesis-claude-cli"),
         };
         std::fs::create_dir_all(&dir)?;
+        let mut args = self.args(&req);
+        let mut prompt_file = RemoveOnDrop(None);
+        if self.launch(&bin).is_batch() {
+            // cmd.exe cannot carry a line break inside an argument: hand the system
+            // prompt over as a file instead (the prompt itself always goes on stdin)
+            if let Some(i) = args.iter().position(|a| a == "--system-prompt") {
+                let file = dir.join(format!("system-prompt-{}.txt", uuid::Uuid::new_v4()));
+                std::fs::write(&file, args[i + 1].as_bytes())?;
+                args[i] = "--system-prompt-file".into();
+                args[i + 1] = file.display().to_string();
+                prompt_file.0 = Some(file);
+            }
+        }
+        cmd.args(&args).stdin(Stdio::piped());
         cmd.current_dir(&dir);
         let mut child = cmd.spawn()?;
         let prompt = render_prompt(&req);
@@ -705,6 +878,9 @@ impl Backend for ClaudeCli {
         let stdout = child.stdout.take().expect("stdout piped");
         let mut stderr_pipe = child.stderr.take().expect("stderr piped");
         let stderr = Some(tokio::spawn(async move {
+            // the system-prompt file (batch launch) lives until the cli closes stderr,
+            // i.e. until it exits
+            let _prompt_file = prompt_file;
             let mut buf = Vec::new();
             let _ = (&mut stderr_pipe)
                 .take(64 * 1024)
@@ -785,6 +961,125 @@ fn tokio_lines<R: tokio::io::AsyncBufRead + Unpin + Send + 'static>(
             _ => None,
         }
     })
+}
+
+#[cfg(test)]
+mod launch_tests {
+    use super::*;
+
+    /// npm's generated `claude.cmd` (abridged).
+    const NPM_SHIM: &str = "@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nSETLOCAL\r\nCALL :find_dp0\r\n\r\nIF EXIST \"%dp0%\\node.exe\" (\r\n  SET \"_prog=%dp0%\\node.exe\"\r\n) ELSE (\r\n  SET \"_prog=node\"\r\n  SET PATHEXT=%PATHEXT:;.JS;=;%\r\n)\r\n\r\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & \"%_prog%\"  \"%dp0%\\node_modules\\@anthropic-ai\\claude-code\\cli.js\" %*\r\n";
+
+    #[test]
+    fn pathext_order_and_default() {
+        assert_eq!(
+            pathext_list(".COM;.EXE;.BAT;.CMD;.VBS;.JS;.WSH;.MSC"),
+            vec!["com", "exe", "bat", "cmd"]
+        );
+        assert_eq!(pathext_list(".exe;.CMD;.exe"), vec!["exe", "cmd"]);
+        assert_eq!(pathext_list(""), vec!["com", "exe", "bat", "cmd"]);
+    }
+
+    #[test]
+    fn exe_wins_over_cmd_in_the_same_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        for f in ["claude.cmd", "claude.exe"] {
+            std::fs::write(dir.path().join(f), "x").unwrap();
+        }
+        let exts = pathext_list(".COM;.EXE;.BAT;.CMD");
+        let found = candidates(dir.path(), "claude", &exts)
+            .into_iter()
+            .find(|p| p.is_file())
+            .unwrap();
+        assert_eq!(found.file_name().unwrap(), "claude.exe");
+    }
+
+    #[test]
+    fn exe_and_unix_binaries_run_directly() {
+        let l = Launch::for_binary(Path::new("/x/claude.exe"), None);
+        assert_eq!(l, Launch::Direct(PathBuf::from("/x/claude.exe")));
+        let l = Launch::for_binary(Path::new("/usr/local/bin/claude"), None);
+        assert!(matches!(l, Launch::Direct(_)));
+    }
+
+    #[test]
+    fn npm_shim_resolves_to_node_and_the_script() {
+        let dir = tempfile::tempdir().unwrap();
+        let shim = dir.path().join("claude.cmd");
+        std::fs::write(&shim, NPM_SHIM).unwrap();
+        let pkg = dir
+            .path()
+            .join("node_modules")
+            .join("@anthropic-ai")
+            .join("claude-code");
+        std::fs::create_dir_all(&pkg).unwrap();
+        std::fs::write(pkg.join("cli.js"), "// cli").unwrap();
+        let node = dir
+            .path()
+            .join(if cfg!(windows) { "node.exe" } else { "node" });
+        std::fs::write(&node, "x").unwrap();
+        match Launch::for_binary(&shim, None) {
+            Launch::Node { node: n, script } => {
+                assert_eq!(n, node);
+                assert_eq!(script, pkg.join("cli.js"));
+            }
+            other => panic!("expected node launch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn unknown_batch_file_stays_a_batch_launch() {
+        let dir = tempfile::tempdir().unwrap();
+        let shim = dir.path().join("claude.bat");
+        std::fs::write(&shim, "@echo off\r\necho hi\r\n").unwrap();
+        assert_eq!(
+            Launch::for_binary(&shim, Some(OsStr::new(""))),
+            Launch::Batch(shim.clone())
+        );
+        assert!(Launch::Batch(shim).is_batch());
+    }
+}
+
+/// A fake `claude.cmd` run through cmd.exe (windows only).
+#[cfg(all(test, windows))]
+mod windows_batch_tests {
+    use super::*;
+    use crate::testutil::collect;
+
+    #[tokio::test]
+    async fn batch_cli_streams_and_gets_the_system_prompt_as_a_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let fixture = concat!(
+            r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello there"}}}"#,
+            "\r\n",
+            r#"{"type":"result","subtype":"success","is_error":false,"result":"hello there","usage":{"input_tokens":3,"output_tokens":2}}"#,
+            "\r\n"
+        );
+        std::fs::write(dir.path().join("fixture.jsonl"), fixture).unwrap();
+        let args_log = dir.path().join("args.txt");
+        let script = format!(
+            "@echo off\r\nif \"%~1\"==\"--version\" (\r\n  echo 9.9.9 (Claude Code)\r\n  exit /b 0\r\n)\r\necho %* > \"{}\"\r\ntype \"%~dp0fixture.jsonl\"\r\n",
+            args_log.display()
+        );
+        std::fs::write(dir.path().join("claude.cmd"), script).unwrap();
+        let cfg = ClaudeCliConfig {
+            enabled: true,
+            search_path: Some(dir.path().as_os_str().to_owned()),
+            work_dir: Some(dir.path().join("work")),
+            check_auth_status: false,
+            ..ClaudeCliConfig::default()
+        };
+        let cli = ClaudeCli::new(cfg);
+        let bin = cli.locate().expect("finds claude.cmd");
+        assert!(cli.launch(&bin).is_batch());
+        let mut req = ChatRequest::new(vec![Message::user("hi & bye | 100%")]);
+        req.system = Some("line one\nline \"two\" & more".into());
+        let (text, _events) = collect(cli.chat(req).await.unwrap()).await;
+        assert_eq!(text, "hello there");
+        let logged = std::fs::read_to_string(&args_log).unwrap();
+        assert!(logged.contains("--system-prompt-file"), "{logged}");
+        assert!(!logged.contains("line one"), "{logged}");
+    }
 }
 
 #[cfg(test)]
