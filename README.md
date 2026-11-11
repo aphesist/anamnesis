@@ -58,26 +58,26 @@ the brain keeps its history. every entry carries the date it was written, so the
 
 ## quick start
 
-build from source (rust 1.90+; the first build downloads the onnx runtime for local embeddings):
+build from source: you need [rust](https://rustup.rs) 1.90+ and a c compiler (on windows, the visual studio build tools with "desktop development with c++"). the first build downloads the onnx runtime for local embeddings.
 
 ```sh
 git clone https://github.com/aphesist/anamnesis
 cd anamnesis
 cargo build --release -p anamnesis-server
-./target/release/anamnesis import ~/notes          # a folder or an obsidian vault
-./target/release/anamnesis serve --open            # http://127.0.0.1:7368/
 ```
 
-the first run downloads the local embedding model (~465 MB); add `--hash-embedder` to both commands to try it instantly and offline. the details are in [docs/install.md](docs/install.md#quick-start), and [docs/using.md](docs/using.md) is a tour.
-
-**the demo brain.** to see a brain with half a century of dated writing in it, build the transcendentalist demo (the journals of thoreau and emerson, public domain in the us and brazil) with the optional python lab:
+then, on windows use `target\release\anamnesis.exe`, on macos and linux `./target/release/anamnesis`:
 
 ```sh
-cd lab && uv run anamnesis-lab demo transcendentalist && cd ..
-./target/release/anamnesis serve --demo --demo-bundle lab/out/transcendentalist/notes
+anamnesis demo                      # build the demo brain (a few minutes, once)
+anamnesis serve --demo --open       # look around it at http://127.0.0.1:7368/
+anamnesis import ~/notes            # your own: a folder or an obsidian vault
+anamnesis serve --open              # your brain
 ```
 
-`--small` builds an offline 290-note sample in seconds. see [docs/demo.md](docs/demo.md).
+the first run downloads the local embedding model (~465 MB); add `--hash-embedder` to try anything instantly and offline. "show a demo brain" in the view panel works too, and keeps the demo apart from your own brain. details per os, gpu builds and troubleshooting: [docs/install.md](docs/install.md#quick-start); a tour: [docs/using.md](docs/using.md).
+
+**the demo brain** is 1,100 dated entries from the journals of thoreau and emerson (1820–1876, public domain in the us and brazil), shipped in `demo/` and inside the binary. the optional python lab builds the full 9,233-entry version. see [docs/demo.md](docs/demo.md).
 
 ## bring your own model
 
