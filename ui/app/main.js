@@ -202,15 +202,17 @@ const baseShift = [...brain.cam.shift];
 function syncShift() {
   const stage = document.getElementById('page-brain').getBoundingClientRect();
   let dx = 0;
-  if (!floatEl.hidden && stage.width && store.view.page === 'brain') {
-    const r = floatEl.getBoundingClientRect(), side = floatEl.dataset.anchor || 'right';
-    const share = Math.min(0.6, r.width / stage.width);
+  const sheet = document.querySelector('.sheet:not([hidden])');
+  const side = sheet ? 'right' : floatEl.dataset.anchor || 'right';
+  const over = sheet || (!floatEl.hidden ? floatEl : null);
+  if (over && stage.width && store.view.page === 'brain') {
+    const share = Math.min(0.6, over.getBoundingClientRect().width / stage.width);
     if (side === 'right') dx = -share; else if (side === 'left' || side === 'top-left') dx = share;
   }
   brain.cam.shiftTarget = [baseShift[0] + dx, baseShift[1]];
   brain.dirty = true;
 }
-new MutationObserver(syncShift).observe(floatEl, { attributes: true, attributeFilter: ['hidden', 'data-anchor'] });
+new MutationObserver(syncShift).observe(document.getElementById('main'), { attributes: true, attributeFilter: ['hidden', 'data-anchor'], subtree: true, childList: true });
 window.addEventListener('resize', syncShift);
 on('page', syncShift);
 
