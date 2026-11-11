@@ -22,6 +22,7 @@ the guiding question is the one in the name:
 
 - after each change, the brain suggests links for new and changed items (cosine neighbours rescored with adamic–adar over existing links, a same-region bonus, and penalties for near-duplicates and for notes from the same writing session).
 - every suggestion is logged as `SuggestionMade` with `shown`. **about 20% of suggestions are randomly held out** (`shown: false`) and never displayed. the arm of a pair is a seeded function of the pair, so a pair keeps its arm if suggested again. the control arm cannot be seen or decided from the ui or the api.
+- **eligible is not displayed.** `shown: true` only makes a suggestion eligible. it reaches you when the ui actually puts it on screen: opening an item fetches its suggestions (`GET /api/suggestions?item=`), and the server then records `SuggestionDisplayed` for the ones you have not been shown before. accepting or dismissing a suggestion also implies you saw it. everything about exposure (the shown arm, the exposure lift, acceptance) counts **displayed** suggestions only; eligible suggestions nobody looked at are in neither arm. suggestions handed to an external harness over mcp are not counted as displayed.
 - later links are matched to suggestions as unordered pairs; the first link per pair counts. a pair is *predicted* if a suggestion with rank ≤ 5 was made strictly before the link.
 - **hand links** are links you wrote in the text (`[[wikilinks]]`, markdown links) or made by hand (ui or mcp). accepting a suggestion is caused by being shown it, so accepted suggestions count only in the shown arm.
 
@@ -31,7 +32,7 @@ the guiding question is the one in the name:
 latent share = (H/π_h) / (H/π_h + U)
 ```
 
-the same formula on the shown arm is reported beside it; it is contaminated by exposure, and the gap between the two is the **exposure lift** (how much showing a suggestion changes what you link). the interval is monte carlo over jeffreys posteriors of the counts.
+the same formula on the shown arm (*S* hand and accepted links on pairs you were actually shown, *π_s* the share of predicted pairs actually displayed) is reported beside it; it is contaminated by exposure, and by which items you chose to open, and the gap between the two is the **exposure lift** (how much showing a suggestion changes what you link). the interval is monte carlo over jeffreys posteriors of the counts.
 
 **it is modelled, not measured:** the estimator assumes that showing suggestions does not change how many *unpredicted* links you make. that assumption is plausible but untestable from your data alone, so the honesty table keeps this claim in "modelled" even with plenty of data.
 
@@ -43,7 +44,7 @@ also reported: hit rate per arm (share of predicted pairs linked within 90 days,
 
 ## why acceptance rate is not quality
 
-the panel shows how often you accept shown suggestions, labelled as *not* a quality measure. acceptance depends on what you were shown, when, how it was worded and how tired you were; it rewards suggestions that are easy to say yes to, such as near-duplicates. a system can raise acceptance while getting worse at finding what you would have linked anyway. the held-out arm is what measures that.
+the panel shows how often you accept suggestions you were actually shown (accepted ÷ displayed; the report also gives how many were eligible), labelled as *not* a quality measure. with nothing displayed yet it reads "measuring" and is a hypothesis; it needs 30 displayed suggestions. acceptance depends on what you were shown, when, how it was worded and how tired you were; it rewards suggestions that are easy to say yes to, such as near-duplicates. a system can raise acceptance while getting worse at finding what you would have linked anyway. the held-out arm is what measures that.
 
 ## retrieval
 
@@ -86,7 +87,12 @@ new features get rated kindly. every section carries `novelty`: the same metric 
 | **modelled** | an estimate that rests on a stated modelling assumption (e.g. the latent share) |
 | **hypothesis** | not yet supported: too little data, or not measured at all |
 
-a claim whose metric is still "measuring" is always a hypothesis. "it thinks like you" stays a hypothesis: nothing here measures it, and any voice-like metric would use only items whose origin is your own words.
+a claim whose metric is still "measuring" is always a hypothesis. **n always counts observations of you**: hand links, suggestions actually displayed, labels, ratings. what the app does on its own (suggestions it computed, pairs it held out, clustering runs) never makes an n by itself, so a brain nobody has used yet reads "measuring" everywhere. in particular:
+
+- the held-out hit rate needs 30 closed held-out pairs *and* 50 hand links: a hit rate of zero from a brain where you never link by hand says nothing.
+- the exposure lift and acceptance need suggestions that were actually displayed (30 of them).
+- growth needs clustering runs on at least two different days: one import followed by two quick recomputes says nothing about identity over time.
+ "it thinks like you" stays a hypothesis: nothing here measures it, and any voice-like metric would use only items whose origin is your own words.
 
 ## the demo brain is a demonstration
 
