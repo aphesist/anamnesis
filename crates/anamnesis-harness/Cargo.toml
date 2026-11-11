@@ -1,5 +1,6 @@
 [package]
 name = "anamnesis-harness"
+description = "anamnesis: bring-your-own-model backends, routing, rate limits, usage and the egress gate"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,3 +8,26 @@ repository.workspace = true
 
 [dependencies]
 anamnesis-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+async-trait.workspace = true
+sha2.workspace = true
+futures-util = "0.3"
+bytes = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "json"] }
+base64 = "0.22"
+getrandom = "0.2"
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+ring = "0.17"
+# OS keychain for the "continue with chatgpt" token. On linux the kernel keyutils
+# backend is used (pure rust, no dbus); a 0600 file is the fallback.
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["test-util"] }
