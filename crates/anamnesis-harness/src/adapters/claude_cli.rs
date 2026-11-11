@@ -38,10 +38,43 @@ use crate::types::*;
 pub const NOTICE: &str = "uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this and could restrict it at any time; the safest routes are the mcp server and an api key. anamnesis never reads your credentials.";
 pub const SIGN_IN_HINT: &str = "unknown — run `claude` in your terminal to sign in";
 
+/// What the user is told before turning on [`ClaudeCliConfig::relabel_traffic`].
+pub const RELABEL_NOTICE: &str = "label requests as \"anamnesis\" instead of the cli's own label. claude code meters requests differently depending on how they say they were made; scripted (agent sdk) requests have been reported to count about twice as heavily against your plan limits. with this on, anamnesis's requests identify themselves as coming from anamnesis rather than as agent sdk calls, so they are likely to be metered like interactive use. anthropic has not documented this weighting or said whether third-party apps may do this. it is a grey area: it could be treated as getting around your plan's limits, and anthropic can restrict or suspend accounts without notice. it affects only your own account. anamnesis turns this off for everyone if anthropic says it is not allowed.";
+
+/// The label sent when [`ClaudeCliConfig::relabel_traffic`] is on.
+pub const RELABEL_ENTRYPOINT: &str = "anamnesis";
+
+/// Project-wide kill switch for relabelling. Set to `true` (and release) the moment
+/// anthropic says third-party apps may not do this; it overrides every user setting.
+pub const RELABEL_WITHDRAWN: bool = false;
+
 /// Environment variables the adapter removes from the child so that a value inherited
 /// from the parent (e.g. anamnesis started from inside another claude session) does not
-/// relabel the traffic. The adapter never sets them.
+/// relabel the traffic. Only the opt-in [`ClaudeCliConfig::relabel_traffic`] sets one.
 const SCRUBBED_ENV: &[&str] = &["CLAUDE_CODE_ENTRYPOINT", "CLAUDECODE"];
+
+/// Variables that would silently move the cli off the user's subscription login: onto an
+/// api key (billed per token), another endpoint, a cloud provider, or `--bare` mode (which
+/// ignores the login). Removed from the child so "use my claude plan" means exactly that.
+/// `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_CONFIG_DIR` are left alone: both are the user's
+/// own subscription login, set by the user.
+const AUTH_ENV: &[&str] = &[
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_FOUNDRY_API_KEY",
+    "ANTHROPIC_FOUNDRY_AUTH_TOKEN",
+    "CLAUDE_CODE_USE_BEDROCK",
+    "CLAUDE_CODE_USE_VERTEX",
+    "CLAUDE_CODE_USE_FOUNDRY",
+    "CLAUDE_CODE_USE_MANTLE",
+    "CLAUDE_CODE_USE_ANTHROPIC_AWS",
+    "CLAUDE_CODE_SIMPLE",
+];
+
+/// Settings passed with `--settings` when isolated: the user's hooks and auto memory stay
+/// out of anamnesis chats.
+const ISOLATION_SETTINGS: &str = r#"{"disableAllHooks":true,"autoMemoryEnabled":false}"#;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClaudeCliConfig {
@@ -53,6 +86,17 @@ pub struct ClaudeCliConfig {
     /// Global kill switch. When true the adapter refuses every call, whatever else is set.
     #[serde(default)]
     pub disabled_by_policy: bool,
+    /// Opt-in, off by default: label requests as [`RELABEL_ENTRYPOINT`] instead of the
+    /// cli's own label. Grey area; the user enables it after reading [`RELABEL_NOTICE`].
+    #[serde(default)]
+    pub relabel_traffic: bool,
+    /// Kill switch for relabelling alone (the route keeps working without it).
+    #[serde(default)]
+    pub relabel_disabled_by_policy: bool,
+    /// Keep the user's own claude code setup (CLAUDE.md, auto memory, hooks, skills,
+    /// slash commands) out of anamnesis chats. On by default.
+    #[serde(default = "yes")]
+    pub isolate: bool,
     /// Explicit path to the user's `claude`. Default: search PATH.
     #[serde(default)]
     pub binary: Option<PathBuf>,
@@ -88,6 +132,9 @@ impl Default for ClaudeCliConfig {
             id: default_id(),
             enabled: false,
             disabled_by_policy: false,
+            relabel_traffic: false,
+            relabel_disabled_by_policy: false,
+            isolate: true,
             binary: None,
             model: None,
             check_auth_status: true,
@@ -178,6 +225,25 @@ impl ClaudeCli {
         &self.cfg
     }
 
+    /// Whether requests are relabelled: the user opted in and neither kill switch is set.
+    pub fn relabels(&self) -> bool {
+        self.cfg.relabel_traffic && !self.cfg.relabel_disabled_by_policy && !RELABEL_WITHDRAWN
+    }
+
+    /// The only variables the adapter ever sets on the child. The entrypoint label is
+    /// present only when the user opted in to relabelling ([`Self::relabels`]).
+    pub fn child_env(&self) -> Vec<(&'static str, &'static str)> {
+        let mut env = Vec::new();
+        if self.relabels() {
+            env.push(("CLAUDE_CODE_ENTRYPOINT", RELABEL_ENTRYPOINT));
+        }
+        if self.cfg.isolate {
+            env.push(("CLAUDE_CODE_DISABLE_AUTO_MEMORY", "1"));
+            env.push(("CLAUDE_CODE_DISABLE_CLAUDE_MDS", "1"));
+        }
+        env
+    }
+
     fn policy_check(&self) -> Result<()> {
         if self.cfg.disabled_by_policy {
             return Err(HarnessError::DisabledByPolicy(
@@ -207,8 +273,11 @@ impl ClaudeCli {
 
     fn command(&self, bin: &Path) -> Command {
         let mut c = Command::new(bin);
-        for k in SCRUBBED_ENV {
+        for k in SCRUBBED_ENV.iter().chain(AUTH_ENV) {
             c.env_remove(k);
+        }
+        for (k, v) in self.child_env() {
+            c.env(k, v);
         }
         if let Some(p) = &self.cfg.search_path {
             c.env("PATH", p);
@@ -274,6 +343,13 @@ impl ClaudeCli {
         .iter()
         .map(|s| s.to_string())
         .collect();
+        if self.cfg.isolate {
+            a.extend([
+                "--disable-slash-commands".into(),
+                "--settings".into(),
+                ISOLATION_SETTINGS.into(),
+            ]);
+        }
         if let Some(m) = req.model.as_ref().or(self.cfg.model.as_ref()) {
             a.extend(["--model".into(), m.clone()]);
         }

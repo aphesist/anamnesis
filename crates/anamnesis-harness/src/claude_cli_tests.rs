@@ -7,7 +7,9 @@ use std::path::{Path, PathBuf};
 
 use chrono::{TimeZone, Utc};
 
-use crate::adapters::claude_cli::{ClaudeCli, ClaudeCliConfig, NOTICE, SIGN_IN_HINT};
+use crate::adapters::claude_cli::{
+    ClaudeCli, ClaudeCliConfig, NOTICE, RELABEL_ENTRYPOINT, SIGN_IN_HINT,
+};
 use crate::backend::Backend;
 use crate::error::HarnessError;
 use crate::testutil::collect;
@@ -348,12 +350,89 @@ fn removes_inherited_entrypoint_from_child_env() {
         .iter()
         .find(|(k, _)| k == "CLAUDE_CODE_ENTRYPOINT")
         .expect("explicitly handled");
-    assert!(entry.1.is_none(), "removed, never set to a value");
     assert!(
-        !envs
-            .iter()
-            .any(|(k, v)| k.to_string_lossy().starts_with("CLAUDE") && v.is_some())
+        entry.1.is_none(),
+        "removed, never set to a value by default"
     );
+    // Only the isolation switches are set by default.
+    let set: Vec<String> = envs
+        .iter()
+        .filter(|(k, v)| k.to_string_lossy().starts_with("CLAUDE") && v.is_some())
+        .map(|(k, _)| k.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        set,
+        [
+            "CLAUDE_CODE_DISABLE_AUTO_MEMORY",
+            "CLAUDE_CODE_DISABLE_CLAUDE_MDS"
+        ]
+    );
+}
+
+fn env_of(cmd: &tokio::process::Command, key: &str) -> Option<Option<String>> {
+    cmd.as_std()
+        .get_envs()
+        .find(|(k, _)| *k == key)
+        .map(|(_, v)| v.map(|v| v.to_string_lossy().into_owned()))
+}
+
+#[test]
+fn relabels_only_when_opted_in_and_not_killed() {
+    let f = fake(SUCCESS, 0, AUTH_OK);
+    let b = cli(&f);
+    let bin = b.locate().unwrap();
+    assert!(!b.relabels(), "off by default");
+
+    let mut cfg = b.config().clone();
+    cfg.relabel_traffic = true;
+    let b = ClaudeCli::new(cfg.clone());
+    assert!(b.relabels());
+    assert_eq!(
+        env_of(&b.command_for_test(&bin), "CLAUDE_CODE_ENTRYPOINT"),
+        Some(Some(RELABEL_ENTRYPOINT.into()))
+    );
+
+    cfg.relabel_disabled_by_policy = true;
+    let b = ClaudeCli::new(cfg);
+    assert!(!b.relabels(), "the relabel kill switch wins");
+    assert_eq!(
+        env_of(&b.command_for_test(&bin), "CLAUDE_CODE_ENTRYPOINT"),
+        Some(None)
+    );
+}
+
+#[test]
+fn removes_auth_overrides_so_the_subscription_login_is_used() {
+    let f = fake(SUCCESS, 0, AUTH_OK);
+    let b = cli(&f);
+    let cmd = b.command_for_test(&b.locate().unwrap());
+    for k in [
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+        "ANTHROPIC_BASE_URL",
+        "CLAUDE_CODE_USE_BEDROCK",
+        "CLAUDE_CODE_USE_VERTEX",
+        "CLAUDE_CODE_SIMPLE",
+    ] {
+        assert_eq!(env_of(&cmd, k), Some(None), "{k} must be removed");
+    }
+}
+
+#[test]
+fn isolation_flags_on_by_default_and_optional() {
+    let f = fake(SUCCESS, 0, AUTH_OK);
+    let b = cli(&f);
+    let req = ChatRequest::new(vec![Message::user("hi")]);
+    let a = b.args(&req);
+    assert!(a.contains(&"--disable-slash-commands".to_string()));
+    let i = a.iter().position(|s| s == "--settings").unwrap();
+    assert!(a[i + 1].contains("disableAllHooks"));
+    let mut cfg = b.config().clone();
+    cfg.isolate = false;
+    let b = ClaudeCli::new(cfg);
+    let a = b.args(&req);
+    assert!(!a.contains(&"--disable-slash-commands".to_string()));
+    assert!(b.child_env().is_empty());
 }
 
 /// Static guard: the adapter source never names the cli's credential stores or attribution
@@ -380,6 +459,7 @@ fn adapter_source_never_touches_cli_credentials() {
         "setup-token",
         "home_dir",
         "\"HOME\"",
+        // Child variables are set only through `child_env()` (tested above).
         ".env(\"CLAUDE",
         "auth login",
     ] {
