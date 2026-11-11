@@ -1,0 +1,19 @@
+---
+title: "We were not troubled at all by black flies after leaving…"
+created: 1858-07-15T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+We were not troubled at all by black flies after leaving the Franconia Notch. It is apparently only in primitive woods that they work. We had grand views of the Franconia Mountains from Campton, and were surprised by the regular pyramidal form of most of the peaks, including Lafayette, which we had ascended. I think that there must be some ocular illusion about this, for no such regularity was observable in ascending Lafayette. I remember that when I got more than half a mile down it I met two men walking up, and perspiring very much, one of whom asked me if a cliff within a stone’s throw before them was the summit. Indeed the summit of a mountain, though it may appear thus regular at a distance, is not, after all, the easiest thing to find, even in clear weather. The surface was so irregular that you would have thought you saw the summit a dozen times before you did, and in one sense the nearer you got to it, the further off it was. I told the man it was seven or eight times as far as that. I suspect that such are the laws of light that our eye, as it were, leaps from one prominence to another, connecting them by a straight line when at a distance and making one side balance the other. So that when the summit viewed is fifty or a hundred miles distant, there is but very general and very little truth in the impression of its outline conveyed to the mind. Seen from Campton and lower, the Franconia Mountains show three or four sharp and regular blue pyramids, reminding you of pictures of the Pyramids of Egypt, though when near you suspected no such resemblance. You know from having climbed them, most of the time out of sight of the summit, that they must be at least of a scalloped outline, and it is hardly to be supposed that a nearer or more distant prominence always is seen at a distance filling up the irregularities. It would seem as if by some law of light and vision the eye inclined to connect the base and apex of a peak in the horizon by a straight line. Twenty-five miles off, in this case, you might think that the summit was a smooth inclined plane, though you can reach it only over a succession of promontories and shelves.
+
+Cannon Mountain on the west side of the Franconia Notch (on whose side is the profile) is the most singularly lumpish mass of any mountain I ever saw, especially so high. It looks like a behemoth or a load of hay, and suggests no such pyramid as I have described. So my theory does not quite hold together, and I would say that the eye needs only a hint of the general form and completes the outline from the slightest suggestion. The huge lumpish mass and curving outline of Cannon Mountain is yet more remarkable than the pyramidal summits of the others. It would be less remarkable in a mere hill, but it is, in fact, an elevated and bald rocky mountain.
+
+My last view of these Franconia Mountains was from a hill in the road just this side of Plymouth village. Campton apparently affords the best views of them, and some artists board there.
+
+Gathered the Carex straminea (?), some three feet high, scoparia-like, in Bridgewater. Nooned on west bank of the Pemigewasset, half a mile above the New Hampton covered bridge. Saw first pitch pines in New Hampton. Saw chestnuts first and frequently in Franklin and Boscawen, or about 434° N., or half a degree higher than [[Ralph Waldo Emerson|Emerson]] put it. It was quite common in

@@ -1,0 +1,17 @@
+---
+title: "I enjoyed this cranberrying very much, notwithstanding the…"
+created: 1856-08-30T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+I enjoyed this cranberrying very much, notwithstanding the wet and cold, and the swamp seemed to be yielding its crop to me alone, for there are none else to pluck it or to valueit. I told the proprietor once that they grew here, but he, learning that they were not abundant enough to be gathered for the market, has probably never thought of them since. I am the only person in the township who regards them or knows of them, and I do not regard them in the light of their pecuniary value. I have no doubt I felt richer wading there with my two pockets full, treading on wonders at every step, than any farmer going to market with a hundred bushels which he has raked, or hired to be raked. I got further and further away from the town every moment, and my good genius seemed [to] have smiled on me, leading me hither, and then the sun suddenly came out clear and bright, but it did not warm my feet. I would gladly share my gains, take one, or twenty, into partnership and get this swamp with them, but I do not know an individual whom this berry cheers and nourishes as it does me. When I exhibit it to them I perceive that they take but a momentary interest in it and commonly dismiss it from their thoughts with the consideration that it cannot be profitably cultivated. You could not get a pint at one haul of a rake, and Slocum would not give you much for them. But I love it the better partly for that reason even. I fill a basket with them and keep it several days by my side. If anybody else — any farmer, at least — should spend an hour thus wading about here in this secluded swamp, barelegged, intent on the sphagnum, filling his pocket only, with no rake in his hand and no bag or bushel on the bank, he would be pronounced insane and have a guardian put over him; but if he’ll spend his time skimming and watering his milk and selling his small potatoes for large ones, or generally in skinning flints, he will probably be made guardian of somebody else. I have not garnered any rye or oats, but I gathered the wild vine of the Assabet.*
+
+As I waded there I came across an ant-like heap, and, breaking it open with my hand, found it to my surprise to be an ant-hill in the sphagnum, full of ants with their young or ova. It consisted of particles of sphagnum like sawdust, was a foot and a half in diameter, and my feet sunk to water all around it! The ants were small and of a uniform pale sorrel-color.
+
+I noticed also a few small peculiar-looking huckleberries hanging on bushes amid the sphagnum, and, tasting, perceived that they were hispid, a new kind to me. Gaylussacia dumosa var. hirtella (perhaps just after resinosa), though Gray refers it to a “sandy low soil” and says nothing of the hispid fruit. It grows from one to two feet high, the leaves minutely resinousdotted — are not others? and mucronate, the racemes long, with leaf-like bracts now turned conspicuously red. Has a small black hairy or hispid berry, shining but insipid and inedible, with a tough, hairy skin left in the mouth; has very prominent calyx-lobes.

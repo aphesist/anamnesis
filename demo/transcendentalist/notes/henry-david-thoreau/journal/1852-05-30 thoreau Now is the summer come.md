@@ -1,0 +1,17 @@
+---
+title: "Now is the summer come"
+created: 1852-05-30T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+Now is the summer come. A breezy, washing day. A day for shadows, even of moving clouds, over fields in which the grass is beginning to wave. Senecio in bloom. A bird’s nest in grass, with coffee-colored eggs. Cinquefoil and houstonia cover the ground, mixed with the grass and contrasting with each other. Strong lights and shades now. Wild cherry on the low shrubs, but not yet the trees, a rummy scent. Violets everywhere spot the meadows, some more purple, some more lilac. The tall pipe-grass (Equisetum uliginosum). The Drosera rotundifolia now glistens with its dew at midday, a beautiful object closely examined. The dwarf andromeda is about out of bloom. Its new shoots from the side of the old stem are an inch or more long. The little leaves appear to be gradually falling off, after all. See again if they do not all fall off in the summer. Distinguished the Viola palmata in Hubbard’s meadow, near the sidesaddle-flowers, which last are just beginning to blossom. The last are quite showy flowers when the wind turns them so as to show their under sides.
+
+It is a day of shadows, the leaves have so grown, and of wind, —a washing day,—and the shadows of the clouds are observed flitting over the landscape. I do not yet observe a difference between the two kinds of Pyrus arbutijolia, if, indeed, I have compared the two, z.e. my early black and later red-fruited, which last holds on all winter. The fruit of the amelanchier is as big as small peas. I have not noticed any other berry so large yet. The anemones appear to be nearly gone. Yellow lilies are abundant. The bulbous arethusa, the most splendid, rich, and high-colored flower thus far, methinks, all flower and color, almost without leaves, and looking much larger than it is, and more conspicuous on account of its intense color. A flower of mark. It appeared two or three times as large as reality when it flashed upon me from the meadow. Bigelow calls it a “crystalline purple.” (Saw some the 6th of June, but no longer fresh.) ' What kind of blackberry did I find in blossom in Hubbard’s Swamp? Passed a cow that had just dropped her calf in the meadow. The sumach (glabra) is well under weigh now. The yellow water ranunculus by the Corner causeway. There are young robins in nests. ‘To what sparrow belong the coffee-colored eggs in Hubbard’s field by the brook ? White cohush in bloom; also Smilacina stellata. The branches or branchlets of the maidenhair fern are so disposed as to form two thirds of a cup around the stem. The flowers of the sassafras have not such a fragrance as I perceived last year. High blueberry flowers are quite conspicuous. ‘The bass leaf is now large and handsome. The geranium is a delicate flower and belongs especially to shady places under trees and shrubs, — better if about springs, —in by-nooks, so modest. The early gnaphaliums are gone to seed, having run
+
+? [In this case, as not infrequently happened, Thoreau was evidently writing up his Journal — or copying his pencilled field-notes into it — some days after the event.]

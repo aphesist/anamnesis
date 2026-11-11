@@ -1,0 +1,17 @@
+---
+title: "Walden · Former Inhabitants and Winter Visitors"
+created: 1854-01-01T12:00:00Z
+tags: ["thoreau", "essay", "work/walden"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/waldenorlifei00thor"
+origin: external
+kind: essay
+date_precision: year
+source: "Walden (1854)"
+---
+
+I weathered some merry snow storms, and spent some cheerful winter evenings by my fire-side, while the snow whirled wildly without, and even the hooting of the owl was hushed. For many weeks I met no one in my walks but those who came occasionally to cut wood and sled it to the village. The elements, however, abetted me in making a path through the deepest snow in the woods, for when I had once gone through the wind blew the oak leaves into my tracks, where they lodged, and by absorbing the rays of the sun melted the snow, and so not only made a dry bed for my feet, but in the night their dark line was my guide. For human society I was obliged to conjure up the former occupants of these woods. Within the memory of many of my townsmen the road near which my house stands resounded with the laugh and gossip of inhabitants, and the woods which border it were notched and dotted here and there with their little gardens and dwellings, though it was then much more shut in by the forest than now. In some places, within my own remembrance, the pines would scrape both sides of a chaise at once, and women and children who were compelled to go this way to Lincoln alone and on foot did it with fear, and often ran a good part of the distance. Though mainly but a humble route to neighboring villages, or for the woodman’s team, it once amused the traveller more than now by its variety, and lingered longer in his memory. Where now firm open fields stretch from the village to the woods, it then ran through a maple swamp on a foundation of logs, the remnants of which, doubtless, still underlie the present dusty highway, from the Stratton, now the Alms House, Farm, to Brister’s Hill.
+
+East of my bean-field, across the road, lived Cato Ingraham, slave of Duncan Ingraham, Esquire, gentleman, of Concord village, who built his slave a house, and gave him permission to live in Walden Woods;—Cato, not Uticensis, but Concordiensis. Some say that he was a Guinea Negro. There are a few who remember his little patch among the walnuts, which he let grow up till he should be old and need them; but a younger and whiter speculator got them at last. He too, however, occupies an equally narrow house at present. Cato’s half-obliterated cellar hole still remains, though known to few, being concealed from the traveller by a fringe of pines. It is now filled with the smooth sumach (_Rhus glabra_,) and one of the earliest species of golden-rod (_Solidago stricta_) grows there luxuriantly.
+
+Here, by the very corner of my field, still nearer to town, Zilpha, a colored woman, had her little house, where she spun linen for the townsfolk, making the Walden Woods ring with her shrill singing, for she had a loud and notable voice. At length, in the war of 1812, her dwelling was set on fire by English soldiers, prisoners on parole, when she was away, and her cat and dog and hens were all burned up together. She led a hard life, and somewhat inhumane. One old frequenter of these woods remembers, that as he passed her house one noon he heard her muttering to herself over her gurgling pot,—“Ye are all bones, bones!” I have seen bricks amid the oak copse there.

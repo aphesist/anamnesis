@@ -1,0 +1,21 @@
+---
+title: "Thus, to try our civilization by a fair test, in the ruder…"
+created: 1845-08-23T12:00:00Z
+tags: ["thoreau", "journal", "1840s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, vol. 7: Journal I, 1837–1846 (1906)"
+---
+
+Thus, to try our civilization by a fair test, in the ruder states of society every family owns a shelter as good as the best, and sufficient for its ruder and simpler wants; but in modern civilized society, though the birds of the air have their nests, and woodchucks and foxes their holes, though each one is commonly the owner of his coat and hat though never so poor, yet not more than one man in a thousand owns a shelter, but the nine hundred and ninety-nine pay an annual tax for this outside garment of all, indispensable summer and winter, which would buy a village of Indian wigwams and contributes to keep them poor as long as they live. But, answers one, by simply paying this annual tax the poorest man secures an abode which is a palace compared to the Indian's. An annual rent of from twenty to sixty or seventy dollars entitles him to the benefit of all the improvements of centuries,—Rumford fireplace, back plastering, Venetian blinds, copper pump, spring lock, etc., etc. But while civilization has been improving our houses, she has not equally improved the men who should occupy them. She has created palaces, but it was not so easy to create noblemen and kings. The mason who finishes the cornice of the palace returns at night, perchance, to a hut no better than a wigwam. If she claims to have made a real advance in the welfare of man, she must show how she has produced better dwellings without making them more costly. And the cost of a thing, it will be remembered, is the amount of life it requires to be exchanged for it, immediately or in the long run. An average house costs perhaps from one thousand to fifteen hundred dollars, and to earn this sum will require from fifteen to twenty years of the day laborer's life, even if he is not incumbered with a family; so that he must spend more than half his life before a wigwam can be earned; and if we suppose he pays a rent instead, this is but a doubtful choice of evils. Would the savage have been wise to exchange his wigwam for a palace on these terms?
+
+When I consider my neighbors, the farmers of Concord, for instance, who are at least as well off as the other classes, what are they about? For the most part I find that they have been toiling ten, twenty, or thirty years to pay for their farms, and we may set down one half of that toil to the cost of their houses; and commonly they have not yet paid for them. This is the reason they are poor; and for similar reasons we are all poor in respect to a thousand savage comforts, though surrounded by luxuries.
+
+But most men do not know what a house is, and the mass are actually poor all their days because they think they must have such an one as their neighbor's. As if one were to wear any sort of coat the tailor might cut out for him, or, gradually leaving off palm-leaf hat and cap of woodchuck-skin, should complain of hard times because he could not buy him a crown!
+
+It reflects no little dignity on Nature, the fact that the Romans once inhabited her,—that from this same unaltered hill, forsooth, the Roman once looked out upon the sea, as from a signal station. The vestiges of military roads, of houses and tessellated courts and baths,—Nature need not be ashamed of these relics of her children. The hero's cairn,—one doubts at length whether his relations or Nature herself raised the hill. The whole earth is but a hero's cairn. How often are the Romans flattered by the historian and antiquary! Their vessels penetrated into this frith and up that river of some remote isle. Their military monuments still remain on the hills and under the sod of the valleys. The oft-repeated Roman story is written in still legible characters in every quarter of the old world, and but to-day a new coin is dug up whose inscription repeats and confirms their fame. Some "Judæa Capta," with a woman mourning under a palm tree, with silent argument and demonstration puts at rest whole pages of history.
+
+The Earth

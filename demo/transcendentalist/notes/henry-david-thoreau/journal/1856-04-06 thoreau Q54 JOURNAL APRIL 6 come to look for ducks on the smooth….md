@@ -1,0 +1,17 @@
+---
+title: "Q54 JOURNAL [APRIL 6 come to look for ducks on the smooth…"
+created: 1856-04-06T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+Q54 JOURNAL [APRIL 6 come to look for ducks on the smooth reflecting water which has suddenly surrounded the village, — water half covered with ice or icy snow. On the 2d it was a winter landscape, — a narrow river covered thick with ice for the most part, and only snow on the meadows. In three or four days the scene is changed to these vernal lakes, and the ground more than half bare. The reflecting water alternating with unreflecting ice.
+
+Apparently song sparrows may have the dark splash on each side of the throat but be more or less brown on the breast and head. Some are quite light, some quite dark. Here is one of the light-breasted on the top of an apple tree, sings unweariedly at regular intervals something like tchulp | chilé chilt, chilt chill, (faster and faster) chilt chilt, chilt chilt | tuller tchay ter splay-ee. The last, or third, bar I am not sure about. It flew too soon for me. I only remember that the last part was sprinkled on the air like drops from a rill, as if its strain were moulded by the spray it sat upon. Now see considerable flocks of robins hopping and running in the meadows; crows next the water-edge, on small isles in the meadow.
+
+As I am going along the Corner road by the meadow mouse brook, hear and see, a quarter of a mile northwest, on those conspicuous white oaks near the river in Hubbard’s second grove, the crows buffeting some intruder. ‘The crows had betrayed to me some large bird of the hawk kind which they were buffeting. I suspected it before I looked carefully. I saw several crows on the oaks, and also what looked to my naked eye like a cluster of the palest and most withered oak leaves with a black base about as big as a crow. Looking with my glass, I saw that it was a great bird. The crows sat about a rod off, higher up, while another crow was occasionally diving at him, and all were cawing. ‘The great bird was just starting. It was chiefly a dirty white with great broad wings with black tips and black on other parts, giving it the appearance of dirty white, barred with black. I am not sure whether it was a white-headed eagle or a fish hawk. There appeared much more white than belongs to either, and more black than the fish hawk has. It rose and wheeled, flapping several times, till it got under way; then, with its rear to me, presenting the least surface, it moved off steadily in its orbit over the woods northwest, with the slightest possible undulation of its wings, — a noble planetary motion, like Saturn with its ring seen edgewise. It is so rare that we see a large body selfsustained in the air. While crows sat still and silent and confessed their lord. Through my glass I saw the outlines of this sphere against the sky, trembling with life and power as it skimmed the topmost twigs of the wood toward some more solitary oak amid the meadows. To my naked eye it showed only so much black as a crow in its talons might. Was it not the white-headed eagle in the state when it is called the sea eagle? Perhaps its neck-feathers were erected.

@@ -1,0 +1,21 @@
+---
+title: "I find that whatever hindrances may occur I write just…"
+created: 1842-01-05T12:00:00Z
+tags: ["thoreau", "journal", "1840s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, vol. 7: Journal I, 1837–1846 (1906)"
+---
+
+I find that whatever hindrances may occur I write just about the same amount of truth in my Journal; for the record is more concentrated, and usually it is some very real and earnest life, after all, that interrupts. All flourishes are omitted. If I saw wood from morning to night, though I grieve that I could not observe the train of my thoughts during that time, yet, in the evening, the few scrannel lines which describe my day's occupations will make the creaking of the saw more musical than my freest fancies could have been. I find incessant labor with the hands, which engrosses the attention also, the best method to remove palaver out of one's style. One will not dance at his work who has wood to cut and cord before the night falls in the short days of winter; but every stroke will be husbanded, and ring soberly through the wood; and so will his lines ring and tell on the ear, when at evening he settles the accounts of the day. I have often been astonished at the force and precision of style to which busy laboring men, unpracticed in writing, easily attain when they are required to make the effort. It seems as if their sincerity and plainness were the main thing to be taught in schools,—and yet not in the schools, but in the fields, in actual service, I should say. The scholar not unfrequently envies the propriety and emphasis with which the farmer calls to his team, and confesses that if that lingo were written it would surpass his labored sentences.
+
+Who is not tired of the weak and flowing periods of the politician and scholar, and resorts not even to the Farmer's Almanac, to read the simple account of the month's labor, to restore his tone again? I want to see a sentence run clear through to the end, as deep and fertile as a well-drawn furrow which shows that the plow was pressed down to the beam. If our scholars would lead more earnest lives, we should not witness those lame conclusions to their ill-sown discourses, but their sentences would pass over the ground like loaded rollers, and not mere hollow and wooden ones, to press in the seed and make it germinate.
+
+A well-built sentence, in the rapidity and force with which it works, may be compared to a modern corn-planter, which furrows out, drops the seed, and covers it up at one movement.
+
+The scholar requires hard labor as an impetus to his pen. He will learn to grasp it as firmly and wield it as gracefully and effectually as an axe or a sword. When I consider the labored periods of some gentleman scholar, who perchance in feet and inches comes up to the standard of his race, and is nowise deficient in girth, I am amazed at the immense sacrifice of thews and sinews. What! these proportions and these bones, and this their work! How these hands hewed this fragile matter, mere filagree or embroidery fit for ladies' fingers! Can this be a stalwart man's work, who has marrow in his backbone and a tendon Achilles in his heel? They who set up Stonehenge did somewhat,—much in comparison,—if it were only their strength was once fairly laid out, and they stretched themselves.
+
+I discover in Raleigh's verses the vices of the courtier. They are not equally sustained, as if his noble genius were warped by the frivolous society of the court. He was capable of rising to a remarkable elevation. His poetry has for the most part a heroic tone and vigor as of a knight errant. But again there seems to have been somewhat unkindly in his education, and as if he had by no means grown up to be the man he promised. He was apparently too genial and loyal a soul, or rather he was incapable of resisting temptations from that quarter. If to his genius and culture he could have added the temperament of Fox or Cromwell, the world would have had cause longer to remember him. He was the pattern of nobility. One would have said it was by some lucky fate that he and Shakespeare flourished at the same time in England, and yet what do we know of their acquaintanceship?

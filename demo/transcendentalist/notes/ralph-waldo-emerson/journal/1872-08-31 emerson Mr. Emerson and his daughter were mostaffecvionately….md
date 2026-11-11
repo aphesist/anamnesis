@@ -1,0 +1,13 @@
+---
+title: "Mr. Emerson and his daughter were mostaffecvionately…"
+created: 1872-08-31T12:00:00Z
+tags: ["emerson", "journal", "1870s"]
+author: "Ralph Waldo Emerson"
+source_url: "https://archive.org/details/journalsofralphw10emer"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan"
+---
+
+Mr. Emerson and his daughter were mostaffecvionately welcomed on their arrival in London, and every delicate aid and guidance was given them by American friends who should be here mentioned. Colonel Henry Lee, who had in the winter lost two of his daughters by diphtheria in Florence, whose wife was ill, and his oldest son then struggling between life and death with typhoid fever, yet came daily to see them, and, keeping back his own troubles, cheered them with his friendly and witty talk; Mr. Charles Eliot Norton who, within a year, had lost his beautiful wife, was then resident in London with his family, and gave help and wise counsel as to planning the trip to France and Italy on the way to Egypt. His sister, too, gave sisterly help to Miss Emerson, who was temporarily lame; Rev. William Henry Channing, then a Unitarian preacher in Kensington, with affectionate zeal did everything possible to make their stay in London in their invalid condition easy and pleasant, as did also Mr. Moncure D. Conway, then minister of the South Place Ethical Society. Mr. Emerson had also the unexpected pleasure of meeting Charles K. Newcomb, the valued friend of many years ago. Of English friends, first came Mr. Thomas Hughes, then Dean Stanley and Lady Augusta his wife, the admirable surgeon (soon after knighted) William MacCormac, who had taken care of young Emerson, and, best valued, Carlyle, though old, broken, and sad. In Chester, and in London, as far as his friends would allow, Mr. Emerson took great comfort in absence of responsibility and quiet, declared that “‘zd/esse is the business of age. I love above all things to do nothing’’; he said he never before had discovered this privilege of seventy years: also that he finds “ there is a convenience of having a name,—it serves one as well as having a good coat.” He began to eat better than he had for a long time, and made long nights, saying, “A warm bed is the best medicine, —and one gets such good sleep in this country, — good strong sleep.” At the table he said, “The land of England desires much food in its inhabitants.” When plans were made for him, he would smile and say, “Old age loves leisure.’”’ Nevertheless, in this short stay, though he felt reluctant to go into company, he enjoyed in moderation seeing the sights of London.

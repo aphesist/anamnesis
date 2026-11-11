@@ -2,6 +2,7 @@
 
     anamnesis-lab demo transcendentalist [--small] [--out DIR]
     anamnesis-lab demo pragmatist [--small] [--out DIR]
+    anamnesis-lab demo curate --from out/transcendentalist --out ../demo/transcendentalist [--target-notes N]
     anamnesis-lab bench retrieval --dataset scifact --models hash,e5-small
     anamnesis-lab bench links --bundle out/transcendentalist --models hash
     anamnesis-lab bench layout --bundle out/transcendentalist [--rust-placements FILE]
@@ -26,6 +27,8 @@ DEFAULT_RESULTS = LAB_ROOT / "results"
 
 
 def _demo(args: argparse.Namespace) -> int:
+    if args.theme == "curate":
+        return _curate(args)
     from .demo import build_theme
 
     out = Path(args.out) if args.out else DEFAULT_OUT / (args.theme + ("-small" if args.small else ""))
@@ -33,6 +36,18 @@ def _demo(args: argparse.Namespace) -> int:
     c = manifest["counts"]
     print(f"wrote {c['notes']} notes to {out / 'notes'}")
     print(json.dumps({"counts": c, "date_range": manifest["date_range"]}, indent=2, ensure_ascii=False))
+    return 0
+
+
+def _curate(args: argparse.Namespace) -> int:
+    from .demo.curate import curate
+
+    src = Path(args.src) if args.src else DEFAULT_OUT / "transcendentalist"
+    out = Path(args.out) if args.out else LAB_ROOT.parent / "demo" / "transcendentalist"
+    m = curate(src, out, target_notes=args.target_notes, max_bytes=args.max_bytes, min_chars=args.min_chars)
+    c = m["counts"]
+    print(f"curated {c['notes']} of {m['curation']['from_notes']} notes ({c['bytes'] / 1e6:.2f} MB) into {out / 'notes'}")
+    print(json.dumps({k: v for k, v in c.items() if k != "years_with_journal"}, indent=2, ensure_ascii=False))
     return 0
 
 
@@ -72,9 +87,14 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     d = sub.add_parser("demo", help="build a public-domain demo brain")
-    d.add_argument("theme", choices=["transcendentalist", "pragmatist"])
+    d.add_argument("theme", choices=["transcendentalist", "pragmatist", "curate"],
+                   help="a theme to build, or `curate` to pick the compact demo shipped in demo/ from a full build")
     d.add_argument("--small", action="store_true", help="offline build from the bundled fixture (~300 entries)")
-    d.add_argument("--out", help="output folder (default: lab/out/<theme>)")
+    d.add_argument("--out", help="output folder (default: lab/out/<theme>; curate: demo/transcendentalist)")
+    d.add_argument("--from", dest="src", help="curate: a full build (default: lab/out/transcendentalist)")
+    d.add_argument("--target-notes", type=int, default=1100, help="curate: at most this many notes")
+    d.add_argument("--max-bytes", type=int, default=3_900_000, help="curate: at most this much markdown")
+    d.add_argument("--min-chars", type=int, default=400, help="curate: shortest journal entry used to fill the timeline")
     d.add_argument("--cache", default=str(DEFAULT_CACHE), help="download cache (default: lab/cache)")
     d.set_defaults(func=_demo)
 

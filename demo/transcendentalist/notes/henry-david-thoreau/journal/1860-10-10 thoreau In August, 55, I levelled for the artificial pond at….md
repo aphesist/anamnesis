@@ -1,0 +1,19 @@
+---
+title: "In August, *55, I levelled for the artificial pond at…"
+created: 1860-10-10T12:00:00Z
+tags: ["thoreau", "journal", "1860s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+In August, *55, I levelled for the artificial pond at Sleepy Hollow. They dug gradually for three or four years and completed the pond last year, ’59. It is now about a dozen rods long by five or six wide and two or three deep, and is supplied by copious springs in the meadow. There is a long ditch leading into it, in which no water now flows, nor has since winter at least, and a short ditch leading out of it into the brook. It is about sixty rods from the very source of the brook. Well, in this pond thus dug in the midst of a meadow a year or two ago and supplied by springs in the meadow, I find to-day several small patches of the large yellow and the kalmiana lily already established. Thus in the midst of death we are in life. The water is otherwise apparently clear of weeds. The river, where these abound, is about half a mile distant down the little brook near which this pond lies, though there may be a few pads in the ditched part of it at half that distance. How, then, did the seed get here? I learned last winter (vide December 23, 1859)
+
+that many small pouts and some sizable pickerel had been caught here, though the connection with the brook is a very slight and shallow ditch. I think, therefore, that the lily seeds have been conveyed into this pond from the river immediately, or perchance from the meadow between, either by fishes, reptiles, or birds which fed on them, and that the seeds were not lying dormant in the mud. You have only to dig a pond anywhere in the fields hereabouts, and you will soon have not only water-fowl, reptiles, and fishes in it, but also the usual water-plants, as lilies, ete. You will no sooner have got your pond dug than nature will begin to stock it. I suspect that turtles eat these seeds, for I often see them eating the decayed lily leaves. If there is any water communication, perhaps fishes arrive first, and then the water-plants for their food and shelter.
+
+Horace Mann shows me the skeleton of a blue heron. The neck is remarkably strong, and the bill. The latter is 5 + inches long to the feathers above and 6% to the gape. A stake-driver which he has, freshly killed, has a bill 3 inches long above and 44 to the gape and between 3 and § deep vertically at the base. This bird weighs a little over two pounds, being quite large and fat. Its nails are longer and less curved than those of the heron. The sharp bill of the heron, like a stout pick, wielded by that long and stout neck, would be a very dangerous weapon to encounter. He has made a skeleton of the fish hawk which was brought to me within a month. I remark the great eye-sockets, and the claws, and perhaps the deep, sharp breast-bone. Including its strong hooked bill it is clawed at both ends, harpy-like.
+
+P. M. — Went to a fire — or smoke — at Mrs. Hoar’s. There is a slight blaze and more smoke. Two or three hundred men rush to the house, cut large holes in the roof, throw many hogsheads of water into it, — when a few pails full well directed would suffice, — and then they run off again, leaving your attic three inches deep with water, which is rapidly descending through the ceiling to the basement and spoiling all that can be spoiled, while a torrent is running down the stairways. They were very forward to put out the [fire], but they take no pains to put out the water, which does far more damage. The first was amusement; the last would be mere work and utility. Why is there not a little machine invented to throw the water out of a house?
