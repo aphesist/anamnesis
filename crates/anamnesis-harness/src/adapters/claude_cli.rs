@@ -21,7 +21,6 @@
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -629,16 +628,14 @@ impl Backend for ClaudeCli {
         });
         let stdout = child.stdout.take().expect("stdout piped");
         let mut stderr_pipe = child.stderr.take().expect("stderr piped");
-        let stderr = Arc::new(Mutex::new(String::new()));
-        let stderr_w = stderr.clone();
-        tokio::spawn(async move {
+        let stderr = Some(tokio::spawn(async move {
             let mut buf = Vec::new();
             let _ = (&mut stderr_pipe)
                 .take(64 * 1024)
                 .read_to_end(&mut buf)
                 .await;
-            *stderr_w.lock().unwrap() = String::from_utf8_lossy(&buf).into_owned();
-        });
+            String::from_utf8_lossy(&buf).into_owned()
+        }));
         let lines = tokio_lines(BufReader::new(stdout));
         let deadline = tokio::time::Instant::now() + Duration::from_secs(self.cfg.timeout_secs);
         let dec = StreamJsonDecoder::new(req.estimated_input_tokens());
@@ -652,7 +649,7 @@ impl Backend for ClaudeCli {
         );
         let s = futures_util::stream::unfold(
             state,
-            move |(mut lines, mut dec, mut q, mut child, stderr, mut ended)| async move {
+            move |(mut lines, mut dec, mut q, mut child, mut stderr, mut ended)| async move {
                 loop {
                     if let Some(ev) = q.pop_front() {
                         if crate::decode::is_terminal(&ev) {
@@ -683,9 +680,15 @@ impl Backend for ClaudeCli {
                                 ),
                                 None => false,
                             };
-                            // give the stderr reader a moment to finish
-                            tokio::time::sleep(Duration::from_millis(20)).await;
-                            let err = stderr.lock().unwrap().clone();
+                            // the stderr reader finishes once the process has exited
+                            let err = match stderr.take() {
+                                Some(h) => tokio::time::timeout(Duration::from_secs(2), h)
+                                    .await
+                                    .ok()
+                                    .and_then(|r| r.ok())
+                                    .unwrap_or_default(),
+                                None => String::new(),
+                            };
                             q.extend(dec.eof(ok, &err));
                             ended = true;
                         }
