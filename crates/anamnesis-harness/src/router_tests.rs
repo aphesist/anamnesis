@@ -187,6 +187,7 @@ async fn background_refuses_explicit_subscription_choice_and_fallbacks() {
     let mut s = RoutingSettings {
         label: Some("claude-cli".into()),
         extract: Some("chatgpt".into()),
+        background_to_api_by_default: true,
         ..Default::default()
     };
     s.fallbacks
@@ -209,7 +210,7 @@ async fn background_refuses_explicit_subscription_choice_and_fallbacks() {
         r.chat(Task::Summarise, req(), ctx).await,
         Err(HarnessError::Routing(_))
     ));
-    // summarise default goes to the metered backend; the plan fallbacks are dropped
+    // summarise default (opted in) goes to the metered backend; plan fallbacks are dropped
     let plan = r.plan(Task::Summarise, None).unwrap();
     assert_eq!(
         plan.iter().map(|b| b.id().to_string()).collect::<Vec<_>>(),
@@ -458,7 +459,12 @@ async fn egress_gate_refuses_local_only_items() {
         "claude-haiku-5-5",
         Behaviour::Ok,
     );
-    let r = w.router(RoutingSettings::default()).await;
+    let r = w
+        .router(RoutingSettings {
+            background_to_api_by_default: true,
+            ..Default::default()
+        })
+        .await;
     let ctx = CallContext {
         items: vec![
             (Id("a".into()), Privacy::CloudOk),
@@ -531,7 +537,12 @@ async fn usage_is_recorded_with_prices() {
         "claude-haiku-5-5",
         Behaviour::Ok,
     );
-    let r = w.router(RoutingSettings::default()).await;
+    let r = w
+        .router(RoutingSettings {
+            background_to_api_by_default: true,
+            ..Default::default()
+        })
+        .await;
     let rc = r
         .chat(Task::Label, req(), CallContext::default())
         .await

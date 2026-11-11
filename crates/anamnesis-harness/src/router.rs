@@ -24,7 +24,7 @@ use crate::limits::{CooldownState, Limits};
 use crate::types::*;
 use crate::usage::{BackendUsage, PriceTable, UsageLedger};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RoutingSettings {
     #[serde(default)]
     pub chat: Option<String>,
@@ -43,19 +43,6 @@ pub struct RoutingSettings {
     /// key is spent only on work the user asked for (chat) or routed by name.
     #[serde(default)]
     pub background_to_api_by_default: bool,
-}
-
-impl Default for RoutingSettings {
-    fn default() -> Self {
-        Self {
-            chat: None,
-            label: None,
-            extract: None,
-            summarise: None,
-            fallbacks: BTreeMap::new(),
-            background_to_api_by_default: false,
-        }
-    }
 }
 
 impl RoutingSettings {
