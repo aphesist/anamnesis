@@ -162,11 +162,13 @@ impl EmbedderSpec {
     }
 }
 
-/// Default model cache: `<data dir>/anamnesis/models` (e.g.
+/// Default model cache: `<local data dir>/anamnesis/models` (e.g.
 /// `~/.local/share/anamnesis/models` on Linux,
-/// `~/Library/Application Support/anamnesis/models` on macOS).
+/// `~/Library/Application Support/anamnesis/models` on macOS,
+/// `%LOCALAPPDATA%\anamnesis\models` on Windows, so the weights never travel with a
+/// roaming profile).
 pub fn default_cache_dir() -> PathBuf {
-    dirs::data_dir()
+    dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from(".anamnesis"))
         .join("anamnesis")
         .join("models")

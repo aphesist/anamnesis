@@ -157,7 +157,9 @@ fn config(data: &DataArgs, port: u16) -> ServerConfig {
 fn open(data: &DataArgs, mut cfg: ServerConfig, demo: bool) -> Result<Arc<App>> {
     if let Some(b) = &data.brain_dir {
         // an explicit brain directory: the demo brain is `<root>/demo`
-        let b = std::fs::canonicalize(b).unwrap_or_else(|_| b.clone());
+        let b = std::fs::canonicalize(b)
+            .map(|c| plain_path(&c))
+            .unwrap_or_else(|_| b.clone());
         if b.file_name().is_some_and(|n| n == "demo")
             && let Some(parent) = b.parent()
         {
@@ -336,22 +338,55 @@ async fn serve(app: Arc<App>, open_browser: bool) -> Result<()> {
     Ok(())
 }
 
+/// Open the ui in the default browser (`open` on macos, the registered handler through
+/// the shell api on windows, `xdg-open` and friends on linux). No shell is involved.
 fn open_url(url: &str) {
-    let cmd = if cfg!(target_os = "macos") {
-        "open"
-    } else if cfg!(target_os = "windows") {
-        "explorer"
-    } else {
-        "xdg-open"
-    };
-    if let Err(e) = std::process::Command::new(cmd).arg(url).spawn() {
+    if let Err(e) = webbrowser::open(url) {
         tracing::warn!("could not open the browser ({e}); visit {url}");
     }
+}
+
+/// `std::fs::canonicalize` on windows returns verbatim paths (`\\?\C:\…`), which some
+/// programs (and people) do not accept. Strip the prefix from plain drive and unc paths;
+/// std re-adds it internally where a long path needs it.
+pub fn plain_path(p: &std::path::Path) -> PathBuf {
+    let s = p.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    if let Some(rest) = s.strip_prefix(r"\\?\")
+        && rest.as_bytes().get(1) == Some(&b':')
+    {
+        return PathBuf::from(rest);
+    }
+    p.to_path_buf()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn verbatim_prefixes_are_stripped() {
+        use std::path::Path;
+        assert_eq!(
+            plain_path(Path::new(r"\\?\X:\notes\vault")),
+            PathBuf::from(r"X:\notes\vault")
+        );
+        assert_eq!(
+            plain_path(Path::new(r"\\?\UNC\server\share\x")),
+            PathBuf::from(r"\\server\share\x")
+        );
+        // a verbatim path that is not a drive path is kept as it is
+        assert_eq!(
+            plain_path(Path::new(r"\\?\Volume{abc}\x")),
+            PathBuf::from(r"\\?\Volume{abc}\x")
+        );
+        assert_eq!(
+            plain_path(Path::new("/home/me/notes")),
+            PathBuf::from("/home/me/notes")
+        );
+    }
 
     #[test]
     fn add_source_takes_privacy_and_origin() {

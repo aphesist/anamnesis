@@ -200,6 +200,34 @@ pub fn find_model(name: &str) -> Option<&'static LocalModel> {
     })
 }
 
+/// Gpu execution providers compiled in (`gpu-directml`, `gpu-cuda`), unless
+/// `ANAMNESIS_GPU=0` turns them off. Empty means cpu only.
+pub fn gpu_providers() -> Vec<fastembed::ExecutionProviderDispatch> {
+    #[allow(unused_mut)]
+    let mut eps: Vec<fastembed::ExecutionProviderDispatch> = Vec::new();
+    if matches!(
+        std::env::var("ANAMNESIS_GPU").as_deref(),
+        Ok("0") | Ok("false") | Ok("off")
+    ) {
+        return eps;
+    }
+    #[cfg(feature = "gpu-cuda")]
+    eps.push(ort::ep::CUDA::default().build().fail_silently());
+    #[cfg(feature = "gpu-directml")]
+    eps.push(ort::ep::DirectML::default().build().fail_silently());
+    eps
+}
+
+/// Names of the gpu providers compiled into this build (for status and logs).
+pub fn gpu_features() -> &'static [&'static str] {
+    &[
+        #[cfg(feature = "gpu-cuda")]
+        "cuda",
+        #[cfg(feature = "gpu-directml")]
+        "directml",
+    ]
+}
+
 /// Options for [`LocalEmbedder`].
 #[derive(Debug, Clone)]
 pub struct LocalOptions {
@@ -259,8 +287,18 @@ impl LocalEmbedder {
         if let Some(t) = opts.threads {
             init = init.with_intra_threads(t.max(1));
         }
-        let model = TextEmbedding::try_new(init)
-            .with_context(|| format!("loading local embedding model {}", info.name))?;
+        let gpu = gpu_providers();
+        let model = if gpu.is_empty() {
+            TextEmbedding::try_new(init)
+        } else {
+            // a provider that cannot start falls back to the cpu inside onnx runtime; if
+            // the session itself fails with it, try again on the cpu alone
+            TextEmbedding::try_new(init.clone().with_execution_providers(gpu)).or_else(|e| {
+                tracing::warn!("gpu embeddings unavailable ({e:#}); using the cpu");
+                TextEmbedding::try_new(init)
+            })
+        }
+        .with_context(|| format!("loading local embedding model {}", info.name))?;
         Ok(Self {
             model: Mutex::new(model),
             prompts: opts
