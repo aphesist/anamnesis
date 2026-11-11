@@ -77,7 +77,13 @@ pub async fn import_folder(brain: &Arc<Brain>, dir: &Path) -> Result<ImportRepor
         "folder"
     };
     let path = dir.display().to_string();
-    let name = dir
+    // `lab/out/<theme>/notes` is named after its theme
+    let named = if dir.file_name().is_some_and(|n| n == "notes") {
+        dir.parent().unwrap_or(&dir)
+    } else {
+        &dir
+    };
+    let name = named
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.clone());
@@ -90,19 +96,21 @@ pub async fn import_folder(brain: &Arc<Brain>, dir: &Path) -> Result<ImportRepor
             }) {
                 return Ok(src);
             }
+            let privacy = crate::privacy::default_setting(s).unwrap_or(Privacy::CloudOk);
             Ok(s.add_source(Source {
                 id: Id::new(),
                 connector: c,
                 name,
                 config: json!({ "path": path }),
                 default_origin: Origin::OwnerWritten,
-                default_privacy: Privacy::CloudOk,
+                default_privacy: privacy,
                 cursor: None,
                 created_at: now(),
             })?)
         })
         .await?;
-    let sync = sync_source(brain, &source.id).await?;
+    // folder / obsidian sources are built in: no plugins needed
+    let sync = sync_source(brain, &crate::plugins::Plugins::default(), &source.id).await?;
     Ok(ImportReport::Folder {
         source_id: source.id,
         connector: connector.into(),
@@ -143,32 +151,72 @@ pub async fn export_to(brain: &Arc<Brain>, path: &Path) -> Result<anamnesis_core
         .await
 }
 
-/// Where the demo bundle is: configured path, `ANAMNESIS_DEMO_BUNDLE`, `demo/` next to the
-/// binary, or the lab's output in the repository (dev).
+/// Where the demo bundle is: configured path (`--demo-bundle`), `ANAMNESIS_DEMO_BUNDLE`,
+/// `demo/` next to the binary, or the lab's output in the repository (dev):
+/// `lab/demo-brain`, `lab/out/demo-brain`, then `lab/out/<theme>/notes` (the
+/// transcendentalist theme first).
+///
+/// A lab bundle folder (`lab/out/<theme>/` with `notes/`, `manifest.json`, `SOURCES.md`,
+/// `COLOPHON.md`) resolves to its `notes/` folder, so the bundle's metadata files never
+/// become items.
 pub fn locate_demo(cfg_path: Option<&Path>) -> Option<PathBuf> {
     if let Some(p) = cfg_path {
-        return p.exists().then(|| p.to_path_buf());
+        return p.exists().then(|| demo_root(p));
     }
     if let Ok(p) = std::env::var("ANAMNESIS_DEMO_BUNDLE")
         && !p.is_empty()
     {
         let p = PathBuf::from(p);
-        return p.exists().then_some(p);
+        return p.exists().then(|| demo_root(&p));
     }
-    let mut cands = Vec::new();
+    let mut repos = Vec::new();
     if let Ok(exe) = std::env::current_exe()
         && let Some(dir) = exe.parent()
     {
-        cands.push(dir.join("demo"));
+        let d = dir.join("demo");
+        if d.exists() {
+            return Some(demo_root(&d));
+        }
+        // target/<profile>/anamnesis → the repository
         if let Some(repo) = dir.parent().and_then(|p| p.parent()) {
-            cands.push(repo.join("lab/demo-brain"));
-            cands.push(repo.join("lab/out/demo-brain"));
+            repos.push(repo.to_path_buf());
         }
     }
-    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    cands.push(repo.join("lab/demo-brain"));
-    cands.push(repo.join("lab/out/demo-brain"));
-    cands.into_iter().find(|p| p.exists())
+    repos.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."));
+    repos.iter().find_map(|r| demo_in_repo(r))
+}
+
+/// The theme the demo prefers among the lab's outputs.
+pub const DEMO_THEME: &str = "transcendentalist";
+
+/// The demo inside a repository checkout, if the lab has built one.
+pub fn demo_in_repo(repo: &Path) -> Option<PathBuf> {
+    let lab = repo.join("lab");
+    for c in [lab.join("demo-brain"), lab.join("out/demo-brain")] {
+        if c.exists() {
+            return Some(demo_root(&c));
+        }
+    }
+    let out = lab.join("out");
+    let preferred = out.join(DEMO_THEME).join("notes");
+    if preferred.is_dir() {
+        return Some(preferred);
+    }
+    let mut themes: Vec<PathBuf> = std::fs::read_dir(&out)
+        .ok()?
+        .filter_map(|e| e.ok().map(|e| e.path().join("notes")))
+        .filter(|p| p.is_dir())
+        .collect();
+    themes.sort();
+    themes.into_iter().next()
+}
+
+/// A lab bundle folder (no `.jsonl` bundle, a `notes/` folder inside) → its `notes/`.
+fn demo_root(p: &Path) -> PathBuf {
+    if p.is_dir() && bundle_in(p).is_none() && p.join("notes").is_dir() {
+        return p.join("notes");
+    }
+    p.to_path_buf()
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -201,12 +249,6 @@ pub async fn set_demo(app: &Arc<App>, on: bool) -> Result<DemoStatus> {
                 Some(p) => {
                     let r = import_path(&brain, &p).await?;
                     tracing::info!("demo brain imported from {}: {r:?}", p.display());
-                    let app2 = app.clone();
-                    tokio::spawn(async move {
-                        if let Err(e) = crate::jobs::run_jobs_once(&app2).await {
-                            tracing::warn!("demo jobs: {e:#}");
-                        }
-                    });
                 }
                 None => {
                     app.set_demo(false)?;
@@ -214,7 +256,80 @@ pub async fn set_demo(app: &Arc<App>, on: bool) -> Result<DemoStatus> {
                 }
             }
         }
+        // a layout and regions right away: run the jobs once in the background when the
+        // demo brain has none yet (minutes for the full demo; progress in /api/status)
+        if brain.views().is_none() && !app.jobs_progress.read().unwrap().running {
+            app.jobs_progress.write().unwrap().running = true;
+            let app2 = app.clone();
+            tokio::spawn(async move {
+                if let Err(e) = crate::jobs::run_jobs_once(&app2).await {
+                    tracing::warn!("demo jobs: {e:#}");
+                }
+            });
+        }
     }
     crate::backends::detect_in_background(app);
     demo_status(app).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lab_bundle(out: &Path, theme: &str) {
+        let b = out.join(theme);
+        std::fs::create_dir_all(b.join("notes/thoreau/journal")).unwrap();
+        std::fs::write(b.join("notes/thoreau/journal/a day.md"), "a walk").unwrap();
+        for f in ["COLOPHON.md", "SOURCES.md", "manifest.json"] {
+            std::fs::write(b.join(f), "{}").unwrap();
+        }
+    }
+
+    #[test]
+    fn finds_the_labs_notes_preferring_transcendentalist() {
+        let repo = tempfile::tempdir().unwrap();
+        assert_eq!(demo_in_repo(repo.path()), None);
+        let out = repo.path().join("lab/out");
+        lab_bundle(&out, "aaa-letters");
+        assert_eq!(
+            demo_in_repo(repo.path()),
+            Some(out.join("aaa-letters/notes"))
+        );
+        lab_bundle(&out, DEMO_THEME);
+        assert_eq!(
+            demo_in_repo(repo.path()),
+            Some(out.join(DEMO_THEME).join("notes"))
+        );
+        // an explicit bundle folder resolves to its notes, a notes folder stays as it is
+        let root = out.join(DEMO_THEME);
+        assert_eq!(locate_demo(Some(&root)), Some(root.join("notes")));
+        assert_eq!(
+            locate_demo(Some(&root.join("notes"))),
+            Some(root.join("notes"))
+        );
+        assert_eq!(locate_demo(Some(&out.join("missing"))), None);
+    }
+
+    #[tokio::test]
+    async fn demo_import_skips_the_bundle_metadata() {
+        let repo = tempfile::tempdir().unwrap();
+        let out = repo.path().join("lab/out");
+        lab_bundle(&out, DEMO_THEME);
+        let brain = Arc::new(Brain::open(&repo.path().join("brain"), true).unwrap());
+        let notes = locate_demo(Some(&out.join(DEMO_THEME))).unwrap();
+        let r = import_path(&brain, &notes).await.unwrap();
+        let ImportReport::Folder { sync, .. } = r else {
+            panic!("{r:?}")
+        };
+        assert_eq!(sync.created, 1);
+        let items = brain
+            .db(|s| Ok(s.list_items(&Default::default())?))
+            .await
+            .unwrap();
+        assert!(items.iter().all(|i| !i.external_id.ends_with("COLOPHON.md")
+            && !i.external_id.ends_with("SOURCES.md")
+            && !i.external_id.contains("manifest")));
+        let sources = brain.db(|s| Ok(s.list_sources()?)).await.unwrap();
+        assert!(sources.iter().any(|s| s.name == DEMO_THEME));
+    }
 }

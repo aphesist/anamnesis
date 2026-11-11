@@ -335,6 +335,19 @@ struct UpdateItem {
     title: Option<String>,
     body: Option<String>,
     tags: Option<Vec<String>>,
+    /// Absent: unchanged. A flag: set by hand (sticks through syncs and source changes).
+    /// `null`: back to the note's own or the source's flag.
+    #[serde(default, deserialize_with = "present")]
+    privacy: Option<Option<Privacy>>,
+}
+
+/// Tells an absent field (`None`) from an explicit `null` (`Some(None)`).
+fn present<'de, D, T>(d: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Ok(Some(Option::<T>::deserialize(d)?))
 }
 
 async fn update_item(
@@ -343,19 +356,27 @@ async fn update_item(
     Json(b): Json<UpdateItem>,
 ) -> ApiResult {
     let id = Id(id);
+    let content = b.title.is_some() || b.body.is_some() || b.tags.is_some();
     let item = app
         .brain()
         .db(move |s| {
-            Ok(s.update_item(
-                &id,
-                ItemPatch {
-                    title: b.title,
-                    body: b.body,
-                    tags: b.tags,
-                    kind: None,
-                },
-                Actor::User,
-            )?)
+            let mut item = None;
+            if content || b.privacy.is_none() {
+                item = Some(s.update_item(
+                    &id,
+                    ItemPatch {
+                        title: b.title,
+                        body: b.body,
+                        tags: b.tags,
+                        kind: None,
+                    },
+                    Actor::User,
+                )?);
+            }
+            if let Some(p) = b.privacy {
+                item = Some(crate::privacy::set_item_privacy(s, &id, p, Actor::User)?);
+            }
+            Ok(item)
         })
         .await?;
     app.jobs_notify.notify_one();
@@ -614,11 +635,39 @@ async fn skills(State(app): S) -> ApiResult {
 
 async fn sources(State(app): S) -> ApiResult {
     let v = app.brain().db(|s| Ok(s.list_sources()?)).await?;
-    let connectors: Vec<Value> = anamnesis_connectors::builtin_connectors()
+    // pick up plugins added or removed since the last look
+    let plugins = app.clone();
+    tokio::task::spawn_blocking(move || plugins.plugins.scan())
+        .await
+        .map_err(|e| ApiError::from(anyhow::Error::from(e)))?;
+    let mut connectors: Vec<Value> = anamnesis_connectors::builtin_connectors()
         .into_iter()
-        .map(|b| serde_json::to_value(b.manifest).unwrap_or(Value::Null))
+        .map(|b| connector_row(&b.manifest, None))
         .collect();
-    ok(json!({ "sources": v, "connectors": connectors }))
+    for p in app.plugins.loaded() {
+        connectors.push(connector_row(&p.manifest, Some(&p.manifest_path)));
+    }
+    ok(json!({
+        "sources": v,
+        "connectors": connectors,
+        "plugins": {
+            "dirs": app.plugins.dirs(),
+            "errors": app.plugins.errors(),
+        },
+    }))
+}
+
+/// A connector manifest for the ui, with `plugin: bool` (and the manifest's path for a
+/// plugin). `network_hosts` / `fs_paths` are part of every manifest.
+fn connector_row(m: &anamnesis_connectors::Manifest, plugin: Option<&std::path::Path>) -> Value {
+    let mut v = serde_json::to_value(m).unwrap_or(Value::Null);
+    if let Some(o) = v.as_object_mut() {
+        o.insert("plugin".into(), json!(plugin.is_some()));
+        if let Some(p) = plugin {
+            o.insert("manifest_path".into(), json!(p));
+        }
+    }
+    v
 }
 
 #[derive(Deserialize)]
@@ -633,8 +682,10 @@ struct NewSource {
 
 /// Validate and register a source (used by the api and `anamnesis add-source`).
 pub async fn add_source_checked(app: &Arc<App>, b: NewSourceArgs) -> Result<Source, ApiError> {
-    let conn =
-        anamnesis_connectors::builtin(&b.connector).map_err(|e| ApiError::bad(e.to_string()))?;
+    let conn = app
+        .plugins
+        .resolve(&b.connector)
+        .map_err(|e| ApiError::bad(e.to_string()))?;
     let manifest = conn.manifest();
     let config = if b.config.is_null() {
         json!({})
@@ -651,13 +702,21 @@ pub async fn add_source_checked(app: &Arc<App>, b: NewSourceArgs) -> Result<Sour
     if !check.ok {
         return Err(ApiError::bad(check.message));
     }
+    // no flag given: the `privacy.default` setting, then the connector's own default
+    let setting = app
+        .brain()
+        .db(|s| Ok(crate::privacy::default_setting(s)))
+        .await?;
     let src = Source {
         id: Id::new(),
         connector: b.connector.clone(),
         name: b.name.unwrap_or_else(|| manifest.name.clone()),
         config,
         default_origin: b.default_origin.unwrap_or(manifest.default_origin),
-        default_privacy: b.default_privacy.unwrap_or(manifest.default_privacy),
+        default_privacy: b
+            .default_privacy
+            .or(setting)
+            .unwrap_or(manifest.default_privacy),
         cursor: None,
         created_at: now(),
     };
@@ -709,7 +768,7 @@ async fn update_source(
         .await?
         .ok_or_else(|| ApiError::not_found("no such source"))?;
     if let Some(c) = b.config {
-        if let Ok(conn) = anamnesis_connectors::builtin(&src.connector) {
+        if let Ok(conn) = app.plugins.resolve(&src.connector) {
             conn.manifest()
                 .validate_config(&c)
                 .map_err(|e| ApiError::bad(e.to_string()))?;
@@ -723,15 +782,27 @@ async fn update_source(
     if let Some(o) = b.default_origin {
         src.default_origin = o;
     }
+    let privacy_changed = b.default_privacy.is_some_and(|p| p != src.default_privacy);
     if let Some(p) = b.default_privacy {
         src.default_privacy = p;
     }
-    let src = app
+    let (src, reflagged) = app
         .brain()
-        .db(move |s| Ok(s.update_source(src, Actor::User)?))
+        .db(move |s| {
+            let src = s.update_source(src, Actor::User)?;
+            // items that took the old default follow the new one; hand-set flags stay
+            let n = if privacy_changed {
+                crate::privacy::reflag_source(s, &src, Actor::User)?
+            } else {
+                0
+            };
+            Ok((src, n))
+        })
         .await?;
     app.sync_notify.notify_one();
-    ok(src)
+    let mut v = serde_json::to_value(&src).map_err(|e| ApiError::from(anyhow::Error::from(e)))?;
+    v["items_reflagged"] = json!(reflagged);
+    Ok(Json(v))
 }
 
 async fn remove_source(State(app): S, Path(id): Path<String>) -> ApiResult {
@@ -744,7 +815,7 @@ async fn remove_source(State(app): S, Path(id): Path<String>) -> ApiResult {
 
 async fn sync_source(State(app): S, Path(id): Path<String>) -> ApiResult {
     let id = Id(id);
-    let r = crate::sync::sync_source(&app.brain(), &id).await?;
+    let r = crate::sync::sync_source(&app.brain(), &app.plugins, &id).await?;
     if r.changed() {
         app.jobs_notify.notify_one();
     }
@@ -757,9 +828,12 @@ async fn sync_source(State(app): S, Path(id): Path<String>) -> ApiResult {
 async fn backends(State(app): S) -> ApiResult {
     let mut rows: Vec<Value> = Vec::new();
     let mut routing = json!({});
+    let key_sources = app.key_sources.read().unwrap().clone();
     if let Some(r) = app.router() {
         for b in r.backends_info() {
-            rows.push(serde_json::to_value(b).unwrap_or(Value::Null));
+            let mut row = serde_json::to_value(&b).unwrap_or(Value::Null);
+            row["key_storage"] = json!(key_sources.get(&b.id));
+            rows.push(row);
         }
         for (task, id) in r.effective_routing() {
             routing[task.as_str()] = json!(id);
@@ -768,7 +842,7 @@ async fn backends(State(app): S) -> ApiResult {
     rows.push(json!({
         "id": RETRIEVAL_BACKEND, "kind": "retrieval", "label": "retrieval only (no model)",
         "available": true, "status": "ready", "capabilities": { "streaming": true, "cost_model": "free_local" },
-        "terms": "allowed",
+        "terms": "allowed", "is_local": true, "leaves_machine": false, "key_storage": null,
         "notice": "answers by listing what your brain holds; no text is generated and nothing leaves the machine",
     }));
     if routing.get("chat").is_none_or(|v| v.is_null()) {
@@ -788,6 +862,11 @@ async fn backends(State(app): S) -> ApiResult {
         "embedder": app.embed_status(),
         "usage": usage,
         "detected": app.router().is_some(),
+        // shown before a backend is enabled (its row may not exist yet)
+        "notices": {
+            "claude_cli": anamnesis_harness::adapters::claude_cli::NOTICE,
+            "chatgpt": anamnesis_harness::adapters::chatgpt::NOTICE,
+        },
     }))
 }
 
@@ -810,15 +889,19 @@ async fn set_backend_key(
     if key.is_empty() {
         return Err(ApiError::bad("empty key"));
     }
-    tokio::task::spawn_blocking(move || crate::backends::set_api_key(&id, Some(&key)))
-        .await
-        .map_err(|e| ApiError::from(anyhow::Error::from(e)))??;
+    let app2 = app.clone();
+    let stored = tokio::task::spawn_blocking(move || {
+        crate::backends::set_api_key(&app2.secrets, &id, Some(&key))
+    })
+    .await
+    .map_err(|e| ApiError::from(anyhow::Error::from(e)))??;
     crate::backends::detect_in_background(&app);
-    ok(json!({ "ok": true }))
+    ok(json!({ "ok": true, "key_storage": stored }))
 }
 
 async fn delete_backend_key(State(app): S, Path(id): Path<String>) -> ApiResult {
-    tokio::task::spawn_blocking(move || crate::backends::set_api_key(&id, None))
+    let app2 = app.clone();
+    tokio::task::spawn_blocking(move || crate::backends::set_api_key(&app2.secrets, &id, None))
         .await
         .map_err(|e| ApiError::from(anyhow::Error::from(e)))??;
     crate::backends::detect_in_background(&app);
@@ -848,10 +931,51 @@ async fn get_settings(State(app): S) -> ApiResult {
     ok(app.brain().db(|s| Ok(s.settings()?)).await?)
 }
 
+/// Merge `patch` into `base`: objects merge key by key (recursively), `null` removes a
+/// key, anything else (strings, numbers, arrays) replaces.
+pub fn merge_json(base: &mut Value, patch: &Value) {
+    match (base.as_object_mut(), patch.as_object()) {
+        (Some(b), Some(p)) => {
+            for (k, v) in p {
+                if v.is_null() {
+                    b.remove(k);
+                } else {
+                    match b.get_mut(k) {
+                        Some(slot) if slot.is_object() && v.is_object() => merge_json(slot, v),
+                        _ => {
+                            let mut fresh = Value::Object(Default::default());
+                            if v.is_object() {
+                                // drop nulls nested in a new object
+                                merge_json(&mut fresh, v);
+                            } else {
+                                fresh = v.clone();
+                            }
+                            b.insert(k.clone(), fresh);
+                        }
+                    }
+                }
+            }
+        }
+        _ => *base = patch.clone(),
+    }
+}
+
 async fn put_settings(State(app): S, Json(b): Json<Value>) -> ApiResult {
-    let obj = b
+    let patch = b
         .as_object()
-        .ok_or_else(|| ApiError::bad("settings must be a json object"))?;
+        .ok_or_else(|| ApiError::bad("settings must be a json object"))?
+        .clone();
+    // deep-merge into what is stored; only the touched top-level keys are written
+    let current = app.brain().db(|s| Ok(s.settings()?)).await?;
+    let mut merged = current.clone();
+    if !merged.is_object() {
+        merged = json!({});
+    }
+    merge_json(&mut merged, &Value::Object(patch.clone()));
+    let mut obj = serde_json::Map::new();
+    for k in patch.keys() {
+        obj.insert(k.clone(), merged.get(k).cloned().unwrap_or(Value::Null));
+    }
     // typed sections are validated before anything is stored
     let new_spec = match obj.get("embedder") {
         Some(Value::Null) | None => None,
@@ -882,7 +1006,7 @@ async fn put_settings(State(app): S, Json(b): Json<Value>) -> ApiResult {
     }
     let touches_harness = obj.contains_key("harness");
     let routing = obj.get("routing").cloned();
-    let body = b.clone();
+    let body = Value::Object(obj);
     let all = app.brain().db(move |s| Ok(s.put_settings(&body)?)).await?;
     if let Some(spec) = new_spec
         && app.cfg.embedder_override.is_none()
@@ -956,8 +1080,10 @@ async fn mcp_snippets(State(app): S) -> ApiResult {
         .map(|p| p.display().to_string())
         .unwrap_or_else(|_| "anamnesis".into());
     let url = format!("http://127.0.0.1:{}/mcp", app.cfg.port);
+    let args = crate::backends::mcp_stdio_args(&app);
     let snippets = anamnesis_mcp::config_snippets(&anamnesis_mcp::SnippetOptions {
         command,
+        args: args.clone(),
         http_url: Some(url.clone()),
         token_env_var: Some(MCP_TOKEN_ENV.into()),
         ..Default::default()
@@ -967,6 +1093,7 @@ async fn mcp_snippets(State(app): S) -> ApiResult {
         "http_url": url,
         "token_env_var": MCP_TOKEN_ENV,
         "token": token,
+        "stdio_args": args,
         "tools": anamnesis_mcp::TOOL_NAMES,
     }))
 }
@@ -1007,6 +1134,7 @@ async fn status(State(app): S) -> ApiResult {
         "events": events,
         "head": head,
         "embedder": app.embed_status(),
+        "jobs": app.jobs_progress.read().unwrap().clone(),
     }))
 }
 

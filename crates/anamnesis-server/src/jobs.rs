@@ -1,5 +1,6 @@
-//! Background jobs: embeddings, the mind (regions + layout), link suggestions, rule-based
-//! threads and the daily review. Every job reads what it needs under the store lock,
+//! Background jobs: embeddings, the mind (regions + layout), link suggestions, threads
+//! (rule-based, plus model-based through the `extract` route when a background-capable
+//! backend exists) and the daily review. Every job reads what it needs under the store lock,
 //! releases it, computes, and writes back under the lock; network calls (region labels)
 //! happen with no lock held.
 
@@ -637,6 +638,171 @@ pub async fn run_threads(brain: &Arc<Brain>) -> Result<usize> {
     Ok(n)
 }
 
+/// Items sent to the extract route per pass (the job loop runs at most every few seconds
+/// after a change, else every 30 s): a slow trickle, newest first.
+pub const EXTRACT_BATCH: usize = 8;
+/// Longest text sent for extraction, in characters (quotes are validated against it).
+const EXTRACT_MAX_CHARS: usize = 12_000;
+/// Model answers below this confidence are dropped.
+const EXTRACT_MIN_CONFIDENCE: f32 = 0.5;
+
+/// Model-based threads through the `extract` route, for owner-written items that are new
+/// or changed since a model last read them. Runs only when the router has a backend for
+/// background extraction (local by default; an api key only if the user opted in or
+/// named one). Without one, or when a call fails, the rule-based threads stand alone.
+/// Returns the number of threads added.
+pub async fn run_model_threads(app: &Arc<App>, brain: &Arc<Brain>) -> Result<usize> {
+    let Some(router) = app.router() else {
+        return Ok(0);
+    };
+    let Ok(plan) = router.plan(Task::Extract, None) else {
+        return Ok(0);
+    };
+    let Some(primary) = plan.first() else {
+        return Ok(0);
+    };
+    // only cloud_ok items may reach a backend that is not local; never ask in the background
+    let local = primary.is_local();
+    let done = brain.job_state().extracted_hash;
+    let (todo, pending) = brain
+        .db(move |s| {
+            let mut items: Vec<Item> = s
+                .list_items(&ItemFilter::default())?
+                .into_iter()
+                .filter(|i| !i.deleted && i.origin.is_owner())
+                .filter(|i| done.get(&i.id.0) != Some(&i.content_hash))
+                .filter(|i| !i.body.trim().is_empty())
+                .filter(|i| local || i.privacy == Privacy::CloudOk)
+                .collect();
+            items.sort_by_key(|i| std::cmp::Reverse(i.modified_at));
+            let pending = items.len() > EXTRACT_BATCH;
+            items.truncate(EXTRACT_BATCH);
+            Ok((items, pending))
+        })
+        .await?;
+    let mut added = 0;
+    let mut finished = Vec::new();
+    let mut failed = false;
+    for item in todo {
+        match extract_one(brain, &router, &item).await {
+            Ok(n) => {
+                added += n;
+                finished.push((item.id.0.clone(), item.content_hash.clone()));
+            }
+            Err(e) => {
+                // the backend is down or refusing: leave the rest for a later pass
+                tracing::debug!("thread extraction: {e}; rules only for now");
+                failed = true;
+                break;
+            }
+        }
+    }
+    let mut js = brain.job_state();
+    js.extracted_hash.extend(finished);
+    js.extract_pending = pending && !failed;
+    brain.save_job_state(&js)?;
+    if added > 0 {
+        tracing::info!("threads: {added} found by the extract model");
+    }
+    Ok(added)
+}
+
+async fn extract_one(
+    brain: &Arc<Brain>,
+    router: &anamnesis_harness::Router,
+    item: &Item,
+) -> std::result::Result<usize, String> {
+    let text: String = item.body.chars().take(EXTRACT_MAX_CHARS).collect();
+    let prompt = anamnesis_mind::extraction_prompt(&item.title, &text);
+    let mut req = ChatRequest::new(vec![Message::user(prompt.user)]).with_system(prompt.system);
+    req.json_schema = Some(prompt.schema);
+    req.temperature = Some(0.0);
+    let routed = router
+        .chat(
+            Task::Extract,
+            req,
+            CallContext {
+                items: vec![(item.id.clone(), item.privacy)],
+                approved: vec![],
+                backend: None,
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    let backend = routed.backend.clone();
+    let extractor = match router.get(&backend) {
+        Some(b) if b.is_local() => format!("local:{}", routed.model),
+        Some(b) => format!("{}:{}", b.provider(), routed.model),
+        None => format!("{backend}:{}", routed.model),
+    };
+    if let Some(eg) = routed.egress {
+        let kind = eg.into_event_kind();
+        let b = backend.clone();
+        brain
+            .db(move |s| Ok(s.append(Actor::Model(b), kind)?))
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    let answer = collect_text(routed.stream, &backend).await?;
+    let report = anamnesis_mind::threads::validate_extraction_str(
+        &text,
+        &answer,
+        &item.id,
+        item.created_at,
+        &extractor,
+        EXTRACT_MIN_CONFIDENCE,
+    )
+    .map_err(|e| format!("{backend}: {e}"))?;
+    let item_id = item.id.clone();
+    let actor = sys(&format!("mind:threads:{extractor}"));
+    brain
+        .db(move |s| {
+            let existing = s.threads(&ThreadFilter {
+                item_id: Some(item_id),
+                ..Default::default()
+            })?;
+            let mut n = 0;
+            for t in report.accepted {
+                // the rules (or an earlier model pass) may have found the same span
+                if existing
+                    .iter()
+                    .any(|e| e.quote == t.quote && e.kind == t.kind)
+                {
+                    continue;
+                }
+                s.upsert_thread(t, actor.clone())?;
+                n += 1;
+            }
+            Ok(n)
+        })
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Collect a routed stream's text (two minutes at most).
+async fn collect_text(
+    mut stream: anamnesis_harness::ChatStream,
+    backend: &str,
+) -> std::result::Result<String, String> {
+    let mut text = String::new();
+    let collect = async {
+        while let Some(ev) = stream.next().await {
+            match ev {
+                ChatEvent::Token { text: t } => text.push_str(&t),
+                ChatEvent::Error { message, .. } => return Err(message),
+                ChatEvent::Done { .. } => break,
+                ChatEvent::Usage(_) => {}
+            }
+        }
+        Ok(())
+    };
+    match tokio::time::timeout(Duration::from_secs(120), collect).await {
+        Ok(Ok(())) => Ok(text),
+        Ok(Err(e)) => Err(format!("{backend}: {e}")),
+        Err(_) => Err(format!("{backend}: timed out")),
+    }
+}
+
 // ---------------------------------------------------------------------------------------
 // daily review
 
@@ -741,6 +907,28 @@ pub async fn run_review(app: &Arc<App>, brain: &Arc<Brain>, force: bool) -> Resu
 /// One pass of every job, synchronously (cli commands and tests). Runs a full mind
 /// recompute and draws the daily review if it was not drawn today.
 pub async fn run_jobs_once(app: &Arc<App>) -> Result<JobsReport> {
+    let r = run_jobs_once_inner(app).await;
+    let mut p = app.jobs_progress.write().unwrap();
+    p.running = false;
+    p.phase = None;
+    p.error = r.as_ref().err().map(|e| format!("{e:#}"));
+    r
+}
+
+/// Phases of [`run_jobs_once`], in order (progress in `/api/status`).
+pub const PHASES: [&str; 5] = ["embeddings", "threads", "mind", "suggestions", "review"];
+
+fn phase(app: &App, i: usize) {
+    let mut p = app.jobs_progress.write().unwrap();
+    p.running = true;
+    p.total = PHASES.len() as u32;
+    p.done = i as u32;
+    p.phase = PHASES.get(i).map(|s| s.to_string());
+    p.error = None;
+}
+
+async fn run_jobs_once_inner(app: &Arc<App>) -> Result<JobsReport> {
+    phase(app, 0);
     if app.embedder().is_none() {
         app.load_embedder().await;
     }
@@ -750,11 +938,17 @@ pub async fn run_jobs_once(app: &Arc<App>) -> Result<JobsReport> {
         embedded: run_embeddings(app, &brain).await?,
         ..Default::default()
     };
+    phase(app, 1);
     r.threads = run_threads(&brain).await?;
+    r.threads += run_model_threads(app, &brain).await?;
+    phase(app, 2);
     r.mind = run_mind(app, &brain, true, Duration::ZERO).await?;
+    phase(app, 3);
     r.suggestions = run_suggestions(app, &brain).await?;
+    phase(app, 4);
     r.resurfaced = run_review(app, &brain, false).await?;
     mark_seen(&brain).await?;
+    app.jobs_progress.write().unwrap().done = PHASES.len() as u32;
     Ok(r)
 }
 
@@ -816,10 +1010,11 @@ async fn jobs_pass(app: &Arc<App>) -> Result<()> {
     let changed = js.seen_head != head;
     let review_due = js.review_day.as_deref() != Some(today.as_str());
     let embedded = run_embeddings(app, &brain).await?;
-    if !changed && embedded == 0 && !review_due {
+    if !changed && embedded == 0 && !review_due && !js.extract_pending {
         return Ok(());
     }
     run_threads(&brain).await?;
+    run_model_threads(app, &brain).await?;
     let interval = mind_interval(&brain).await;
     run_mind(app, &brain, false, interval).await?;
     run_suggestions(app, &brain).await?;
