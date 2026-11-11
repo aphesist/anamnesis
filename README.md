@@ -8,14 +8,15 @@ anamnesis gathers what you write and read (notes, journals, obsidian vaults, pdf
 
 it is one rust binary with a browser ui, works with no model at all, brings your own model when you want one (local, api key, or your chatgpt plan through openai's sign-in), and is also an mcp server, so claude code, codex, gemini cli and claude desktop can read and write your brain with the subscriptions you already have.
 
-![the brain: a stipple point cloud in the shape of a brain, with region labels, the regions legend, the view panel on the right and the lineage timeline below](ui/app/docs-screens/brain.png)
+![the brain: a stipple point cloud in the shape of a brain, with region labels, the view panel on the right and the lineage timeline below](ui/app/docs-screens/brain.png)
 
-<sub>screenshots show the ui running on its built-in sample data (`?mock=1`), not anyone's notes; the numbers in them are fixtures.</sub>
+<sub>screenshots show the transcendentalist demo brain (9,233 dated entries from thoreau's and emerson's public-domain journals, embedded locally), served by a real `anamnesis serve`. the evaluation panel reads "measuring" because nobody has used that brain yet: those numbers only exist once a person does.</sub>
 
 | | |
 |---|---|
 | ![chat answering from the brain, with cited items](ui/app/docs-screens/chat.png) | ![the evaluation panel: latent links, retrieval, resurfacing, growth, each with an interval and a status](ui/app/docs-screens/eval.png) |
 | ![when you wrote: writing over time by speaker](ui/app/docs-screens/when-you-wrote.png) | ![regions packed as spheres](ui/app/docs-screens/spheres.png) |
+| ![threads: decisions, open questions, plans and rejections found in the notes](ui/app/docs-screens/threads.png) | ![a journal entry in the reader, with provenance and link suggestions](ui/app/docs-screens/notes.png) |
 
 ## what it does
 
