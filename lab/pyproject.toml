@@ -1,0 +1,38 @@
+[project]
+name = "anamnesis-lab"
+version = "0.1.0"
+description = "Optional Python lab for anamnesis: demo-brain builders and offline benchmarks."
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy==2.2.6",
+]
+
+[project.optional-dependencies]
+# Everything the benchmarks need beyond numpy. Not needed for the demo builders or the tests.
+bench = [
+    "huggingface-hub==2.4.0",
+    "onnxruntime==1.31.1",
+    "tokenizers==0.23.3",
+    "scikit-learn==1.9.1",
+    "scipy==1.15.3",
+    "umap-learn==0.6.0",
+    "pacmap==0.9.1",
+]
+
+[project.scripts]
+anamnesis-lab = "anamnesis_lab.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "pyyaml==6.0.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.32,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
