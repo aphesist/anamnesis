@@ -18,6 +18,7 @@ pub mod detect;
 pub mod egress;
 pub mod error;
 mod http;
+pub mod keystore;
 pub mod limits;
 pub mod router;
 pub mod sse;

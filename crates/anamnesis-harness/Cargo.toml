@@ -24,9 +24,10 @@ getrandom = "0.2"
 url = "2"
 uuid = { version = "1", features = ["v4"] }
 ring = "0.17"
-# OS keychain for the "continue with chatgpt" token. On linux the kernel keyutils
-# backend is used (pure rust, no dbus); a 0600 file is the fallback.
-keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
+# OS keychain for secrets: windows credential manager, macos keychain, and on linux the
+# secret service over d-bus (pure rust zbus, no system libdbus). The linux kernel keyring
+# is not used: it does not survive a reboot. A private file is the fallback.
+keyring = { version = "3", features = ["apple-native", "windows-native", "async-secret-service", "async-io", "crypto-rust"] }
 
 [dev-dependencies]
 tempfile = "3"

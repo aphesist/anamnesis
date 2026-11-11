@@ -375,6 +375,9 @@ async fn api_keys_fall_back_to_a_0600_file() {
     let a = rows.iter().find(|b| b["id"] == "anthropic").unwrap();
     assert_eq!(a["kind"], "anthropic");
     assert_eq!(a["key_storage"], "file");
+    // where new keys go, and which store that is
+    assert_eq!(be["key_store"]["storage"], "file");
+    assert_eq!(be["key_store"]["backend"], "file");
     assert_eq!(a["is_local"], false);
     assert_eq!(a["leaves_machine"], true);
     let ret = rows.iter().find(|b| b["id"] == "retrieval").unwrap();
