@@ -450,3 +450,22 @@ async fn demo_brain_is_separate() {
     assert_eq!(st["active"], false);
     assert_eq!(st["items"], 0, "the user's brain is untouched");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tiny_brains_do_not_break_the_jobs() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = App::open(ServerConfig::for_tests(&dir.path().join("anamnesis")), false).unwrap();
+    let r = api::router(app.clone());
+    // empty brain
+    jobs::run_jobs_once(&app).await.unwrap();
+    assert_eq!(get(&r, "/api/cloud").await["ids"], json!([]));
+    assert_eq!(get(&r, "/api/review").await["items"], json!([]));
+    get(&r, "/api/eval").await;
+    for (i, body) in ["one lonely thought", "a second thought, about thinking", "a third, unrelated: bread"].iter().enumerate() {
+        let (s, _) = call(&r, "POST", "/api/items", Some(json!({ "title": format!("n{i}"), "body": body }))).await;
+        assert_eq!(s, StatusCode::OK);
+        jobs::run_jobs_once(&app).await.unwrap();
+        let cloud = get(&r, "/api/cloud").await;
+        assert_eq!(cloud["ids"].as_array().unwrap().len(), i + 1);
+    }
+}

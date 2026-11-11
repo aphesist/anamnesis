@@ -41,6 +41,9 @@ pub struct JobState {
     /// Event head (seq) the jobs last looked at, to notice writes from other processes.
     #[serde(default)]
     pub seen_head: u64,
+    /// Embedding model the current layout and regions were computed with.
+    #[serde(default)]
+    pub mind_model: Option<String>,
 }
 
 pub struct Brain {

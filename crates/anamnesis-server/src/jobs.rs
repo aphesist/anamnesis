@@ -16,7 +16,7 @@ use anamnesis_mind::layout::views;
 use anamnesis_mind::regions::apply_labels;
 use anamnesis_mind::resurface::{ReviewInfo, ReviewParams, Scheduler, SrsCard};
 use anamnesis_mind::{
-    ItemMeta, LinkParams, LinkSuggester, MindParams, daily_review, extract_rules,
+    ItemMeta, LinkParams, LinkSuggester, MindParams, MindState, daily_review, extract_rules,
     full_run, place_new, split_for_holdout,
 };
 use anyhow::Result;
@@ -136,9 +136,12 @@ pub async fn run_mind(
 ) -> Result<Option<MindReport>> {
     let Some(emb) = app.embedder() else { return Ok(None) };
     let model = emb.id().to_string();
+    let model_changed = brain.job_state().mind_model.as_deref() != Some(model.as_str());
+    let force_full = force_full || model_changed;
+    let m = model.clone();
     let input = brain
         .db(move |s| {
-            let (ids, vecs) = s.item_vectors(&model)?;
+            let (ids, vecs) = s.item_vectors(&m)?;
             let items = s.list_items(&ItemFilter::default())?;
             let by_id: HashMap<&Id, &Item> = items.iter().map(|i| (&i.id, i)).collect();
             let texts = ids
@@ -171,12 +174,23 @@ pub async fn run_mind(
     let grown = new_ids.len() * 2 > state.layout.ids.len().max(1);
     let full = force_full || state.layout.ids.is_empty() || due || grown;
 
+    if input.ids.len() < TINY {
+        return tiny_layout(brain, &input.ids, &model).await.map(Some);
+    }
+
     if full {
         let MindInput { ids, vecs, texts, params, privacy, .. } = input;
         let prev = state.clone();
         let mut run = tokio::task::spawn_blocking(move || {
             let at = now();
-            let r = full_run(&ids, &vecs, Some(&texts), &prev, at, &params);
+            let mut r = full_run(&ids, &vecs, Some(&texts), &prev, at, &params);
+            sanitize(&mut r.state.layout.xyz);
+            sanitize(&mut r.views.layout);
+            sanitize(&mut r.views.anatomy);
+            sanitize(&mut r.views.spheres);
+            for p in r.placements.iter_mut() {
+                sanitize(std::slice::from_mut(&mut p.xyz));
+            }
             (r, ids, texts)
         })
         .await?;
@@ -201,6 +215,7 @@ pub async fn run_mind(
         brain.save_views(&fr.views)?;
         jobs = brain.job_state();
         jobs.last_full_run = Some(now());
+        jobs.mind_model = Some(model.clone());
         brain.save_job_state(&jobs)?;
         tracing::info!("mind: full run over {} items, {n_regions} regions", ids.len());
         return Ok(Some(MindReport {
@@ -242,8 +257,11 @@ pub async fn run_mind(
                     .flatten()
             })
             .collect();
+        sanitize(&mut state.layout.xyz);
         let placements = state.layout.placements(&assignment);
-        let lv = views(&state.layout, &assignment);
+        let mut lv = views(&state.layout, &assignment);
+        sanitize(&mut lv.anatomy);
+        sanitize(&mut lv.spheres);
         (state, placements, lv)
     })
     .await?;
@@ -263,6 +281,55 @@ pub async fn run_mind(
         regions: state.regions.regions.len(),
         labelled_by: None,
     }))
+}
+
+/// Below this many items the layout and clustering have too little to work with: items
+/// are set on a small ring, without regions, until the brain grows.
+const TINY: usize = 5;
+
+fn sanitize(xyz: &mut [[f32; 3]]) {
+    for p in xyz.iter_mut() {
+        for c in p.iter_mut() {
+            if !c.is_finite() {
+                *c = 0.0;
+            }
+        }
+    }
+}
+
+async fn tiny_layout(brain: &Arc<Brain>, ids: &[Id], model: &str) -> Result<MindReport> {
+    let n = ids.len();
+    let xyz: Vec<[f32; 3]> = (0..n)
+        .map(|i| {
+            if n == 1 {
+                return [0.0; 3];
+            }
+            let a = i as f32 / n as f32 * std::f32::consts::TAU;
+            [0.3 * a.cos(), 0.3 * a.sin(), 0.0]
+        })
+        .collect();
+    let layout = anamnesis_mind::Layout { ids: ids.to_vec(), xyz };
+    let assignment = vec![None; n];
+    let placements = layout.placements(&assignment);
+    let lv = views(&layout, &assignment);
+    brain
+        .db(move |s| {
+            s.replace_placements(Id::new(), &placements, sys("mind:layout"))?;
+            Ok(())
+        })
+        .await?;
+    brain.save_views(&anamnesis_mind::LayoutViews {
+        ids: layout.ids.clone(),
+        layout: layout.xyz.clone(),
+        anatomy: if lv.anatomy.iter().flatten().all(|c| c.is_finite()) { lv.anatomy } else { layout.xyz.clone() },
+        spheres: if lv.spheres.iter().flatten().all(|c| c.is_finite()) { lv.spheres } else { layout.xyz.clone() },
+    })?;
+    // the next real run starts fresh
+    brain.save_mind_state(&MindState::default())?;
+    let mut js = brain.job_state();
+    js.mind_model = Some(model.to_string());
+    brain.save_job_state(&js)?;
+    Ok(MindReport { full: true, items: n, placed_new: 0, regions: 0, labelled_by: None })
 }
 
 /// Ask the label route to name regions that need a label. Never runs on subscription
