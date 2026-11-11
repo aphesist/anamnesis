@@ -196,6 +196,24 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !e.target.closest('input, textarea, select')) { ctx.clearLight(); emit('escape'); }
 });
 
+// a floating panel docked to one side of the stage: slide the brain into the space left over
+const floatEl = document.getElementById('float');
+const baseShift = [...brain.cam.shift];
+function syncShift() {
+  const stage = document.getElementById('page-brain').getBoundingClientRect();
+  let dx = 0;
+  if (!floatEl.hidden && stage.width && store.view.page === 'brain') {
+    const r = floatEl.getBoundingClientRect(), side = floatEl.dataset.anchor || 'right';
+    const share = Math.min(0.6, r.width / stage.width);
+    if (side === 'right') dx = -share; else if (side === 'left' || side === 'top-left') dx = share;
+  }
+  brain.cam.shiftTarget = [baseShift[0] + dx, baseShift[1]];
+  brain.dirty = true;
+}
+new MutationObserver(syncShift).observe(floatEl, { attributes: true, attributeFilter: ['hidden', 'data-anchor'] });
+window.addEventListener('resize', syncShift);
+on('page', syncShift);
+
 // ---------- boot ----------
 const config = await loadLayout();
 const layout = new Layout(config, panels, ctx);

@@ -151,7 +151,9 @@ void main() {
   float hub = inversesqrt(max(1.0, float(aLink.w) / 3.0));
   float alpha = uLinkAlpha * (aLink.z == 0 ? 0.7 : 1.15) * mix(1.0, 0.35, fogf) * hub;
   vCol = cThread;
-  if (lit) { alpha = uLinkAlpha * (aLink.z == 0 ? 5.0 : 7.0) * mix(1.0, 0.5, fogf); vCol = mix(cThread, cHot, 0.7); }
+  // a lit item's own threads come up, still thinned when it is a hub (a cited biography
+  // note with hundreds of links would otherwise draw a starburst)
+  if (lit) { alpha = uLinkAlpha * (aLink.z == 0 ? 5.0 : 7.0) * mix(1.0, 0.5, fogf) * inversesqrt(max(1.0, float(aLink.w) / 16.0)); vCol = mix(cThread, cHot, 0.7); }
   else if (uAnyLit > 0.5) alpha *= 0.3;
   if (off) alpha = 0.0;
   vAlpha = alpha * inTime;
