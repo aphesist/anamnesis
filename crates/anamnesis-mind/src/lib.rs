@@ -3,6 +3,7 @@ pub mod anatomy;
 pub mod hdbscan;
 pub mod knn;
 pub mod labels;
+pub mod layout;
 pub mod linalg;
 pub mod regions;
 pub mod rng;

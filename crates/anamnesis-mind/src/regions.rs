@@ -52,6 +52,9 @@ pub struct RegionParams {
     pub assign_slack: f32,
     /// Keywords per region.
     pub keywords: usize,
+    /// Clusters whose cohesion (mean member cosine to centroid, in the full
+    /// space) is below this fraction of the median cluster's are dissolved.
+    pub min_relative_cohesion: f32,
 }
 
 impl Default for RegionParams {
@@ -67,6 +70,7 @@ impl Default for RegionParams {
             assign_quantile: 0.05,
             assign_slack: 0.05,
             keywords: 10,
+            min_relative_cohesion: 0.5,
         }
     }
 }
@@ -189,6 +193,10 @@ pub fn cluster(space: &Space, params: &RegionParams) -> (Vec<Vec<usize>>, Vec<us
     );
     let nl = labels.iter().copied().max().unwrap_or(-1);
     let mut clusters: Vec<Vec<usize>> = vec![vec![]; (nl + 1).max(0) as usize];
+    #[inline]
+    fn cohesive_enough(cohesion: f32, median: f32, params: &RegionParams) -> bool {
+        cohesion >= params.min_relative_cohesion * median
+    }
     let mut noise = vec![];
     for (i, &l) in labels.iter().enumerate() {
         if l >= 0 {
@@ -198,8 +206,38 @@ pub fn cluster(space: &Space, params: &RegionParams) -> (Vec<Vec<usize>>, Vec<us
         }
     }
     clusters.retain(|c| !c.is_empty());
-    // absorb noise points that sit within a cluster's typical spread
+    // validate in the full space: the reduction can make unrelated items look
+    // alike (e.g. diffuse leftovers projected near the origin). Dissolve
+    // clusters far less cohesive than the typical one and trim outliers.
     let x = &space.normed;
+    let sims: Vec<Vec<f32>> = clusters
+        .iter()
+        .map(|m| {
+            let c = centroid(x, m);
+            m.iter().map(|&i| dot(x.row(i), &c)).collect()
+        })
+        .collect();
+    let cohesions: Vec<f32> = sims.iter().map(|s| s.iter().sum::<f32>() / s.len() as f32).collect();
+    let median_cohesion = quantile(cohesions.clone(), 0.5);
+    let mut kept = vec![];
+    for ((m, s), coh) in clusters.into_iter().zip(&sims).zip(&cohesions) {
+        if cohesive_enough(*coh, median_cohesion, params) {
+            let med = quantile(s.clone(), 0.5);
+            let mad = quantile(s.iter().map(|v| (v - med).abs()).collect(), 0.5) * 1.4826;
+            let floor = med - 4.0 * mad.max(0.01);
+            let (inn, out): (Vec<_>, Vec<_>) = m.iter().zip(s).partition(|(_, v)| **v >= floor);
+            noise.extend(out.into_iter().map(|(i, _)| *i));
+            let inn: Vec<usize> = inn.into_iter().map(|(i, _)| *i).collect();
+            if !inn.is_empty() {
+                kept.push(inn);
+            }
+        } else {
+            noise.extend(m);
+        }
+    }
+    let mut clusters = kept;
+    noise.sort_unstable();
+    // absorb noise points that sit within a cluster's typical spread
     let cents: Vec<Vec<f32>> = clusters.iter().map(|m| centroid(x, m)).collect();
     let thresholds: Vec<f32> = clusters
         .iter()
