@@ -2,4 +2,7 @@
 # see themes/aphesis/assets/NOTICE.md
 themes/aphesis/assets/*
 !themes/aphesis/assets/NOTICE.md
+# an empty manifest is committed so the runtime's one probe for fetched assets never 404s;
+# scripts/fetch-aphesis-assets.mjs fills it in
+!themes/aphesis/assets/fetched.json
 node_modules/
