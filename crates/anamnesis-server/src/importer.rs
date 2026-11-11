@@ -360,7 +360,13 @@ pub async fn embed_progress(brain: &Arc<Brain>, model: Option<String>) -> Result
                     [m],
                     |r| r.get(0),
                 )?,
-                None => 0,
+                // no embedder loaded yet: count chunks with a vector of any model
+                None => c.query_row(
+                    "SELECT COUNT(*) FROM chunks c WHERE c.text != '' AND EXISTS
+                     (SELECT 1 FROM embeddings e WHERE e.text_hash = c.text_hash)",
+                    [],
+                    |r| r.get(0),
+                )?,
             };
             Ok((chunks as u64, done as u64))
         })
@@ -498,7 +504,9 @@ pub async fn build_demo(app: &Arc<App>) -> Result<()> {
     while !jobs.is_finished() {
         tick.tick().await;
         let p = app.jobs_progress.read().unwrap().clone();
-        let phase = p.phase.unwrap_or_else(|| "starting".into());
+        let Some(phase) = p.phase.filter(|_| p.running) else {
+            continue;
+        };
         let line = if phase == "embeddings" {
             let (c, d) = embed_progress(&brain, model.clone())
                 .await
