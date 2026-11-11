@@ -5,6 +5,7 @@ import { store, on, BIT, LIT, setBit, indicesWith } from '../lib/store.js';
 import { theme, rgba } from '../lib/tokens.js';
 import { api } from '../lib/api.js';
 import { shortId } from '../lib/layout.js';
+import { gradeControl } from '../lib/grade.js';
 
 const QUESTION = /\?\s*$|^(what|why|how|when|where|who|which|is|are|do|does|did|can|could|should|would|will|tell|summari[sz]e|explain|find me)\b/i;
 
@@ -27,8 +28,11 @@ export default {
     const renderHits = (q) => {
       clear(results);
       if (QUESTION.test(q)) results.append(h('button', { type: 'button', role: 'option', onclick: () => { close(); ctx.ask(q); } }, h('span.soft', 'ask: '), h('span.hit-title', q)));
-      hits.forEach((hit, k) => results.append(h('button', { type: 'button', role: 'option', id: `hit-${k}`, onclick: () => { close(); ctx.open(hit.item_id); } },
-        h('div.hit-title', hit.title), h('div.meta', hit.snippet))));
+      hits.forEach((hit, k) => results.append(h('div.hit-row', { role: 'presentation' },
+        h('button', { type: 'button', role: 'option', id: `hit-${k}`, onclick: () => { close(); ctx.open(hit.item_id); } },
+          h('div.hit-title', hit.title), h('div.meta', hit.snippet)),
+        gradeControl(q, hit.item_id, ctx))));
+      if (hits.length) results.append(h('div.meta.hit-hint', 'tap 0–3 to say how relevant a hit is; that is how search gets scored.'));
       if (!hits.length && !QUESTION.test(q)) results.append(h('div.empty', { style: { padding: '4px 12px' } }, 'nothing yet. press enter to ask instead.'));
       results.hidden = false; input.setAttribute('aria-expanded', 'true');
     };
@@ -62,7 +66,10 @@ export default {
         if (QUESTION.test(q) || !hits.length) { close(); ctx.ask(q); } else { close(); const idx = indicesWith(BIT.SEARCH); if (idx.length) ctx.brain.focusOn(idx); }
       } else if (e.key === 'Escape') { close(); }
     });
-    input.addEventListener('blur', () => setTimeout(close, 180));
+    // grading a hit moves focus into the list; only close when focus leaves both
+    const maybeClose = (e) => { if (results.contains(e.relatedTarget) || e.relatedTarget === input) return; setTimeout(() => { if (!results.contains(document.activeElement) && document.activeElement !== input) close(); }, 180); };
+    input.addEventListener('blur', maybeClose);
+    results.addEventListener('focusout', maybeClose);
 
     // ---------- nav ----------
     const navItems = [['brain', 'brain'], ['notes', 'notes'], ['write', 'write'], ['today', 'today']];
@@ -113,17 +120,21 @@ export default {
         try {
           await api.post('/api/sources', { connector: kind.value, name: v.split(/[\\/]/).filter(Boolean).pop() || v, config: isUrl ? { url: v } : { path: v } });
           ctx.toast('added. it will appear as it is read.');
-        } catch { ctx.toast('could not add that source.'); }
+        } catch (e) { ctx.toast(e.serverMessage ? 'not added: ' + e.serverMessage : 'could not add that source.'); }
         closeMenu();
       } }, 'add');
-      m.append(h('h4', 'capture'), kind, where, h('div.btnrow', { style: { marginTop: '6px' } }, go));
+      const more = h('button.textbtn', { type: 'button', onclick: () => { closeMenu(); ctx.openSettings('sources'); } }, 'all kinds…');
+      m.append(h('h4', 'capture'), kind, where, h('div.btnrow', { style: { marginTop: '6px' } }, go, more));
     }));
 
     moreBtn.addEventListener('click', () => showMenu(moreBtn, (m) => {
       const item = (label, fn) => h('button', { type: 'button', role: 'menuitem', onclick: () => { closeMenu(); fn(); } }, label);
       m.append(
         h('h4', 'settings'),
-        item('settings & theme', () => window.dispatchEvent(new CustomEvent('anamnesis:opensettings'))),
+        item('connections', () => ctx.openSettings('connections')),
+        item('sources', () => ctx.openSettings('sources')),
+        item('privacy · what left this machine', () => ctx.openSettings('privacy')),
+        item('appearance', () => ctx.openSettings('appearance')),
         item(document.documentElement.dataset.theme === 'light' ? 'eye closed (dark)' : 'eye open (light)', () => {
           document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
           window.dispatchEvent(new CustomEvent('anamnesis:themechange'));
