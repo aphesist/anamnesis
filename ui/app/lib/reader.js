@@ -45,7 +45,13 @@ export async function renderReader(el, id, ctx, { compact = false } = {}) {
 
   const side = h('div.reader-side');
   const all = [...links_out.map((l) => ['→', l.to, l.kind]), ...links_in.map((l) => ['←', l.from, l.kind])];
-  if (all.length) side.append(h('section', h('h3', 'links'), h('ul.list', ...all.slice(0, 24).map(([dir, iid, kind]) => h('li', h('span.soft', dir + ' '), itemLink(iid), h('span.meta', '  ' + kind.replace('_', ' ')))))));
+  const linkRow = ([dir, iid, kind]) => h('li', h('span.soft', dir + ' '), itemLink(iid), h('span.meta', '  ' + String(kind).replace('_', ' ')));
+  const linkList = h('ul.list', ...all.slice(0, 24).map(linkRow));
+  if (!all.length) linkList.append(h('li.empty.no-links', 'no links yet.'));
+  side.append(h('section.links', h('h3', 'links'), linkList, linkPicker(item, ctx, (hit) => {
+    linkList.querySelector('.no-links')?.remove();
+    linkList.prepend(linkRow(['→', hit.item_id, 'manual']));
+  })));
   if (threads.length) side.append(h('section', h('h3', 'threads in this note'), h('ul.list', ...threads.map((t) => h('li', h('span.kind-tag', t.kind.replace('_', ' ')), ' ', h('span.keep-case', t.statement), ' ', h(`span.status.${t.status}`, t.status))))));
 
   // link suggestions
@@ -73,7 +79,7 @@ export async function renderReader(el, id, ctx, { compact = false } = {}) {
 
   clear(el).append(
     h('h1', item.title || 'untitled'),
-    prov, body, side);
+    prov, privacyRow(item, ctx), body, side);
   const i = store.index.get(item.id);
   clearBit(BIT.FOCUS);
   if (i != null) setBit(BIT.FOCUS, [i], { exclusive: false });
@@ -99,4 +105,69 @@ export function closePeek() {
   peek.hidden = true;
   clearBit(BIT.FOCUS);
   document.getElementById('brain')?.focus({ preventScroll: true });
+}
+
+// Privacy for one item: local only / cloud ok / ask, via PUT /api/items/:id { privacy }.
+export const PRIVACY_WORDS = { local_only: 'local only', cloud_ok: 'cloud ok', ask: 'ask' };
+const PRIVACY_HINT = { local_only: 'never sent to a model that is not on this machine', cloud_ok: 'may go to the model you chose', ask: 'the chat asks before it leaves' };
+function privacyRow(item, ctx) {
+  let cur = item.privacy || 'cloud_ok';
+  const hint = h('span.meta', PRIVACY_HINT[cur] || '');
+  const g = h('div.choice.privacy-choice', { role: 'radiogroup', 'aria-label': 'privacy of this item' });
+  const sync = () => { for (const b of g.children) { const on = b.dataset.v === cur; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; } hint.textContent = PRIVACY_HINT[cur] || ''; };
+  for (const [v, label] of Object.entries(PRIVACY_WORDS)) {
+    g.append(h('button', { type: 'button', role: 'radio', 'data-v': v, onclick: async () => {
+      if (v === cur) return;
+      const prev = cur; cur = v; sync();
+      try {
+        const r = await api.setPrivacy(item.id, v);
+        const got = r && (r.privacy || r.item?.privacy);
+        if (got && got !== v) throw new Error('not taken');
+        item.privacy = v;
+        ctx.toast(`this item is now ${label}.`);
+      } catch { cur = prev; sync(); ctx.toast('privacy did not change: the server would not take it.'); }
+    } }, label));
+  }
+  g.addEventListener('keydown', (e) => {
+    const list = [...g.children]; const k = list.findIndex((b) => b.dataset.v === cur);
+    const n = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? (k + 1) % list.length : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? (k - 1 + list.length) % list.length : -1;
+    if (n >= 0) { e.preventDefault(); list[n].click(); list[n].focus(); }
+  });
+  sync();
+  return h('div.privacy-row', h('span.lab', 'privacy'), g, hint);
+}
+
+// "link to…": a small search picker that makes a manual link (POST /api/links).
+function linkPicker(item, ctx, onLinked) {
+  const wrap = h('div.link-picker');
+  const open = h('button.textbtn', { type: 'button', 'aria-expanded': 'false' }, 'link to…');
+  const box = h('div.link-box', { hidden: true });
+  const input = h('input.field', { type: 'search', placeholder: 'find a note to link', 'aria-label': 'find a note to link', autocomplete: 'off' });
+  const results = h('ul.list.link-results', { role: 'listbox', 'aria-label': 'notes to link' });
+  box.append(input, results);
+  open.addEventListener('click', () => { box.hidden = !box.hidden; open.setAttribute('aria-expanded', String(!box.hidden)); if (!box.hidden) input.focus(); });
+  let timer = 0, seq = 0;
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const q = input.value.trim(); const my = ++seq;
+      if (q.length < 2) { clear(results); return; }
+      let hits = [];
+      try { hits = (await api.search(q, 10)).hits || []; } catch { hits = []; }
+      if (my !== seq) return;
+      clear(results);
+      const seen = new Set([item.id]);
+      for (const hit of hits) {
+        if (seen.has(hit.item_id)) continue; seen.add(hit.item_id);
+        results.append(h('li', h('button.textbtn.keep-case', { type: 'button', role: 'option', onclick: async () => {
+          try { await api.link(item.id, hit.item_id); ctx.toast(`linked to "${hit.title}". it counts as a link you made by hand.`); onLinked(hit); input.value = ''; clear(results); box.hidden = true; open.setAttribute('aria-expanded', 'false'); }
+          catch (e) { ctx.toast(e.serverMessage || 'that link did not save.'); }
+        } }, hit.title || hit.item_id.slice(-6))));
+      }
+      if (!results.children.length) results.append(h('li.empty', 'nothing by that name.'));
+    }, 200);
+  });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); box.hidden = true; open.setAttribute('aria-expanded', 'false'); open.focus(); } });
+  wrap.append(open, box);
+  return wrap;
 }

@@ -102,3 +102,46 @@ fn layout_is_deterministic_for_a_seed() {
     let b = layout_full(&ids, &space, None, &LayoutParams::default());
     assert_eq!(a.layout, b.layout);
 }
+
+/// Sentence embeddings are anisotropic: a shared direction dominates and every
+/// pair has a high cosine. Topics must still come out as separate regions.
+#[test]
+fn anisotropic_topics_become_regions() {
+    let mut r = Rng::new(31);
+    let d = 64;
+    let common = unit(&mut r, d);
+    let topics = 12;
+    let mut vs = vec![];
+    for _ in 0..topics {
+        let c = unit(&mut r, d);
+        for v in blob(&mut r, &c, 60, 0.12) {
+            // baseline cosine ≈ 0.8 between any two items
+            let mut w: Vec<f32> = v
+                .iter()
+                .zip(&common)
+                .map(|(a, b)| 0.5 * a + 1.0 * b)
+                .collect();
+            let n = w.iter().map(|x| x * x).sum::<f32>().sqrt();
+            w.iter_mut().for_each(|x| *x /= n);
+            vs.push(w);
+        }
+    }
+    let ids = ids(vs.len(), "i");
+    let a = full_run(
+        &ids,
+        &vs,
+        None,
+        &MindState::default(),
+        Utc::now(),
+        &MindParams::default(),
+    );
+    let unsorted = a.regions.assignment.iter().filter(|x| x.is_none()).count();
+    let largest = a.regions.regions.iter().map(|x| x.size).max().unwrap_or(0);
+    assert!(
+        (11..=16).contains(&a.regions.regions.len()),
+        "{} regions",
+        a.regions.regions.len()
+    );
+    assert!(unsorted * 100 / vs.len() < 35, "unsorted {unsorted}");
+    assert!(largest <= 90, "largest region {largest}");
+}

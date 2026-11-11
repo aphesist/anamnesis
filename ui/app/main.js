@@ -208,22 +208,89 @@ try {
 showPage((location.hash.match(/^#\/(\w+)/) || [])[1] || 'brain');
 renderAlt();
 
-// settings (owned by ui/theme): a sheet over the stage
+// ---------- the demo brain (GET/POST /api/demo) ----------
+const demoBanner = h('div.demo-banner.no-orbit', { role: 'status', hidden: true },
+  h('span', 'this is the demo brain'), h('span.soft', ' · '),
+  h('button.textbtn.strong', { type: 'button', onclick: () => ctx.setDemo(false) }, 'return to yours'));
+document.getElementById('main').append(demoBanner);
+let demoInfo = null;
+function renderDemo() {
+  demoBanner.hidden = !store.demo;
+  app.classList.toggle('in-demo', store.demo);
+  emit('demo', demoInfo);
+}
+ctx.setDemo = async (on) => {
+  try {
+    demoInfo = await api.setDemo(on);
+    store.demo = !!demoInfo.active;
+  } catch (e) {
+    if (e.status === 404 || e.status === 405) {
+      // a server without /api/demo: fall back to the bundled fixture, read-only
+      store.demo = on;
+      if (on) await loadCloud(new URL('./mock/cloud.json', import.meta.url).href); else await loadCloud().catch(() => {});
+      renderDemo();
+      return;
+    }
+    ctx.toast(e.serverMessage || (on ? 'the demo brain could not be opened.' : 'your brain could not be reached.'));
+    return;
+  }
+  try { await loadCloud(); } catch { ctx.toast('the brain could not be read.'); }
+  emit('brain-switched', store.demo);
+  // panels that fetched their data once on mount read the other brain afresh
+  for (const k of ['threads', 'review', 'eval', 'skills']) { const el = layout.mounted.get(k); if (el) { el.remove(); layout.mounted.delete(k); } }
+  layout.render();
+  renderDemo();
+  ctx.toast(store.demo ? 'the demo brain. your own is untouched.' : 'back to your brain.');
+};
+api.demo().then((d) => { demoInfo = d; store.demo = !!d.active; renderDemo(); }).catch(() => { renderDemo(); });
+
+// settings: a sheet over the stage. connections, sources and privacy talk to the server
+// (panels/connections.js); appearance is ui/theme's settings panel.
 let settingsSheet = null;
-async function openSettings() {
-  if (!themeApi) { ctx.toast('settings come with the theme package, which is not installed.'); return; }
-  if (settingsSheet) { settingsSheet.hidden = false; settingsSheet.focus({ preventScroll: true }); return; }
-  const { mountSettings } = await import('../theme/settings.js');
-  const body = h('div.sheet-body');
-  const close = h('button.textbtn.sheet-close', { type: 'button', onclick: () => { settingsSheet.hidden = true; } }, 'close');
-  settingsSheet = h('aside.sheet.no-orbit', { role: 'dialog', 'aria-modal': 'false', 'aria-label': 'settings', tabindex: '-1' },
-    h('div.panel-head', h('h2', 'settings'), h('div.panel-tools', close)), body);
-  settingsSheet.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); settingsSheet.hidden = true; } });
-  document.getElementById('main').append(settingsSheet);
-  await mountSettings(body, { onLayoutChange: (l) => { if (l && l.panels) { layout.config = l; layout.render(); } } });
+const SETTINGS_TABS = [['connections', 'connections'], ['sources', 'sources'], ['privacy', 'privacy'], ['appearance', 'appearance']];
+let settingsTab = 'connections';
+async function openSettings(tab) {
+  if (typeof tab === 'string' && SETTINGS_TABS.some(([k]) => k === tab)) settingsTab = tab;
+  if (!settingsSheet) {
+    const close = h('button.textbtn.sheet-close', { type: 'button', onclick: () => { settingsSheet.hidden = true; } }, 'close');
+    const tabs = h('div.sheet-tabs', { role: 'tablist', 'aria-label': 'settings sections' });
+    const body = h('div.sheet-body');
+    settingsSheet = h('aside.sheet.no-orbit', { role: 'dialog', 'aria-modal': 'false', 'aria-label': 'settings', tabindex: '-1' },
+      h('div.panel-head', h('h2', 'settings'), h('div.panel-tools', close)), tabs, body);
+    settingsSheet.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); settingsSheet.hidden = true; } });
+    tabs.addEventListener('keydown', (e) => {
+      const list = [...tabs.children]; const k = list.indexOf(document.activeElement);
+      if (k < 0) return;
+      const n = e.key === 'ArrowRight' ? (k + 1) % list.length : e.key === 'ArrowLeft' ? (k - 1 + list.length) % list.length : -1;
+      if (n >= 0) { e.preventDefault(); list[n].focus(); list[n].click(); }
+    });
+    settingsSheet.renderTabs = () => {
+      clear(tabs);
+      for (const [k, label] of SETTINGS_TABS) tabs.append(h('button', { type: 'button', role: 'tab', id: 'set-tab-' + k, 'aria-selected': String(k === settingsTab), tabindex: k === settingsTab ? '0' : '-1', onclick: () => { settingsTab = k; showTab(); } }, label));
+    };
+    settingsSheet.body = body;
+    document.getElementById('main').append(settingsSheet);
+  }
+  settingsSheet.hidden = false;
+  await showTab();
   settingsSheet.focus({ preventScroll: true });
 }
-window.addEventListener('anamnesis:opensettings', openSettings);
+async function showTab() {
+  settingsSheet.renderTabs();
+  const body = clear(settingsSheet.body);
+  body.setAttribute('role', 'tabpanel');
+  body.setAttribute('aria-labelledby', 'set-tab-' + settingsTab);
+  if (settingsTab === 'appearance') {
+    if (!themeApi) { body.append(h('p.empty', 'appearance settings come with the theme package, which is not installed.')); return; }
+    const { mountSettings } = await import('../theme/settings.js');
+    await mountSettings(body, { onLayoutChange: (l) => { if (l && l.panels) { layout.config = l; layout.render(); } } });
+    return;
+  }
+  const m = await import('./panels/connections.js');
+  const fn = { connections: m.mountConnections, sources: m.mountSources, privacy: m.mountPrivacy }[settingsTab];
+  await fn(body, ctx);
+}
+window.addEventListener('anamnesis:opensettings', (e) => openSettings(e.detail?.tab));
 ctx.openSettings = openSettings;
 
 // first launch: ask once whether to keep the motion (the theme sets --motion / data-motion)

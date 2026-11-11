@@ -20,6 +20,7 @@
 //! - [`resurface`]: FSRS-6 scheduling and the daily review mix with a
 //!   micro-randomised trial.
 //! - [`pipeline`]: the full recompute job in one call.
+//! - [`lab`]: export layouts in the research lab's placements format.
 
 // index loops read better than iterator chains in the numeric code
 #![allow(clippy::needless_range_loop)]
@@ -27,6 +28,7 @@
 pub mod anatomy;
 pub mod hdbscan;
 pub mod knn;
+pub mod lab;
 pub mod labels;
 pub mod layout;
 pub mod linalg;
@@ -38,6 +40,7 @@ pub mod rng;
 pub mod space;
 pub mod threads;
 
+pub use lab::{LabSnapshot, export_placements_json, layout_snapshots};
 pub use layout::{Layout, LayoutParams, LayoutViews, layout_full, place_new, views};
 pub use links::{ItemMeta, LinkParams, LinkSuggester, LinkSuggestion, split_for_holdout};
 pub use pipeline::{FullRun, MindParams, MindState, full_run};

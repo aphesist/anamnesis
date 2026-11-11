@@ -170,6 +170,14 @@ impl Pca {
     /// Fit the top `k` components of `x`.
     pub fn fit(x: &Rows, k: usize) -> Pca {
         let (n, d) = (x.n, x.d);
+        if d == 0 {
+            // nothing to decompose (an empty corpus has no dimension)
+            return Pca {
+                mean: vec![],
+                components: vec![],
+                variances: vec![],
+            };
+        }
         let k = k.min(d).max(1);
         let mut mean = vec![0f32; d];
         for i in 0..n {
