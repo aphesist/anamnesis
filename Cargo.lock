@@ -34,6 +34,12 @@ name = "anamnesis-eval"
 version = "0.1.0"
 dependencies = [
  "anamnesis-core",
+ "chrono",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "ulid",
 ]
 
 [[package]]
