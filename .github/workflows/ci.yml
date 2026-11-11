@@ -18,8 +18,8 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  rust:
-    name: rust (fmt, clippy, test)
+  lint:
+    name: rust (fmt, clippy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +27,8 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: lint
       - name: fmt
         run: cargo fmt --all --check
       - name: clippy
@@ -34,8 +36,34 @@ jobs:
         # the onnx runtime binaries at build time. model weights are never downloaded
         # in tests.
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  test:
+    name: rust test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: keep line endings as committed
+        # some tests compare docs verbatim; git for windows would check them out as crlf
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: test
+      - name: build
+        run: cargo build --workspace --all-targets --locked
       - name: test
+        # tests never touch the os keychain (they use the file store), never the
+        # network and never download model weights
+        env:
+          ANAMNESIS_KEY_STORAGE: file
         run: cargo test --workspace --locked
+      - name: gpu feature compiles (directml)
+        if: runner.os == 'Windows'
+        run: cargo check -p anamnesis-server --features gpu-directml --locked
 
   ui:
     name: ui (node --test)

@@ -1,7 +1,10 @@
 //! Storage for anamnesis's *own* "continue with chatgpt" oauth credentials.
 //!
-//! Primary: the os keychain (`keyring`). Fallback: a json file written atomically with
-//! mode 0600 (as the sign-in docs ask: "Store files atomically with 0600 permissions on
+//! Primary: the os keychain (`keyring`; see [`crate::keystore`] for which store and when
+//! it counts as usable). Fallback: a json file written atomically with mode 0600 on unix;
+//! on windows the file inherits the per-user acl of the data dir (`%APPDATA%`). The
+//! windows credential manager caps a secret at 2560 bytes, so a long token record lands
+//! in the file there (as the sign-in docs ask: "Store files atomically with 0600 permissions on
 //! Unix, and never commit or log them" — https://developers.openai.com/siwc/token-sharing-open-source/sign-in).
 //!
 //! This never reads any other program's stored login (in particular not the codex cli's).
@@ -12,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{HarnessError, Result};
 
-const KEYRING_SERVICE: &str = "anamnesis";
+const KEYRING_SERVICE: &str = crate::keystore::SERVICE;
 const KEYRING_USER: &str = "chatgpt-auth";
 
 /// The credential record (shape follows the sign-in docs' example).
@@ -96,8 +99,14 @@ impl TokenStore {
         keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER).ok()
     }
 
+    /// Keychain kind, not turned off by `ANAMNESIS_KEY_STORAGE=file`, and a usable store.
+    fn use_keychain(&self) -> bool {
+        self.kind == TokenStoreKind::Keychain
+            && crate::keystore::KeyStoreMode::from_env().uses_os_store()
+    }
+
     pub fn load(&self) -> Result<Option<StoredCredentials>> {
-        if self.kind == TokenStoreKind::Keychain
+        if self.use_keychain()
             && let Some(e) = Self::entry()
         {
             match e.get_password() {
@@ -115,7 +124,7 @@ impl TokenStore {
 
     pub fn save(&self, creds: &StoredCredentials) -> Result<()> {
         let json = serde_json::to_string(creds)?;
-        if self.kind == TokenStoreKind::Keychain
+        if self.use_keychain()
             && let Some(e) = Self::entry()
             && e.set_password(&json).is_ok()
             && e.get_password().ok().as_deref() == Some(json.as_str())
@@ -128,7 +137,7 @@ impl TokenStore {
     }
 
     pub fn delete(&self) -> Result<()> {
-        if self.kind == TokenStoreKind::Keychain
+        if self.use_keychain()
             && let Some(e) = Self::entry()
         {
             let _ = e.delete_credential();

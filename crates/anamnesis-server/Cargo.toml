@@ -20,6 +20,9 @@ default = ["embed-ui", "local-embed"]
 embed-ui = ["dep:rust-embed"]
 # On-device embeddings (fastembed / onnx runtime) through anamnesis-embed.
 local-embed = ["anamnesis-embed/local"]
+# Local embeddings on the gpu (off by default; see docs/install.md). Cpu is the fallback.
+gpu-directml = ["local-embed", "anamnesis-embed/gpu-directml"]
+gpu-cuda = ["local-embed", "anamnesis-embed/gpu-cuda"]
 
 [dependencies]
 anamnesis-core.workspace = true
@@ -52,7 +55,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 dirs = "6"
 getrandom = "0.3"
 mime_guess = "2"
-keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
+webbrowser = "1"
+# same feature set as anamnesis-harness (see the comment there)
+keyring = { version = "3", features = ["apple-native", "windows-native", "async-secret-service", "async-io", "crypto-rust"] }
 rust-embed = { version = "8", optional = true, features = ["include-exclude"] }
 
 [dev-dependencies]

@@ -111,13 +111,32 @@ impl FilesConnector {
     }
 }
 
+/// Expand a leading `~` (`~`, `~/…`, and `~\…` on windows) to the home directory:
+/// `HOME`, or `USERPROFILE` on windows when `HOME` is unset.
 pub fn expand_home(p: &str) -> PathBuf {
-    if let Some(rest) = p.strip_prefix("~/")
-        && let Some(home) = std::env::var_os("HOME")
+    let rest = if p == "~" {
+        Some("")
+    } else {
+        p.strip_prefix("~/")
+            .or_else(|| p.strip_prefix("~\\").filter(|_| cfg!(windows)))
+    };
+    if let Some(rest) = rest
+        && let Some(home) = home_dir()
     {
-        return Path::new(&home).join(rest);
+        return if rest.is_empty() {
+            home
+        } else {
+            home.join(rest)
+        };
     }
     PathBuf::from(p)
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .filter(|h| !h.is_empty())
+        .or_else(|| std::env::var_os("USERPROFILE").filter(|_| cfg!(windows)))
+        .map(PathBuf::from)
 }
 
 pub(crate) fn file_uri(p: &Path) -> Option<String> {
@@ -405,10 +424,8 @@ impl Connector for FilesConnector {
                 return;
             }
             for p in ev.paths {
-                let rel = p
-                    .strip_prefix(&root2)
-                    .ok()
-                    .map(|r| r.to_string_lossy().replace('\\', "/"));
+                // the same `/`-joined form as a scan's external ids, on every os
+                let rel = crate::scan::rel_string(&root2, &p);
                 if rel
                     .as_deref()
                     .is_some_and(|r| r.starts_with(".obsidian") || r.starts_with(".trash"))

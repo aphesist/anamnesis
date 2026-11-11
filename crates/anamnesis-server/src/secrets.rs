@@ -1,24 +1,30 @@
-//! Api keys: the os keychain when there is one, otherwise a 0600 file in the data dir.
+//! Api keys: the os credential store when there is a usable one, otherwise a private
+//! file in the data dir.
 //!
-//! - Keychain: service `anamnesis`, account `<backend id>`.
+//! - Os store ([`anamnesis_harness::keystore`]): service `anamnesis`, account
+//!   `<backend id>`. Windows credential manager, macos keychain, or the linux secret
+//!   service. The linux kernel keyring is never used (it is cleared on reboot).
 //! - File: `<data dir>/anamnesis/secrets.json`, `{ "<account>": "<key>" }`, written
-//!   atomically with mode 0600. It is not a setting, so it never enters the event log or
-//!   an exported bundle, and nothing logs its contents.
+//!   atomically. On unix it is created with mode 0600; on windows it relies on the
+//!   per-user acl of `%APPDATA%` (only the user and administrators can read it). It is
+//!   not a setting, so it never enters the event log or an exported bundle, and nothing
+//!   logs its contents.
 //! - Environment: the provider's usual variable (`ANTHROPIC_API_KEY`, …), read last.
 //!
-//! `ANAMNESIS_KEY_STORAGE=file` skips the keychain entirely (useful on linux, where the
-//! kernel keyring the `keyring` crate uses does not survive a reboot).
+//! `ANAMNESIS_KEY_STORAGE=file|keychain` overrides the automatic choice.
 
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+pub use anamnesis_harness::keystore::KeyStoreMode;
+use anamnesis_harness::keystore::OsStore;
 use anyhow::{Context, Result};
 use serde::Serialize;
 
 /// Keychain service name for api keys.
-pub const KEYRING_SERVICE: &str = "anamnesis";
+pub const KEYRING_SERVICE: &str = anamnesis_harness::keystore::SERVICE;
 /// File name of the fallback store, inside the data root.
 pub const SECRETS_FILE: &str = "secrets.json";
 
@@ -31,24 +37,18 @@ pub enum KeyStorage {
     Env,
 }
 
-/// Which stores to use.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum KeyStoreMode {
-    /// The os keychain, falling back to the 0600 file when it is unavailable.
-    #[default]
-    Auto,
-    /// Only the 0600 file (no keychain access at all).
-    File,
-}
-
-impl KeyStoreMode {
-    /// From `ANAMNESIS_KEY_STORAGE` (`file` or `auto`; anything else is `auto`).
-    pub fn from_env() -> Self {
-        match std::env::var("ANAMNESIS_KEY_STORAGE").as_deref() {
-            Ok("file") => KeyStoreMode::File,
-            _ => KeyStoreMode::Auto,
-        }
-    }
+/// Where new keys are written (`key_store` in `/api/backends`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct KeyStoreInfo {
+    /// `keychain` or `file`.
+    pub storage: KeyStorage,
+    /// The os store's name (`windows credential manager`, `macos keychain`,
+    /// `secret service`), or `file`.
+    pub backend: &'static str,
+    /// What `ANAMNESIS_KEY_STORAGE` asked for: `auto`, `file` or `keychain`.
+    pub mode: &'static str,
+    /// The fallback file (shown so the user knows where it is).
+    pub file: String,
 }
 
 pub struct Secrets {
@@ -81,9 +81,37 @@ impl Secrets {
         &self.file
     }
 
+    /// Whether the os store is used (by the mode, and on linux by the probe).
+    fn os(&self) -> bool {
+        self.mode.uses_os_store()
+    }
+
+    /// Where new keys go.
+    pub fn info(&self) -> KeyStoreInfo {
+        let os = self.os();
+        KeyStoreInfo {
+            storage: if os {
+                KeyStorage::Keychain
+            } else {
+                KeyStorage::File
+            },
+            backend: if os {
+                OsStore::current().label()
+            } else {
+                "file"
+            },
+            mode: match self.mode {
+                KeyStoreMode::Auto => "auto",
+                KeyStoreMode::File => "file",
+                KeyStoreMode::Keychain => "keychain",
+            },
+            file: self.file.display().to_string(),
+        }
+    }
+
     /// The key for `account`: keychain, then file, then the first non-empty `env` var.
     pub fn get(&self, account: &str, env: &[&str]) -> Option<(String, KeyStorage)> {
-        if self.mode == KeyStoreMode::Auto
+        if self.os()
             && let Some(k) = keychain_get(account)
         {
             return Some((k, KeyStorage::Keychain));
@@ -101,12 +129,27 @@ impl Secrets {
             .map(|k| (k, KeyStorage::Env))
     }
 
-    /// Store a key. Returns where it went.
+    /// Store a key. Returns where it went. In `keychain` mode a failing os store is an
+    /// error; in `auto` mode the key falls back to the file.
     pub fn set(&self, account: &str, key: &str) -> Result<KeyStorage> {
-        if self.mode == KeyStoreMode::Auto && keychain_set(account, key) {
-            // a stale copy in the file would shadow nothing, but keep one place per key
-            self.file_remove(account)?;
-            return Ok(KeyStorage::Keychain);
+        if self.os() {
+            match keychain_set(account, key) {
+                Ok(()) => {
+                    // a stale copy in the file would shadow nothing, but keep one place per key
+                    self.file_remove(account)?;
+                    return Ok(KeyStorage::Keychain);
+                }
+                Err(e) if self.mode == KeyStoreMode::Keychain => {
+                    anyhow::bail!(
+                        "could not store the key in the {}: {e}",
+                        OsStore::current().label()
+                    )
+                }
+                Err(e) => tracing::info!(
+                    "the {} did not take the key ({e}); storing it in the data dir",
+                    OsStore::current().label()
+                ),
+            }
         }
         let _g = self.lock.lock().unwrap();
         let mut all = self.read_file();
@@ -117,7 +160,7 @@ impl Secrets {
 
     /// Remove a key from every store that holds it (environment variables are left alone).
     pub fn delete(&self, account: &str) -> Result<()> {
-        if self.mode == KeyStoreMode::Auto
+        if self.os()
             && let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, account)
         {
             // no keychain, or no entry: nothing to remove there
@@ -179,16 +222,15 @@ fn keychain_get(account: &str) -> Option<String> {
     (!k.is_empty()).then_some(k)
 }
 
-/// Store in the keychain and read it back; false when there is no usable keychain.
-fn keychain_set(account: &str, key: &str) -> bool {
-    let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, account) else {
-        return false;
-    };
-    if let Err(e) = entry.set_password(key) {
-        tracing::info!("no usable os keychain ({e}); storing the key in the data dir (0600)");
-        return false;
+/// Store in the os store and read it back.
+fn keychain_set(account: &str, key: &str) -> std::result::Result<(), String> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, account).map_err(|e| e.to_string())?;
+    entry.set_password(key).map_err(|e| e.to_string())?;
+    if keychain_get(account).as_deref() == Some(key.trim()) {
+        Ok(())
+    } else {
+        Err("the stored key did not read back".into())
     }
-    keychain_get(account).as_deref() == Some(key.trim())
 }
 
 #[cfg(test)]
@@ -220,6 +262,36 @@ mod tests {
         assert_eq!(s.get("gemini", &[]).unwrap().0, "g-2");
         // the debug form never shows a key
         assert!(!format!("{s:?}").contains("g-2"));
+    }
+
+    #[test]
+    fn file_mode_reports_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let s = Secrets::new(dir.path(), KeyStoreMode::File);
+        let info = s.info();
+        assert_eq!(info.storage, KeyStorage::File);
+        assert_eq!(info.backend, "file");
+        assert_eq!(info.mode, "file");
+        assert!(info.file.ends_with(SECRETS_FILE));
+        let v = serde_json::to_value(&info).unwrap();
+        assert_eq!(v["storage"], "file");
+    }
+
+    #[test]
+    fn auto_mode_follows_the_os_store() {
+        let dir = tempfile::tempdir().unwrap();
+        let s = Secrets::new(dir.path(), KeyStoreMode::Auto);
+        let info = s.info();
+        if anamnesis_harness::keystore::os_store_available() {
+            assert_eq!(info.storage, KeyStorage::Keychain);
+            assert_eq!(info.backend, OsStore::current().label());
+        } else {
+            // e.g. linux without a session bus: never the kernel keyring, the file instead
+            assert_eq!(info.storage, KeyStorage::File);
+            assert_eq!(s.set("probe-test", "k").unwrap(), KeyStorage::File);
+            assert_eq!(s.get("probe-test", &[]).unwrap().1, KeyStorage::File);
+        }
+        assert_eq!(info.mode, "auto");
     }
 
     #[test]

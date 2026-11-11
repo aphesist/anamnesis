@@ -1,0 +1,110 @@
+name: release
+
+# Builds the `anamnesis` binary (ui embedded) for windows, macos and linux when a `v*`
+# tag is pushed, and attaches the archives to a github release for that tag.
+# `workflow_dispatch` builds the same archives as workflow artifacts without releasing.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  build:
+    name: build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            features: ""
+          - name: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            features: ""
+          - name: macos-x86_64
+            # cross-built on the arm runner. onnx runtime ships no prebuilt binaries for
+            # intel macs, so this build has no on-device embeddings: it uses ollama or an
+            # api embedder (see docs/install.md).
+            os: macos-latest
+            target: x86_64-apple-darwin
+            features: --no-default-features --features embed-ui
+          - name: linux-x86_64
+            # the oldest supported runner, for an older glibc baseline
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            features: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+      - name: build
+        shell: bash
+        run: cargo build --release --locked -p anamnesis-server --target ${{ matrix.target }} ${{ matrix.features }}
+      - name: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME}"
+          [[ "$version" == v* ]] || version="dev-${GITHUB_SHA::7}"
+          name="anamnesis-${version}-${{ matrix.name }}"
+          mkdir -p "dist/$name"
+          bin="target/${{ matrix.target }}/release/anamnesis"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then bin="$bin.exe"; fi
+          cp "$bin" "dist/$name/"
+          cp LICENSE NOTICE README.md "dist/$name/"
+          cp docs/install.md "dist/$name/INSTALL.md"
+          cd dist
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            7z a -tzip "$name.zip" "$name" > /dev/null
+            sha256sum "$name.zip" > "$name.zip.sha256"
+          else
+            tar -czf "$name.tar.gz" "$name"
+            shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+          fi
+          rm -rf "$name"
+          ls -l
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anamnesis-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: github release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: create the release and attach the archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ls -l dist
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+          fi

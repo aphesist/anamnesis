@@ -862,6 +862,8 @@ async fn backends(State(app): S) -> ApiResult {
         "embedder": app.embed_status(),
         "usage": usage,
         "detected": app.router().is_some(),
+        // where new api keys are written (os store or the private file)
+        "key_store": app.secrets.info(),
         // shown before a backend is enabled (its row may not exist yet)
         "notices": {
             "claude_cli": anamnesis_harness::adapters::claude_cli::NOTICE,
