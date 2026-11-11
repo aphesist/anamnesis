@@ -1,5 +1,6 @@
 [package]
 name = "anamnesis-connectors"
+description = "anamnesis: connectors that turn sources into documents, plus the plugin runtime"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,3 +8,30 @@ repository.workspace = true
 
 [dependencies]
 anamnesis-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+sha2.workspace = true
+hex.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+tokio = { version = "1", features = ["rt", "macros", "process", "io-util", "time", "sync", "fs"] }
+pulldown-cmark = { version = "0.13", default-features = false }
+yaml-rust2 = "0.13"
+globset = "0.4"
+walkdir = "2"
+pdf-extract = "0.12"
+feed-rs = "3"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "gzip"] }
+scraper = "0.29"
+html2text = "0.17"
+url = "2"
+jsonschema = { version = "0.61", default-features = false }
+notify = "8"
+regex = "1"
+ego-tree = "0.11"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
