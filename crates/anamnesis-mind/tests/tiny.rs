@@ -168,3 +168,46 @@ fn link_suggestions_are_sane_for_tiny_corpora() {
         }
     }
 }
+
+#[test]
+fn layout_snapshots_export_for_the_lab() {
+    use anamnesis_mind::lab::{export_placements_json, layout_snapshots, snapshot_sizes};
+    let mut r = Rng::new(5);
+    let c1 = unit(&mut r, D);
+    let c2 = unit(&mut r, D);
+    let mut vs = blob(&mut r, &c1, 30, 0.08);
+    vs.extend(blob(&mut r, &c2, 30, 0.08));
+    let ids = ids(60, "i");
+    let keys: Vec<String> = (0..60).map(|i| format!("note-{i}")).collect();
+    let sizes = snapshot_sizes(60, 3, 0.5);
+    let snaps = layout_snapshots(
+        &ids,
+        &vs,
+        Some(&keys),
+        &sizes,
+        SpaceParams::default(),
+        &LayoutParams::default(),
+    );
+    assert_eq!(snaps.len(), 3);
+    assert_eq!(snaps[0].label, "50%");
+    assert_eq!(snaps[2].label, "100%");
+    assert_eq!(snaps[0].placements.len(), 30);
+    assert_eq!(snaps[2].placements.len(), 60);
+    // later snapshots keep earlier items' ids, so the lab can measure drift
+    assert_eq!(
+        snaps[1].placements[0].item_id,
+        snaps[0].placements[0].item_id
+    );
+    let v: serde_json::Value = serde_json::from_str(&export_placements_json(&snaps)).unwrap();
+    assert_eq!(v["snapshots"][2]["placements"][59]["key"], "note-59");
+    // empty corpora export too
+    let empty = layout_snapshots(
+        &[],
+        &[],
+        None,
+        &snapshot_sizes(0, 3, 0.5),
+        SpaceParams::default(),
+        &LayoutParams::default(),
+    );
+    assert!(empty.iter().all(|s| s.placements.is_empty()));
+}
