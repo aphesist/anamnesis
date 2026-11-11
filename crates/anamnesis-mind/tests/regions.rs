@@ -241,3 +241,83 @@ fn transitions_and_stable_ids() {
     assert!(got.iter().all(|g| g.as_ref() == Some(&rf)));
     assert_eq!(run3.state.assign(&far), vec![None]);
 }
+
+#[test]
+fn survivors_are_relabelled_once_when_the_label_algorithm_changes() {
+    use anamnesis_mind::labels::LABEL_VERSION;
+    let mut r = Rng::new(9);
+    let n = 60;
+    let mut ids_all = vec![];
+    let mut vs = vec![];
+    let mut texts = vec![];
+    for (k, w) in [
+        "heron marsh reeds",
+        "granite ledge boulder",
+        "orchard apples cider",
+    ]
+    .iter()
+    .enumerate()
+    {
+        let c = unit(&mut r, D);
+        ids_all.extend(ids(n, &format!("g{k}")));
+        vs.extend(blob(&mut r, &c, n, S));
+        texts.extend((0..n).map(|i| format!("note {i}: {w}")));
+    }
+    let space = Space::new(&vs, SpaceParams::default());
+    let extras = RegionExtras {
+        texts: Some(&texts),
+        ..Default::default()
+    };
+    let t1 = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+    let run1 = recompute_regions(
+        &ids_all,
+        &space,
+        &RegionState::default(),
+        t1,
+        &RegionParams::default(),
+        extras,
+    );
+    assert_eq!(run1.state.label_version, LABEL_VERSION);
+    assert_eq!(run1.regions.len(), 3);
+
+    // pretend the state was saved by an older labeller: one region still has the old
+    // deterministic label (it equals the label of its stored keywords), one was named by a
+    // model
+    let mut old = run1.state.clone();
+    old.label_version = 0;
+    old.regions[0].keywords = vec!["note".into(), "inches".into(), "lobe".into()];
+    old.regions[0].region.label = "note · inches · lobe".into();
+    old.regions[1].region.label = "the stony hills".into();
+    let deterministic = old.regions[0].region.id.clone();
+    let modelled = old.regions[1].region.id.clone();
+    let t2 = Utc.with_ymd_and_hms(2026, 1, 8, 0, 0, 0).unwrap();
+    let run2 = recompute_regions(&ids_all, &space, &old, t2, &RegionParams::default(), extras);
+    let label = |run: &anamnesis_mind::regions::RegionRun, id: &Id| {
+        run.regions
+            .iter()
+            .find(|r| &r.id == id)
+            .unwrap()
+            .label
+            .clone()
+    };
+    let fresh = label(&run2, &deterministic);
+    assert_ne!(fresh, "note · inches · lobe");
+    assert!(!fresh.contains("inches"), "{fresh}");
+    assert_eq!(label(&run2, &modelled), "the stony hills");
+    assert_eq!(run2.state.label_version, LABEL_VERSION);
+
+    // with the version current, survivors keep whatever label they have
+    let mut current = run2.state.clone();
+    current.regions[0].region.label = "kept as is".into();
+    let id0 = current.regions[0].region.id.clone();
+    let t3 = Utc.with_ymd_and_hms(2026, 1, 15, 0, 0, 0).unwrap();
+    let run3 = recompute_regions(
+        &ids_all,
+        &space,
+        &current,
+        t3,
+        &RegionParams::default(),
+        extras,
+    );
+    assert_eq!(label(&run3, &id0), "kept as is");
+}

@@ -504,12 +504,17 @@ async fn suggestions(State(app): S, Query(p): Query<SuggestionParams>) -> ApiRes
         .brain()
         .db(move |s| {
             let mut out = Vec::new();
+            let mut displayed = Vec::new();
             // only the shown arm: held-out suggestions are never displayed
             for sg in s.open_suggestions(&id)?.into_iter().filter(|x| x.shown) {
                 if let Some(to) = item_summary(s, &sg.to)? {
                     out.push(json!({ "suggestion_id": sg.id, "to": to, "score": sg.score }));
+                    displayed.push(sg.id);
                 }
             }
+            // the ui asks for these when it opens the item: they are now in front of the
+            // user, which is what acceptance and the shown arm of the evaluation count
+            s.mark_suggestions_displayed(&displayed, Actor::User)?;
             Ok(out)
         })
         .await?;

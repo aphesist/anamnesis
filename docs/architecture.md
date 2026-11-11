@@ -49,7 +49,7 @@ the http api is specified in [contracts.md](contracts.md).
 
 ## the event log
 
-every change to the brain is an `Event { seq, at, actor, kind, prev_hash, hash }`. `kind` is one of 22 `EventKind`s (`crates/anamnesis-core/src/model.rs`): sources added and updated, items created, updated and deleted, links added, suggestions made (with their arm), accepted or dismissed, threads added and updated, regions recomputed (with transitions), layout updated, resurfacings shown and rated, retrieval labels, egress, chat turns, references, settings.
+every change to the brain is an `Event { seq, at, actor, kind, prev_hash, hash }`. `kind` is one of 24 `EventKind`s (`crates/anamnesis-core/src/model.rs`): sources added and updated, items created, updated and deleted, links added, suggestions made (with their arm), actually displayed to the user, accepted or dismissed, threads added, updated and removed, regions recomputed (with transitions), layout updated, resurfacings shown and rated, retrieval labels, egress, chat turns, references, settings.
 
 - **append-only and hash-chained.** each event's hash is sha-256 over the previous hash and the event's canonical json. `anamnesis verify` recomputes the chain.
 - **attributed.** `actor` says who caused it: you, a connector (`connector:obsidian`), a background job (`mind:cluster`), an mcp client (`mcp:claude-code`) or a model (`model:anthropic/…`).
@@ -76,7 +76,7 @@ hybrid: sqlite fts5 (bm25) for words, brute-force cosine over the chunk vectors 
 `anamnesis serve` runs a job loop, woken by changes (debounced by 2 s) and every 30 s:
 
 1. **embeddings** for chunks without a vector for the current model;
-2. **threads**: decisions, open questions, plans and rejections found by cue phrases (english and portuguese), question marks and task checkboxes, each with a verbatim quote;
+2. **threads**: decisions, open questions, plans and rejections in owner-written text (an item whose frontmatter declares another origin is skipped), each with a verbatim quote. the rules (`extractor: "rule:v2"`) favour precision over recall: a first-person commitment ("i decided to…", "decidi…", "i'll… tomorrow"), first-person deliberation ("should i…?", "i wonder whether…", "será que…") or an explicit marker ("question:", "todo:", "- [ ] …", a question under an "open questions" heading); a bare question mark is not enough, and quoted, addressed ("you", "thou") or rhetorical questions are skipped. re-extracting an item replaces its earlier rule threads (`ThreadRemoved` for ones no longer found that you have not touched), and when the extractor version changes every item is re-read once;
 3. **the mind**: new items are placed into the existing layout immediately; a **full run** (space → layout → regions → views) happens on first run, when the embedder changes, when the brain has grown by half since the last full run, or when it changed and at least `mind_interval_minutes` (default 10) have passed;
 4. **link suggestions** for new and changed items, with the hold-out ([evaluation.md](evaluation.md#latent-links));
 5. **the daily review**, drawn once a day.
@@ -94,7 +94,7 @@ the shared space: vectors l2-normalised, reduced by pca, and an exact knn graph 
   - **survive**: remaining pairs matched by the hungarian algorithm on jaccard overlap; jaccard ≥ 0.5 keeps the old id, label, anatomy name and birth time;
   - **death** and **birth**: whatever is left unmatched.
   overlaps count only items that belonged to some old region, so a region that absorbs many new items still survives.
-- **labels:** c-tf-idf keywords and representative items give a deterministic label; if a model is routed for `label`, it may propose a better one (through the egress gate).
+- **labels:** c-tf-idf keywords (counted by a crude lemma, so "walks" and "walking" are one word; noise such as units, page furniture, roman numerals, ordinals and weekdays dropped; nouns favoured over adjectives, verb forms and first names) and representative items give a deterministic label, whose first two words are the short form shown when the stage is crowded. the labelling has a version (`LABEL_VERSION`); when it changes, surviving regions whose label is still the old deterministic one are relabelled once, and labels from a model are kept; if a model is routed for `label`, it may propose a better one (through the egress gate).
 - **anatomy names:** each region also gets the name of a brain area, stable across runs (survivors keep it, a merge keeps its largest parent's, a split gives it to its largest child). this is ornament, not neuroscience.
 
 every full run is a `RegionsRecomputed { regions, transitions }` event, so `GET /api/lineage` and the time panel can replay how your regions were born, split, merged and died.

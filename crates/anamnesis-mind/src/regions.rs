@@ -35,7 +35,7 @@ use serde::{Deserialize, Serialize};
 use crate::anatomy::{AnatomyHint, AnatomyRequest, assign_anatomy};
 use crate::hdbscan::{HdbscanParams, hdbscan};
 use crate::knn::knn_graph;
-use crate::labels::{RegionLabelInput, c_tf_idf, fallback_label, representatives};
+use crate::labels::{LABEL_VERSION, RegionLabelInput, c_tf_idf, fallback_label, representatives};
 use crate::linalg::{Rows, centroid, cosine, dot, normalize};
 use crate::space::Space;
 
@@ -134,6 +134,10 @@ pub struct RegionState {
     pub run_at: Option<Timestamp>,
     /// Living regions.
     pub regions: Vec<RegionSnapshot>,
+    /// [`crate::labels::LABEL_VERSION`] the deterministic labels were made with
+    /// (0 for states saved before versions were recorded).
+    #[serde(default)]
+    pub label_version: u32,
 }
 
 impl RegionState {
@@ -666,8 +670,16 @@ pub fn recompute_regions(
         let fb = fallback_label(&keywords[j]);
         let (label, born_at, parent_ids) = match &new_fate[j] {
             Fate::Survive(o) => {
-                let r = &previous.regions[*o].region;
-                (r.label.clone(), r.born_at, r.parent_ids.clone())
+                let prev = &previous.regions[*o];
+                let r = &prev.region;
+                // a survivor keeps its name; but when the labelling algorithm has improved
+                // since, a label that is still the old deterministic one is redone once
+                // (a model's label differs from it and is kept)
+                let stale = previous.label_version != LABEL_VERSION
+                    && !keywords[j].is_empty()
+                    && r.label == fallback_label(&prev.keywords);
+                let label = if stale { fb.clone() } else { r.label.clone() };
+                (label, r.born_at, r.parent_ids.clone())
             }
             Fate::Merge(ps) => (
                 fb.clone(),
@@ -815,6 +827,7 @@ pub fn recompute_regions(
         state: RegionState {
             run_at: Some(now),
             regions: snapshots,
+            label_version: LABEL_VERSION,
         },
     }
 }

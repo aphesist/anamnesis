@@ -163,9 +163,19 @@ fn populated() -> Store {
             Actor::System("mind:links".into()),
         )
         .unwrap();
+    // displayed once (the held-out sug2 never is), then decided
+    assert_eq!(
+        s.mark_suggestions_displayed(&[sug1.clone(), sug2.clone(), sug1.clone()], Actor::User)
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        s.mark_suggestions_displayed(std::slice::from_ref(&sug1), Actor::User)
+            .unwrap(),
+        0
+    );
     s.decide_suggestion(&sug1, true, Actor::User).unwrap();
     s.decide_suggestion(&sug3, false, Actor::User).unwrap();
-    let _ = sug2;
     let t = Thread {
         id: Id::new(),
         kind: ThreadKind::Decision,
@@ -180,6 +190,23 @@ fn populated() -> Store {
     };
     s.upsert_thread(t.clone(), Actor::System("mind:threads".into()))
         .unwrap();
+    // a thread an extractor later withdraws
+    let gone = Thread {
+        id: Id::new(),
+        quote: "talvez".into(),
+        ..t.clone()
+    };
+    s.upsert_thread(gone.clone(), Actor::System("mind:threads".into()))
+        .unwrap();
+    assert_eq!(
+        s.remove_threads(
+            &[gone.id.clone(), Id::new()],
+            Actor::System("mind:threads".into())
+        )
+        .unwrap(),
+        1
+    );
+    assert!(s.get_thread(&gone.id).unwrap().is_none());
     s.set_thread_status(
         &t.id,
         ThreadStatus::Resolved,
