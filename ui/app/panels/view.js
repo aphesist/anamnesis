@@ -3,7 +3,6 @@ import { h } from '../lib/dom.js';
 import { store, on, setView, defaultView } from '../lib/store.js';
 import { theme } from '../lib/tokens.js';
 import { startWalkthrough } from '../lib/walkthrough.js';
-import { mockFixtureUrl } from '../mock/mock.js';
 
 function radios(label, options, get, set) {
   const g = h('div.choice', { role: 'radiogroup', 'aria-label': label });
@@ -84,14 +83,15 @@ export default {
       h('p.soft', { style: { margin: '0 0 6px', fontSize: '12px' } }, 'a short tour of each part, keyboard first.'),
       h('button.textbtn.strong', { type: 'button', onclick: () => startWalkthrough(ctx) }, 'begin the walkthrough'));
 
-    const demo = sect('show a demo brain', false,
-      h('p.soft', { style: { margin: '0 0 6px', fontSize: '12px' } }, 'opens a synthetic brain, read-only, so you can try every view without your own notes.'),
-      h('button.textbtn.strong', { type: 'button', onclick: async () => {
-        store.demo = !store.demo;
-        if (store.demo) { await ctx.loadCloud(mockFixtureUrl('cloud.json')); ctx.toast('the demo brain, read-only. press again to return.'); }
-        else { try { await ctx.loadCloud(); ctx.toast('back to your brain.'); } catch { ctx.toast('your brain could not be reached.'); } }
-      } }, 'show a demo brain'));
-
+    const demoNote = h('p.soft', { style: { margin: '0 0 6px', fontSize: '12px' } }, 'opens a synthetic brain, kept apart from yours, so you can try every view without your own notes.');
+    const demoBtn = h('button.textbtn.strong', { type: 'button', onclick: () => ctx.setDemo(!store.demo) }, 'show a demo brain');
+    const demo = sect('show a demo brain', false, demoNote, demoBtn);
+    const syncDemo = (d) => {
+      demoBtn.textContent = store.demo ? 'return to my brain' : 'show a demo brain';
+      demoBtn.disabled = !store.demo && d && d.available === false;
+      if (d && d.available === false && !store.demo) demoNote.textContent = 'no demo bundle was found next to the app, so there is no demo brain to show.';
+    };
+    on('demo', syncDemo);
     const reset = h('div.row', { style: { marginTop: '10px' } },
       h('button.textbtn', { type: 'button', onclick: () => {
         const keep = { page: store.view.page };
