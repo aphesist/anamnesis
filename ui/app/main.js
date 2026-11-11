@@ -243,8 +243,9 @@ showPage(routeOf(location.hash) || 'brain');
 renderAlt();
 
 // ---------- the demo brain (GET/POST /api/demo) ----------
+const demoProgress = h('span.soft.demo-progress', { hidden: true });
 const demoBanner = h('div.demo-banner.no-orbit', { role: 'status', hidden: true },
-  h('span', 'this is the demo brain'), h('span.soft', ' · '),
+  h('span', 'this is the demo brain'), demoProgress, h('span.soft', ' · '),
   h('button.textbtn.strong', { type: 'button', onclick: () => ctx.setDemo(false) }, 'return to yours'));
 document.getElementById('main').append(demoBanner);
 let demoInfo = null;
@@ -252,6 +253,43 @@ function renderDemo() {
   demoBanner.hidden = !store.demo;
   app.classList.toggle('in-demo', store.demo);
   emit('demo', demoInfo);
+  watchDemo();
+}
+// while the demo brain is first arranged (embeddings, regions, layout), say where it is
+// and redraw the cloud when it is done. progress comes from GET /api/demo.
+const PHASE_WORDS = { embeddings: 'reading', threads: 'following threads', mind: 'finding regions', suggestions: 'proposing links', review: 'choosing what to resurface' };
+let demoTimer = null;
+function demoBusy(d) { return !!(d && d.active && d.jobs && (d.jobs.running || (d.ready === false && !d.jobs.error))); }
+function showDemoProgress(d) {
+  const failed = !!(d && d.active && d.jobs && !d.jobs.running && d.jobs.error && d.ready === false);
+  const busy = demoBusy(d);
+  demoProgress.hidden = !busy && !failed;
+  if (!busy && !failed) return;
+  const j = d.jobs || {};
+  let t = PHASE_WORDS[j.phase] || 'arranging';
+  if (j.phase === 'embeddings' && d.chunks) t += ` ${d.chunks_embedded} of ${d.chunks} passages`;
+  else if (j.total) t += ` · step ${Math.min(j.done + 1, j.total)} of ${j.total}`;
+  if (!j.running && j.error) t = 'could not be arranged: ' + j.error;
+  demoProgress.textContent = ' · ' + t + (j.running ? '…' : '');
+}
+function watchDemo() {
+  showDemoProgress(demoInfo);
+  if (!demoBusy(demoInfo) || demoTimer) return;
+  let lastDone = -1;
+  demoTimer = setInterval(async () => {
+    let d;
+    try { d = await api.demo(); } catch { return; }
+    demoInfo = d;
+    showDemoProgress(d);
+    const j = d.jobs || {};
+    // the regions and layout land after the mind phase: redraw then, and once at the end
+    if (d.active && j.done !== lastDone && j.done >= 3) { lastDone = j.done; loadCloud().catch(() => {}); }
+    if (!demoBusy(d) || !d.active) {
+      clearInterval(demoTimer); demoTimer = null;
+      if (d.active) loadCloud().catch(() => {});
+      emit('demo', d);
+    }
+  }, 2000);
 }
 ctx.setDemo = async (on) => {
   try {

@@ -1,0 +1,19 @@
+---
+title: "And now I strike the road at the causeway"
+created: 1851-08-08T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, vol. 8: Journal II, 1850–September 15, 1851 (1906)"
+---
+
+And now I strike the road at the causeway. It is hard, and I hear the sound of my steps, a sound which should never be heard, for it draws down my thoughts. It is more like the treadmill exercise. The fireflies are not so numerous as they have been. There is no dew as yet. The planks and railing of Hubbard’s Bridge are removed. I walk over on the string-pieces, resting in the middle until the moon comes out of a cloud, that I may see my path, for between the next piers the string-pieces also are removed and there is only a rather narrow plank, let down three or four feet. I essay to cross it, but it springs a little and I mistrust myself, whether I shall not plunge into the river. Some demonic genius seems to be warning me. Attempt not the passage; you will surely be drowned. It is very real that I am thus affected. Yet I am fully aware of the absurdity of minding such suggestions. I put out my foot, but I am checked, as if that power had laid a hand on my breast and chilled me back. Nevertheless, I cross, stooping at first, and gain the other side. (I make the most of it on account of the admonition, but it was nothing to remark on. I returned the same way two hours later and made nothing of it.) It is easy to see how, by yielding to such feelings as this, men would reëstablish all the superstitions of antiquity. It is best that reason should govern us, and not these blind intimations, in which we exalt our fears into a genius.
+
+On Conantum I sit awhile in the shade of the woods and look out on the moonlit fields. White rocks are more remarkable than by day.
+
+The air is warmer than the rocks now. It is perfectly warm and I am tempted to stay out all night and observe each phenomenon of the night until day dawns. But if I should do so, I should not wonder if the town were raised to hunt me up. I could lie out here on this pinnacle rock all night without cold. To lie here on your back with nothing between your eye and the stars,—nothing but space,—they your nearest neighbors on that side, be they strange or be they tame, be they other worlds or merely ornaments to this, who could ever go to sleep under these circumstances? Sitting on the door-step of Conant house at 9 o’clock, I hear a pear drop. How few of all the apples that fall do we hear fall! I hear a horse _sneeze_ (?) from time to time in his pasture. He sees me and knows me to be a man, though I do not see him. I hear the nine o’clock bell ringing in Bedford. An unexpectedly musical sound that of a bell in the horizon always is. Pleasantly sounds the voice of one village to another. It is sweet as it is rare. Since I sat here a bright star has gone behind the stem of a tree, proving that my machine is moving,—proving it better for me than a rotating pendulum. I hear a solitary whip-poor-will, and a bullfrog on the river,—fewer sounds than in spring. The gray cliffs across the river are plain to be seen.
+
+And now the star appears on the other side of the tree, and I must go. Still no dew up here. I see three scythes hanging on an apple tree. There is the wild apple tree where hangs the forgotten scythe,—the rock where the shoe was left. The woods and the separate trees cast longer shadows than by day, for the moon goes lower in her course at this season. Some dew at last in the meadow. As I recross the string-pieces of the bridge, I see the water-bugs swimming briskly in the moonlight. I scent the Roman wormwood in the potato-fields.

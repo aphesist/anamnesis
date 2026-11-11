@@ -1,0 +1,13 @@
+---
+title: "From the Cliffs I again admire the flood,"
+created: 1854-05-07T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+From the Cliffs I again admire the flood, — the now green hills rising out of it. It is dark-blue, clay, slate, and light-blue, as you stand with regard to the sun. With the sun high on one side it is a dirty or clayey slate; directly in front, covered with silvery sparkles far to the right or north, dark-blue; farther to the southwest, light-blue. My eyes are attracted to the level line where the water meets the hills now, in time of flood, converting that place into a virgin or temporary shore. There is no strand, — nothing worn; but if it is calm we fancy the water slightly heaped above this line, as when it is poured gently into a goblet. (How in the spring we value any smoothness, gentleness, warmth!) It does not beat, but simply laves the hills (already the peetweet flutters and teeters along it a flight further back), submerging the blossoming flowers which I went to find. I see the sweet-gale deeply buried, and the V. blanda, etc., etc., and the A. calyculata and the cowslips. I see their deluged faces at the bottom and their wrecked petals afloat. I paddle right over Miles’s meadow, where the bottom is covered with cowslips in full bloom; their lustre dimmed, they look up with tearful faces. Little promontories at Lee’s Cliff, clothed with young pines, make into the water; yet they are rarely submerged; as if nature or the trees remembered even the highest floods and kept out of their way, avoiding the shore, leaving a certain neutral ground. Early strawberry just out. I found an Amelanchier Botryapvum, with its tender reddish-green leaves already fluttering in the wind and stipules clothed with white silky hairs, and its blossom so far advanced that I thought it would open to-morrow. But a little farther there was another which did not rise above the rock, but caught all the reflected heat, which to my surprise was fully open; yet a part which did rise above the rock was not open. What indicators of warmth! No thermometer could show it better. The Amelanchier Botryapium leaves begin now to expand. The juniper branches are now tipped with yellowish and expanding leaf-buds; put it just before the larch. I begin to see cows turned out to pasture. I am inclined to think some of these are coarse, windy days, when I cannot hear any bird.

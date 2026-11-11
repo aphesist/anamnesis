@@ -1,0 +1,13 @@
+---
+title: "I have come out this afternoon a-cranberrying, chiefly to…"
+created: 1856-08-30T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+I have come out this afternoon a-cranberrying, chiefly to gather some of the small cranberry, Vaccium Oxycoccus, which [[Ralph Waldo Emerson|Emerson]] says is the common cranberry of the north of Europe. This was a small object, yet not to be postponed, on account of imminent frosts, 2. e., if I would know this year the flavor of the European cranberry as compared with our larger kind. I thought I should like to have a dish of this sauce on the table at Thanksgiving of my own gathering. I could hardly make up my mind to come this way, it seemed so poor an object to spend the afternoon on. I kept foreseeing a lame conclusion, —how I should cross the Great Fields, look into Beck Stow’s, and then retrace my steps no richer than before. In fact, I expected little of this walk, yet it did pass through the side of my mind that somehow, on this very account (my small expectation), it would turn out well, as also the advantage of having some purpose, however small, to be accomplished, — of letting your deliberate wisdom and foresight in the house to some extent direct and control your steps. If you would really take a position outside the street and daily life of men, you must have deliberately planned your course, you must have business which is not your neighbors’ business, which they cannot understand. For only absorbing employment prevails, succeeds, takes up space, occupies territory, determines the future of individuals and states, drives Kansas out of your head, and actually and permanently occupies the only desirable and free Kansas against all border ruffians. The attitude of resistance is one of weakness, inasmuch as it only faces an enemy; it has its back to all that is truly attractive. You shall have your affairs, I will have mine. You will spend this afternoon in setting up your neighbor’s stove, and be paid for it; I will spend it in gathering the few berries of the Vaccintwm Oxycoccus which Nature produces here, before it is too late, and be paid for it also after another fashion. I have always reaped unexpected and incalculable advantages from carrying out at last, however tardily, any little enterprise which my genius suggested to me long ago as a thing to be done, — some step to be taken, however slight, out of the usual course.

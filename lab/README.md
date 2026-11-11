@@ -31,7 +31,14 @@ git-ignored. **only explicit commands download anything; the tests never touch t
 uv run anamnesis-lab demo transcendentalist            # downloads ~30 MB once, writes lab/out/transcendentalist
 uv run anamnesis-lab demo transcendentalist --small    # offline, ~290 notes from a bundled fixture (for ci/tests)
 uv run anamnesis-lab demo pragmatist                   # partial, see below
+uv run anamnesis-lab demo curate --from out/transcendentalist --out ../demo/transcendentalist
 ```
+
+`demo curate` picks the compact demo that ships in the repository and inside the binary
+(`demo/transcendentalist`, 1,100 notes, 2.6 MB) from a full build: the person notes, every
+cross-author linked entry, entries spread over every year of both journals, and a few sections
+of each essay. it is deterministic (no randomness, no timestamp) and drops links whose target it
+left out. `--target-notes`, `--max-bytes` and `--min-chars` tune it. see [docs/demo.md](../docs/demo.md).
 
 ### the transcendentalist brain
 

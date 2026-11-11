@@ -2,9 +2,55 @@
 
 a second brain is only interesting once it holds years of writing, and nobody should have to show their private notes to see what anamnesis does. the demo brain is a real, dated corpus instead: the journals of henry david thoreau and ralph waldo emerson, 1820–1876, with their essays as the outside voice. two people who knew each other, wrote every day, and named each other in their journals.
 
-the demo brain is built on your machine by the optional python lab. it is never committed to this repository and never shipped inside the binary, and it is kept apart from your own brain (in `<data dir>/anamnesis/demo/`).
+a curated set of 1,100 notes ships with anamnesis: in this repository as `demo/transcendentalist/`, and inside release binaries, so "show a demo brain" works right after a clone and a build, or from a lone downloaded binary, with no python and no download. the full corpus (about 9,200 notes) is built on your machine by the optional python lab. either way the demo brain is kept apart from your own (in `<data dir>/anamnesis/demo/`).
 
-## what is in it
+## show it
+
+```sh
+anamnesis demo            # builds the demo brain once, with progress (a few minutes on a laptop cpu)
+anamnesis serve --demo    # opens it
+```
+
+or, in the ui, **more → show a demo brain**. the first switch imports the notes in a few seconds; the banner then says how far the embeddings, regions and layout are, and the cloud redraws when they land. `anamnesis demo --rebuild` removes the demo brain and builds it afresh (after changing the embedder, for instance). `--hash-embedder` gives a quick, meaningless layout in seconds.
+
+where the demo notes come from, first match wins:
+
+1. `--demo-bundle <folder>` or `ANAMNESIS_DEMO_BUNDLE`;
+2. a `demo/` folder next to the binary (a bundle folder, its `notes/`, or a folder holding `transcendentalist/notes`);
+3. a full lab build in the repository (`lab/out/transcendentalist/notes`, then any other theme);
+4. the curated `demo/transcendentalist/notes` in the repository;
+5. the copy embedded in the binary (cargo feature `embed-demo`, on by default), extracted to `<data dir>/anamnesis/demo/transcendentalist/` on first use.
+
+## the curated set
+
+`demo/transcendentalist/` holds:
+
+| | |
+|---|---|
+| `notes/` | 1,100 notes, 2.6 MB of markdown, about 373,000 words |
+| `COLOPHON.md`, `SOURCES.md` | where the texts came from; each edition, its contributors and their death years |
+| `manifest.json` | counts, the date range and how the set was chosen |
+
+the notes are a deterministic subset of a full build, chosen by `anamnesis-lab demo curate`:
+
+- the two person notes (henry david thoreau, ralph waldo emerson);
+- every journal entry in which one author names the other or one of the other's works, and the other's entry of the same day when the link points at it (327 linked entries; 358 links in all, 278 to an earlier note);
+- dated journal entries spread over every year of both journals (thoreau 1837–1861, 20 years; emerson 1820–1876, 57 years), evenly through each year, preferring clean, mid-length entries over the ocr's worst pages: 1,061 journal entries in all (466 thoreau, 595 emerson);
+- 32 essay sections (a few of each of *nature*, *essays* i and ii, *walden*, *a week*, *walking* and *civil disobedience*, `origin: external`) and the five work index notes, so "when you wrote" has two voices.
+
+a link whose target is not in the set is removed (its text stays). the note bodies carry no distributor's name; the source of each text is credited in `COLOPHON.md` and `SOURCES.md` only.
+
+to rebuild the curated set from a full build (byte for byte the same for the same full build):
+
+```sh
+cd lab
+uv run anamnesis-lab demo transcendentalist
+uv run anamnesis-lab demo curate --from out/transcendentalist --out ../demo/transcendentalist --target-notes 1100
+```
+
+`--max-bytes` (default 3.9 MB) caps the size of the markdown.
+
+## what is in the full corpus
 
 | part | source edition |
 |---|---|
@@ -33,11 +79,11 @@ the bar for a demo text is **public domain in both the united states and brazil*
 | edward waldo emerson | editor, emerson's journals (1909–14) | 1930 | 2001 |
 | waldo emerson forbes | co-editor, emerson's journals | 1917 (genealogy records; to be confirmed against a library authority record) | 1988 |
 
-every edition used was published before 1931. the builder drops the editors' annotations in any case, leaving the authors' own text. the harvard *journals and miscellaneous notebooks* (1960–82) are still in copyright and are not used. the source of each text is credited in the build's `COLOPHON.md` and `SOURCES.md`, not inside the notes.
+every edition used was published before 1931, so the curated set in this repository and in the binary is public domain in both countries. the builder drops the editors' annotations in any case, leaving the authors' own text. the harvard *journals and miscellaneous notebooks* (1960–82) are still in copyright and are not used. the source of each text is credited in the build's `COLOPHON.md` and `SOURCES.md`, not inside the notes.
 
 outside the united states and brazil, check your local law before redistributing a build.
 
-## build it
+## build the full corpus
 
 needs [uv](https://docs.astral.sh/uv/) and python 3.11 or newer.
 
@@ -48,13 +94,14 @@ uv run anamnesis-lab demo transcendentalist           # downloads ~30 MB of text
 uv run anamnesis-lab demo transcendentalist --small   # offline, ~290 notes from a bundled fixture, seconds
 ```
 
-then serve it as the demo brain, pointing at the `notes/` folder of the build:
+a full build in `lab/out/transcendentalist` is found automatically and preferred over the curated set (`anamnesis demo --rebuild` to switch an existing demo brain over). to point at another build:
 
 ```sh
-anamnesis serve --demo --demo-bundle lab/out/transcendentalist/notes
+anamnesis demo --rebuild --demo-bundle lab/out/transcendentalist/notes
+anamnesis serve --demo
 ```
 
-or set `ANAMNESIS_DEMO_BUNDLE=lab/out/transcendentalist/notes` and switch with `POST /api/demo {"enabled": true}` (and back with `false`). the first switch imports the notes and runs the background jobs; with the default local embedder, embedding ~9,000 notes takes a while on a laptop cpu. add `--hash-embedder` for a quick look.
+or set `ANAMNESIS_DEMO_BUNDLE=lab/out/transcendentalist/notes` and switch with `POST /api/demo {"enabled": true}` (and back with `false`); `GET /api/demo` reports `jobs`, `chunks` and `chunks_embedded` while the brain is being arranged. with the default local embedder, embedding ~9,000 notes takes a long while on a laptop cpu. add `--hash-embedder` for a quick look.
 
 you can also import the notes into a brain of your own like any folder: `anamnesis import lab/out/transcendentalist/notes`.
 

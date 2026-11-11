@@ -83,7 +83,7 @@ export default {
       h('p.soft', { style: { margin: '0 0 6px', fontSize: '12px' } }, 'a short tour of each part, keyboard first.'),
       h('button.textbtn.strong', { type: 'button', onclick: () => startWalkthrough(ctx) }, 'begin the walkthrough'));
 
-    const demoNote = h('p.soft', { style: { margin: '0 0 6px', fontSize: '12px' } }, 'opens a synthetic brain, kept apart from yours, so you can try every view without your own notes.');
+    const demoNote = h('p.soft', { style: { margin: '0 0 6px', fontSize: '12px' } }, 'opens the journals of thoreau and emerson, 1820–1876, as a brain kept apart from yours, so you can try every view without your own notes.');
     const demoBtn = h('button.textbtn.strong', { type: 'button', onclick: () => ctx.setDemo(!store.demo) }, 'show a demo brain');
     const demo = sect('show a demo brain', false, demoNote, demoBtn);
     const syncDemo = (d) => {

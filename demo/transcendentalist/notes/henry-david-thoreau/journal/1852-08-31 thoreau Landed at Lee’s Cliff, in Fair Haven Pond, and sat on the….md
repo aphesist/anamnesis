@@ -1,0 +1,19 @@
+---
+title: "Landed at Lee’s Cliff, in Fair Haven Pond, and sat on the…"
+created: 1852-08-31T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+Landed at Lee’s Cliff, in Fair Haven Pond, and sat on the Cliff. Late in the afternoon. The wind is gone down; the water is smooth; a serene evening is approaching; the clouds are dispersing; the sun has shone once or twice, but is now in a cloud. The pond, so smooth and full of reflections after a dark and breezy day, is unexpectedly beautiful. There is a little boat on it, schooner-rigged, with three sails, a perfect little vessel and perfectly reflected now in the water. It is sufficient life for the pond. Being in the reflection of the opposite woods, the water on which it rests (for there is hardly a puff of air, and the boatman is only airing his sails after the storm) is absolutely invisible; only the junction of the reflections shows where it must be, and it makes an agreeable impression of buoyancy and lightness as of a feather. The broad, dense, and now lower and flatter border of button-bushes, having water on both sides, is very rich and moss-like, seen from this height, with an irregular outline, being flooded while verdurous. The sky is reflected on both sides, and no finer edging can be imagined. A sail is, perhaps, the largest white object that can be admitted into the landscape. It contrasts well with the water, and is the most agreeable of regular forms. If they were shaped like houses, they would be disagreeable. The very mists which rise from the water are also white.
+
+It is worth the while to have had a cloudy, even a stormy, day for an excursion, if only that you are out at the clearing up. The beauty of the landscape is the greater, not only by reason of the contrast with its recent lowering aspect, but because of the greater freshness and purity of the air and of vegetation, and of the repressed and so recruited spirits of the beholder. Sunshine is nothing to be observed or described, but when it is seen in patches on the hillsides, or suddenly bursts forth with splendor at the end of a storm. I derive pleasure now from the shadows of the clouds diversifying the sunshine on the hills, where lately all was shadow. The spirits of the cows at pasture on this very hillside appear excited. They are restless from a kind of joy, and are not content with feeding. The weedy shore is suddenly blotted out by this rise of waters.
+
+I saw a small hawk fly along under the hillside and alight on the ground, its breast and belly pure downy white. It was a very handsome bird. ‘Though they are not fitted to walk much on the ground, but to soar, yet its feet, which are but claws to seize its prey and hold to its perch, are handsome appendages, and it is a very interesting sight on the ground. Yet there is a certain unfitness in so fair a breast, so pure white, made to breast nothing less pure than the sky or clouds, coming so nearly in contact with the earth. Never bespattered with the mud of earth. That was the impression made on me, —of a very pure breast, accustomed to float on the sky, in contact with the earth. It stood quite still, watching me, as if it was not easy for it to walk.
+
+I forgot to say that I saw nighthawks sailing about in the middle of the day. The barberries are red in some places. Methinks I am in better spirits and physical health now that melons are ripe, 72. e. for three weeks past. I hear the sound of a flail. The clouds do not entirely disperse, but, since it is decidedly fair and serene, I am contented.

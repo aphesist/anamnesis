@@ -1,0 +1,19 @@
+---
+title: "Now I turn down the Corner road"
+created: 1852-06-25T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+Now I turn down the Corner road. At this quiet hour the evening wind is heard to moan in the hollows of your face, mysterious, spirit-like, conversing with you. It can be heard now only. The whip-poor-will sings. I hear a laborer going home, coarsely singing to himself. Though he has scarcely had a thought all day, killing weeds, at this hour he sings or talks to himself. His humble, earthy contentment gets expression. It is kindred in its origin with the notes or music of many creatures. A more fit and natural expression of his mood, this humming, than conversation is wont to be. The fireflies appear to be flying, though they may be stationary on the grass stems, for their perch and the nearness of the ground are obscured by the darkness, and now you see one here and then another there, as if it were one in motion. Their light is singularly bright and glowing to proceed from a living creature. Nature loves variety in all things, and so she adds glow-worms to fireflies, though I have not noticed any this year. The great story of the night is the moon’s adventures with the clouds. What innumerable encounters she has had with them! When I enter on the moonlit causeway, where the light is reflected from the glistening alder leaves, and their deep, dark, liquid shade beneath strictly bounds the firm damp road and narrows it, it seems like autumn. The rows of willows completely fence the way and appear to converge in perspective, as I had not noticed by day. The bullfrogs are of various tones. Some horse in a distant pasture whinnies; dogs bark; there is that dull, dumping sound of frogs, as if a bubble containing the lifeless sultry air of day burst on the surface, a belching sound. When two or more bullfrogs trump together, it is a ten-poundten note. In Conant’s meadow I hear the gurgling of unwearied water, the trill of a toad, and go through the cool, primordial liquid air that has settled there.
+
+As I sit on the great door-step, the loose clapboards on the old house rattle in the wind weirdly, and I seem to hear some wild mice running about on the floor, and sometimes a loud crack from some weary timber trying to change its position.
+
+On Conantum-top, all white objects like stones are observed, and dark masses of foliage, at a distance even. How distant is day and its associations! The light, dry cladonia lichens on the brows of hills reflect the moonlight well, looking like rocks. The night wind comes cold and whispering, murmuring weirdly from distant mountain-tops. No need to climb the Andes or Himalayas, for brows of lowest hills are highest mountain-tops in cool moonlight nights. Is it a cuckoo’s chuckling note I heard? Occasionally there is something enormous and monstrous in the size and distance of objects. A rock, is it? or an elephant asleep? Are these trees on an upland or a lowland? Or do they skirt the brink of a sea-beach? When I get there, shall I look off over the sea? ‘The whiteweed is the only obvious flower. I see the tops of the rye wave, and grain-fields are more interesting than by day. The water is dull-colored, hardly more bright than a rye-field. There is dew only in the low grounds. What were the firefly’s light, if it were not for darkness? ‘The one implies the other.
+
+You may not suspect that the milk of the cocoanut which is imported from the other side of the world 1s mixed. So pure do some truths come to us, I trust.

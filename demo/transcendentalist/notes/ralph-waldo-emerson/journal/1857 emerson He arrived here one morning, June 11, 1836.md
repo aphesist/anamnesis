@@ -1,0 +1,13 @@
+---
+title: "He arrived here one morning, June 11, 1836"
+created: 1857-01-01T12:00:00Z
+tags: ["emerson", "journal", "1850s"]
+author: "Ralph Waldo Emerson"
+source_url: "https://archive.org/details/journalsofralphw09emer"
+origin: owner_written
+kind: journal
+date_precision: year
+source: "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan"
+---
+
+He arrived here one morning, June 11, 1836. He learned that one of the parties of whom he | had purchased was in the house, on his arrival at the tavern or fort, and this person sent for him to come up and see him. This Mr. Bronson had heard some rumor that his brother had sold the land to a company in New York, but hoped it was not so. Mr. Ogden showed him his deed. Bronson said it was all right, but it was injudicious in his brother. Ogden said he was glad to hear that, for he had feared he had made a foolish bargain. While he was in Bronson’s room, somebody tapped at the door, and wished to know if the man who represented Block No. z was here? Mr. Ogden knew nothing of it ; but Bronson told the man, Yes, Ogden represented that purchase. ‘ Well, will you sell Block No. 1?” Ogden replied he knew nothing of it, but after breakfast he would go and see the land. After breakfast, they crossed ina little boat, and looked about in the swamp and woods, and came to a stake. “ Here,” said Bronson, “is Block No. 1.” Well, they were followed by several persons, and, among others, the one he had seen. These came up, and the man said, “ What will you take for this property ?’? Ogden said he knew nothing of its value, but if they would make him an offer, he would inform himself, and answer. The man said, “ We will give you $35,000 for eight blocks from No. 1 to No. 8.” Ogden said, “I never altered a muscle of my face, but I looked him in the face, to see if he _were joking, and expected they would all laugh; but they all looked solemn, and the speaker no more crazy than the rest. So I took Bronson’s arm, and walked apart, and said, ‘ Is this a joke, or are they crazy, or is this the value of the land?’ ‘Yes, this is the supposed value.’ ‘Is it worth more?’ ‘ Perhaps, but you must wait.’ So I went back, and said, as gravely as I could, that I would take it; but I expected them to laugh, but that would not harm me. But the man said, ‘ Well we will pay 10 per cent down, and we will pay it now.’ But I said, ‘We will go back to the tavern.’ But the man was uneasy, and wished to pay now. I said, ‘I shall not vary from what I have said.’ But the man inclined to pay now. So he took out of his pocket ten $1000 notes of the U.S. Bank, and I put them in my waistcoat pocket.”

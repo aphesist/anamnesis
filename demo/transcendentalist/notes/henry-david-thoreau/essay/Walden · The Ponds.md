@@ -1,0 +1,17 @@
+---
+title: "Walden · The Ponds"
+created: 1854-01-01T12:00:00Z
+tags: ["thoreau", "essay", "work/walden"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/waldenorlifei00thor"
+origin: external
+kind: essay
+date_precision: year
+source: "Walden (1854)"
+---
+
+Sometimes, having had a surfeit of human society and gossip, and worn out all my village friends, I rambled still farther westward than I habitually dwell, into yet more unfrequented parts of the town, “to fresh woods and pastures new,” or, while the sun was setting, made my supper of huckleberries and blueberries on Fair Haven Hill, and laid up a store for several days. The fruits do not yield their true flavor to the purchaser of them, nor to him who raises them for the market. There is but one way to obtain it, yet few take that way. If you would know the flavor of huckleberries, ask the cow-boy or the partridge. It is a vulgar error to suppose that you have tasted huckleberries who never plucked them. A huckleberry never reaches Boston; they have not been known there since they grew on her three hills. The ambrosial and essential part of the fruit is lost with the bloom which is rubbed off in the market cart, and they become mere provender. As long as Eternal Justice reigns, not one innocent huckleberry can be transported thither from the country’s hills.
+
+Occasionally, after my hoeing was done for the day, I joined some impatient companion who had been fishing on the pond since morning, as silent and motionless as a duck or a floating leaf, and, after practising various kinds of philosophy, had concluded commonly, by the time I arrived, that he belonged to the ancient sect of Cœnobites. There was one older man, an excellent fisher and skilled in all kinds of woodcraft, who was pleased to look upon my house as a building erected for the convenience of fishermen; and I was equally pleased when he sat in my doorway to arrange his lines. Once in a while we sat together on the pond, he at one end of the boat, and I at the other; but not many words passed between us, for he had grown deaf in his later years, but he occasionally hummed a psalm, which harmonized well enough with my philosophy. Our intercourse was thus altogether one of unbroken harmony, far more pleasing to remember than if it had been carried on by speech. When, as was commonly the case, I had none to commune with, I used to raise the echoes by striking with a paddle on the side of my boat, filling the surrounding woods with circling and dilating sound, stirring them up as the keeper of a menagerie his wild beasts, until I elicited a growl from every wooded vale and hill-side.
+
+In warm evenings I frequently sat in the boat playing the flute, and saw the perch, which I seemed to have charmed, hovering around me, and the moon travelling over the ribbed bottom, which was strewed with the wrecks of the forest. Formerly I had come to this pond adventurously, from time to time, in dark summer nights, with a companion, and making a fire close to the water’s edge, which we thought attracted the fishes, we caught pouts with a bunch of worms strung on a thread; and when we had done, far in the night, threw the burning brands high into the air like skyrockets, which, coming down into the pond, were quenched with a loud hissing, and we were suddenly groping in total darkness. Through this, whistling a tune, we took our way to the haunts of men again. But now I had made my home by the shore.

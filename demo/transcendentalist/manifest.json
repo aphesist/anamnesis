@@ -1,0 +1,757 @@
+{
+  "theme": "transcendentalist",
+  "owner": "the transcendentalists",
+  "curated": true,
+  "notes_dir": "notes",
+  "curation": {
+    "command": "anamnesis-lab demo curate --target-notes 1100",
+    "target_notes": 1100,
+    "max_bytes": 3900000,
+    "min_chars": 400,
+    "from_notes": 9234,
+    "from_built_at": "2026-11-11T15:43:53+00:00"
+  },
+  "counts": {
+    "notes": 1100,
+    "by_author": {
+      "Henry David Thoreau": 487,
+      "Ralph Waldo Emerson": 611,
+      "anamnesis lab": 2
+    },
+    "by_kind": {
+      "essay": 32,
+      "hub": 2,
+      "index": 5,
+      "journal": 1061
+    },
+    "by_origin": {
+      "external": 39,
+      "owner_written": 1061
+    },
+    "by_decade": {
+      "1820s": 71,
+      "1830s": 155,
+      "1840s": 209,
+      "1850s": 482,
+      "1860s": 151,
+      "1870s": 32
+    },
+    "years_with_journal": {
+      "Henry David Thoreau": [
+        1837,
+        1838,
+        1839,
+        1840,
+        1841,
+        1842,
+        1845,
+        1846,
+        1850,
+        1851,
+        1852,
+        1853,
+        1854,
+        1855,
+        1856,
+        1857,
+        1858,
+        1859,
+        1860,
+        1861
+      ],
+      "Ralph Waldo Emerson": [
+        1820,
+        1821,
+        1822,
+        1823,
+        1824,
+        1825,
+        1826,
+        1827,
+        1828,
+        1829,
+        1830,
+        1831,
+        1832,
+        1833,
+        1834,
+        1835,
+        1836,
+        1837,
+        1838,
+        1839,
+        1840,
+        1841,
+        1842,
+        1843,
+        1844,
+        1845,
+        1846,
+        1847,
+        1848,
+        1849,
+        1850,
+        1851,
+        1852,
+        1853,
+        1854,
+        1855,
+        1856,
+        1857,
+        1858,
+        1859,
+        1860,
+        1861,
+        1862,
+        1863,
+        1864,
+        1865,
+        1866,
+        1867,
+        1868,
+        1869,
+        1870,
+        1871,
+        1872,
+        1873,
+        1874,
+        1875,
+        1876
+      ]
+    },
+    "links": 358,
+    "links_to_earlier_notes": 278,
+    "words": 373115,
+    "bytes": 2562171
+  },
+  "date_range": [
+    "1820-01-01",
+    "1876-01-01"
+  ],
+  "sources": [
+    {
+      "id": "thoreau-journal-01",
+      "title": "The Writings of Henry David Thoreau, vol. 7: Journal I, 1837–1846 (1906)",
+      "author": "Henry David Thoreau",
+      "edition": "The Writings of Henry David Thoreau, vol. 7: Journal I, 1837–1846 (1906)",
+      "published": 1906,
+      "host": "Project Gutenberg",
+      "page_url": "https://www.gutenberg.org/ebooks/57393",
+      "cite_url": "https://archive.org/details/thoreau-journal-1906lim-ed",
+      "persons": [
+        {
+          "name": "Henry David Thoreau",
+          "role": "author",
+          "born": 1817,
+          "died": 1862,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Bradford Torrey",
+          "role": "editor",
+          "born": 1843,
+          "died": 1912,
+          "basis": "the distributor's catalogue authority data (1843-1912)"
+        },
+        {
+          "name": "Francis H. Allen",
+          "role": "editor",
+          "born": 1866,
+          "died": 1953,
+          "basis": "Online Books Page / LC name authority 'Allen, Francis H. (Francis Henry), 1866-1953'"
+        }
+      ],
+      "us": "public domain (published 1906, before 1931)",
+      "brazil": "public domain since 2024-01-01 (last contributor Francis H. Allen died 1953; Lei 9.610/98 art. 41)",
+      "notes": "editor's introduction, footnotes and bracketed notes are dropped"
+    },
+    {
+      "id": "thoreau-journal-02",
+      "title": "The Writings of Henry David Thoreau, vol. 8: Journal II, 1850–September 15, 1851 (1906)",
+      "author": "Henry David Thoreau",
+      "edition": "The Writings of Henry David Thoreau, vol. 8: Journal II, 1850–September 15, 1851 (1906)",
+      "published": 1906,
+      "host": "Project Gutenberg",
+      "page_url": "https://www.gutenberg.org/ebooks/59031",
+      "cite_url": "https://archive.org/details/thoreau-journal-1906lim-ed",
+      "persons": [
+        {
+          "name": "Henry David Thoreau",
+          "role": "author",
+          "born": 1817,
+          "died": 1862,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Bradford Torrey",
+          "role": "editor",
+          "born": 1843,
+          "died": 1912,
+          "basis": "the distributor's catalogue authority data (1843-1912)"
+        },
+        {
+          "name": "Francis H. Allen",
+          "role": "editor",
+          "born": 1866,
+          "died": 1953,
+          "basis": "Online Books Page / LC name authority 'Allen, Francis H. (Francis Henry), 1866-1953'"
+        }
+      ],
+      "us": "public domain (published 1906, before 1931)",
+      "brazil": "public domain since 2024-01-01 (last contributor Francis H. Allen died 1953; Lei 9.610/98 art. 41)",
+      "notes": "footnotes and bracketed notes are dropped"
+    },
+    {
+      "id": "thoreau-journal-1906-ocr",
+      "title": "The Journal of Henry D. Thoreau, vols. III–XIV (Sept. 16, 1851–1861) (1906)",
+      "author": "Henry David Thoreau",
+      "edition": "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]",
+      "published": 1906,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/thoreau-journal-1906lim-ed",
+      "cite_url": "https://archive.org/details/thoreau-journal-1906lim-ed",
+      "persons": [
+        {
+          "name": "Henry David Thoreau",
+          "role": "author",
+          "born": 1817,
+          "died": 1862,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Bradford Torrey",
+          "role": "editor",
+          "born": 1843,
+          "died": 1912,
+          "basis": "the distributor's catalogue authority data (1843-1912)"
+        },
+        {
+          "name": "Francis H. Allen",
+          "role": "editor",
+          "born": 1866,
+          "died": 1953,
+          "basis": "Online Books Page / LC name authority 'Allen, Francis H. (Francis Henry), 1866-1953'"
+        }
+      ],
+      "us": "public domain (published 1906, before 1931)",
+      "brazil": "public domain since 2024-01-01 (last contributor Francis H. Allen died 1953; Lei 9.610/98 art. 41)",
+      "notes": "OCR text of the full 1906 set; only entries after 1851-09-15 are used."
+    },
+    {
+      "id": "emerson-journals-01",
+      "title": "Journals of Ralph Waldo Emerson, vol. 1 (1820–1824)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1909,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw01emer",
+      "cite_url": "https://archive.org/details/journalsofralphw01emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1909, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-journals-02",
+      "title": "Journals of Ralph Waldo Emerson, vol. 2 (1824–1832)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1909,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw02emer",
+      "cite_url": "https://archive.org/details/journalsofralphw02emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1909, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-journals-03",
+      "title": "Journals of Ralph Waldo Emerson, vol. 3 (1833–1835)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1910,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw03emer",
+      "cite_url": "https://archive.org/details/journalsofralphw03emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1910, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-journals-04",
+      "title": "Journals of Ralph Waldo Emerson, vol. 4 (1836–1838)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1910,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw04emer",
+      "cite_url": "https://archive.org/details/journalsofralphw04emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1910, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-journals-05",
+      "title": "Journals of Ralph Waldo Emerson, vol. 5 (1838–1841)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1911,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw05emer",
+      "cite_url": "https://archive.org/details/journalsofralphw05emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1911, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-journals-06",
+      "title": "Journals of Ralph Waldo Emerson, vol. 6 (1841–1844)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1911,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw06emer",
+      "cite_url": "https://archive.org/details/journalsofralphw06emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1911, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-journals-07",
+      "title": "Journals of Ralph Waldo Emerson, vol. 7 (1845–1848)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1912,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw07emer",
+      "cite_url": "https://archive.org/details/journalsofralphw07emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1912, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-journals-08",
+      "title": "Journals of Ralph Waldo Emerson, vol. 8 (1849–1855)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1912,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw08emer",
+      "cite_url": "https://archive.org/details/journalsofralphw08emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1912, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-journals-09",
+      "title": "Journals of Ralph Waldo Emerson, vol. 9 (1856–1863)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1913,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw09emer",
+      "cite_url": "https://archive.org/details/journalsofralphw09emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1913, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-journals-10",
+      "title": "Journals of Ralph Waldo Emerson, vol. 10 (1864–1876)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan",
+      "published": 1914,
+      "host": "Internet Archive",
+      "page_url": "https://archive.org/details/journalsofralphw10emer",
+      "cite_url": "https://archive.org/details/journalsofralphw10emer",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        },
+        {
+          "name": "Edward Waldo Emerson",
+          "role": "editor",
+          "born": 1844,
+          "died": 1930,
+          "basis": "LC name authority 'Emerson, Edward Waldo, 1844-1930'"
+        },
+        {
+          "name": "Waldo Emerson Forbes",
+          "role": "editor",
+          "born": 1879,
+          "died": 1917,
+          "basis": "genealogy records (b. 1879 Milton MA, d. 1917); no library authority found - verify"
+        }
+      ],
+      "us": "public domain (published 1914, before 1931)",
+      "brazil": "public domain since 2001-01-01 (last contributor Edward Waldo Emerson died 1930; Lei 9.610/98 art. 41)",
+      "notes": "OCR text; editors' bracketed notes and page-foot annotations are dropped by the builder."
+    },
+    {
+      "id": "emerson-nature",
+      "title": "Nature (1836; 1849 edition)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Nature (1836; 1849 edition)",
+      "published": 1849,
+      "host": "Project Gutenberg",
+      "page_url": "https://www.gutenberg.org/ebooks/29433",
+      "cite_url": "https://archive.org/details/naturemunroe00emerrich",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        }
+      ],
+      "us": "public domain (published 1849, before 1931)",
+      "brazil": "public domain since 1953-01-01 (last contributor Ralph Waldo Emerson died 1882; Lei 9.610/98 art. 41)",
+      "notes": ""
+    },
+    {
+      "id": "emerson-essays-1",
+      "title": "Essays, First Series (1841)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Essays, First Series (1841)",
+      "published": 1841,
+      "host": "Project Gutenberg",
+      "page_url": "https://www.gutenberg.org/ebooks/2944",
+      "cite_url": "https://archive.org/details/emersonralessays00emerrich",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        }
+      ],
+      "us": "public domain (published 1841, before 1931)",
+      "brazil": "public domain since 1953-01-01 (last contributor Ralph Waldo Emerson died 1882; Lei 9.610/98 art. 41)",
+      "notes": ""
+    },
+    {
+      "id": "emerson-essays-2",
+      "title": "Essays, Second Series (1844)",
+      "author": "Ralph Waldo Emerson",
+      "edition": "Essays, Second Series (1844)",
+      "published": 1844,
+      "host": "Project Gutenberg",
+      "page_url": "https://www.gutenberg.org/ebooks/2945",
+      "cite_url": "https://archive.org/details/essayssecondser01emergoog",
+      "persons": [
+        {
+          "name": "Ralph Waldo Emerson",
+          "role": "author",
+          "born": 1803,
+          "died": 1882,
+          "basis": "Library of Congress authority record"
+        }
+      ],
+      "us": "public domain (published 1844, before 1931)",
+      "brazil": "public domain since 1953-01-01 (last contributor Ralph Waldo Emerson died 1882; Lei 9.610/98 art. 41)",
+      "notes": ""
+    },
+    {
+      "id": "thoreau-walden",
+      "title": "Walden (1854)",
+      "author": "Henry David Thoreau",
+      "edition": "Walden (1854)",
+      "published": 1854,
+      "host": "Project Gutenberg",
+      "page_url": "https://www.gutenberg.org/ebooks/205",
+      "cite_url": "https://archive.org/details/waldenorlifei00thor",
+      "persons": [
+        {
+          "name": "Henry David Thoreau",
+          "role": "author",
+          "born": 1817,
+          "died": 1862,
+          "basis": "Library of Congress authority record"
+        }
+      ],
+      "us": "public domain (published 1854, before 1931)",
+      "brazil": "public domain since 1933-01-01 (last contributor Henry David Thoreau died 1862; Lei 9.610/98 art. 41)",
+      "notes": ""
+    },
+    {
+      "id": "thoreau-civil-disobedience",
+      "title": "On the Duty of Civil Disobedience (1849)",
+      "author": "Henry David Thoreau",
+      "edition": "On the Duty of Civil Disobedience (1849)",
+      "published": 1849,
+      "host": "Project Gutenberg",
+      "page_url": "https://www.gutenberg.org/ebooks/205",
+      "cite_url": "https://archive.org/details/aestheticpapers00peabrich",
+      "persons": [
+        {
+          "name": "Henry David Thoreau",
+          "role": "author",
+          "born": 1817,
+          "died": 1862,
+          "basis": "Library of Congress authority record"
+        }
+      ],
+      "us": "public domain (published 1849, before 1931)",
+      "brazil": "public domain since 1933-01-01 (last contributor Henry David Thoreau died 1862; Lei 9.610/98 art. 41)",
+      "notes": ""
+    },
+    {
+      "id": "thoreau-week",
+      "title": "A Week on the Concord and Merrimack Rivers (1849)",
+      "author": "Henry David Thoreau",
+      "edition": "A Week on the Concord and Merrimack Rivers (1849)",
+      "published": 1849,
+      "host": "Project Gutenberg",
+      "page_url": "https://www.gutenberg.org/ebooks/4232",
+      "cite_url": "https://archive.org/details/weekonconcordmer1849thor",
+      "persons": [
+        {
+          "name": "Henry David Thoreau",
+          "role": "author",
+          "born": 1817,
+          "died": 1862,
+          "basis": "Library of Congress authority record"
+        }
+      ],
+      "us": "public domain (published 1849, before 1931)",
+      "brazil": "public domain since 1933-01-01 (last contributor Henry David Thoreau died 1862; Lei 9.610/98 art. 41)",
+      "notes": ""
+    },
+    {
+      "id": "thoreau-walking",
+      "title": "Walking (1862)",
+      "author": "Henry David Thoreau",
+      "edition": "Walking (1862)",
+      "published": 1862,
+      "host": "Project Gutenberg",
+      "page_url": "https://www.gutenberg.org/ebooks/1022",
+      "cite_url": "https://archive.org/details/excursions1863thor",
+      "persons": [
+        {
+          "name": "Henry David Thoreau",
+          "role": "author",
+          "born": 1817,
+          "died": 1862,
+          "basis": "Library of Congress authority record"
+        }
+      ],
+      "us": "public domain (published 1862, before 1931)",
+      "brazil": "public domain since 1933-01-01 (last contributor Henry David Thoreau died 1862; Lei 9.610/98 art. 41)",
+      "notes": ""
+    }
+  ],
+  "licence": "texts: public domain in the United States and Brazil (see SOURCES.md); builder code and generated index/hub notes: Apache-2.0",
+  "note": "links between authors are explicit references found by a heuristic; the demo's 'links made later' is a demonstration, not a measurement"
+}

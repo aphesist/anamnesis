@@ -1,0 +1,19 @@
+---
+title: "I am [reading] William Wood’s “New England’s Prospect.’”’…"
+created: 1855-01-24T12:00:00Z
+tags: ["thoreau", "journal", "1850s"]
+author: "Henry David Thoreau"
+source_url: "https://archive.org/details/thoreau-journal-1906lim-ed"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "The Writings of Henry David Thoreau, Manuscript Edition, Journal (Houghton Mifflin, 1906), ed. Bradford Torrey [and Francis H. Allen]"
+---
+
+I am [reading] William Wood’s “New England’s Prospect.’”’ He left New England August 15th, 1633, and the last English edition referred to in this American one of 1764 is that of London, 1639.
+
+The wild meadow-grasses appear to have grown more rankly in those days. He describes them as “thick and long, as high as a man’s middle; some as high as the shoulders.” (Vzde Indian book.)? Strawberries too were more abundant and large before they were so cornered up by cultivation, “some being two inches about; one may gather half a bushel in a forenoon;”’ and no doubt many other berries were far more abundant, as gooseberries, raspberries, and especially currants, which last so many old writers speak of, but so few moderns find wild. We can perhaps imagine how the primitive wood looked from the sample still left in Maine. He says, “The timber of the country grows strait, and tall, some trees being twenty, some thirty foot high, before they spread forth their branches; generally the trees be not very thick, tho’ there be many that will serve for mill-posts, some being three foot and an half over.”’ One would judge from accounts that the woods were clearer than the primitive wood that is left, on account of Indian fires, for he says you might ride a-hunting in most places. “There is no underwood, saving in swamps,” which the Indian fires did not burn. (Vide Indian book.) “Here no doubt might be good done with saw mills; for I have seene of these stately high grown trees [he is speaking of pines particularly] ten miles together close by the river [probably Charles River]! side.” He says at first “fir and pine,” as if the fir once grew in this part of the State abundantly, as now in Maine and further west. Of the oaks he says, “These trees afford much mast for hogs, especially every third year.” Does not this imply many more of them than now? “The hornbound tree is a tough kind of wood, that requires so much pains in riving as is almost incredible, being the best to make bowls and dishes, not being subject to crack or leak,” and [he] speaks, both in prose and verse, of the vines being particularly inclined to run over this tree. If this is the true hornbeam it was probably larger then, but I am inclined to think it the tupelo, and that it was both larger and more abundant than commonly now, for he says it was good for bowls, and it has been so used since. Of the plums of the country he says, “'They be black and yellow, about the bigness of damsons, of a reasonable good taste.” Yet [[Ralph Waldo Emerson|Emerson]] has not found the yellow plum, 2. e. Canada, growing wild in Massachusetts.
+
+Of quadrupeds no longer found in Concord, he names the lion, — that Cape Ann Lion “which some affirm that they have seen,” which may have been a cougar, for he adds, “ Plimouth men have traded for Lions skins in former times,” — bear, moose, deer, porcupines, “the grim-fac’d Ounce, and rav’nous howling Wolf,” and beaver. Martens.
+
+“For Bears they be common, being a black kind of Bear, which be most fierce in strawberry time, at which time they have young ones; at which time likewise they will go upright like a man, and climb trees, and swim to the islands;” etc. (Vide Indian book.) In the winter they lie in “the clifts of rocks and thick swamps.” ‘The wolves hunt these in packs and “tear him as a Dog will tear a Kid.” “They never prey upon the English cattle, or offer to assault the person of any man,” unless shot. Their meat “esteemed .. . above venison.”

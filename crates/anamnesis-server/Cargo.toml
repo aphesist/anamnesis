@@ -15,9 +15,12 @@ name = "anamnesis_server"
 path = "src/lib.rs"
 
 [features]
-default = ["embed-ui", "local-embed"]
+default = ["embed-ui", "embed-demo", "local-embed"]
 # Embed `ui/` into the release binary (debug builds read it from disk).
 embed-ui = ["dep:rust-embed"]
+# Embed the curated demo (`demo/transcendentalist`, ~2.6 MB of markdown) so a lone binary
+# can show the demo brain; it is extracted to `<data dir>/anamnesis/demo/` on first use.
+embed-demo = ["dep:rust-embed"]
 # On-device embeddings (fastembed / onnx runtime) through anamnesis-embed.
 local-embed = ["anamnesis-embed/local"]
 # Local embeddings on the gpu (off by default; see docs/install.md). Cpu is the fallback.

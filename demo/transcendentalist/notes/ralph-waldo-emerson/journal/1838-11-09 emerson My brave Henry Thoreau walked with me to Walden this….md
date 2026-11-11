@@ -1,0 +1,13 @@
+---
+title: "My brave Henry Thoreau walked with me to Walden this…"
+created: 1838-11-09T12:00:00Z
+tags: ["emerson", "journal", "1830s"]
+author: "Ralph Waldo Emerson"
+source_url: "https://archive.org/details/journalsofralphw05emer"
+origin: owner_written
+kind: journal
+date_precision: day
+source: "Journals of Ralph Waldo Emerson, with annotations, ed. E. W. Emerson and W. E. Forbes (Houghton Mifflin, 1909–14); Boston Public Library scan"
+---
+
+My brave [[Henry David Thoreau|Henry Thoreau]] walked with me to Walden this afternoon and complained of the proprietors who compelled him, to whom, as much as to any, the whole world belonged, to walk in a strip of road and crowded him out of all the rest of God’s earth. He must not get over the fence: but to the building of that fence he was no party. Suppose, he said, some great proprietor, before he was born, had bought up the whole globe. So had he been hustled out of nature. Not having been privy to.any of these arrangements, he does not feel called on to consent to them, and so cuts fishpoles in the woods without asking who has a better title to the wood than he. I defended, of course, the good institution as a scheme, not good, but the best that could be hit on for making the woods and waters and fields available to wit and worth, and for restraining the bold, bad man. At all events, I begged him, having this maggot of Freedom and Humanity in his brain, to write it out into good poetry and so clear himself of it. He replied, that he feared that that was not the best way, that in doing justice to the thought, the man did not always do justice to himself, the poem ought to sing itself: if the man took too much pains with the expression, he was not any longer the Idea himself. I acceded and confessed that this was the tragedy of Art that the artist was at the expense of the man; and hence, in the first age, as they tell, the sons of God printed no epics, carved no stone, painted no pictures, built no railroad; for the sculpture, the poetry, the music, and architecture, were in the man. And truly Bolts and Bars do not seem to me the most exalted or exalting of our institutions. And what other spirit reigns in our intellectual works? We have literary property. The very recording of a thought betrays a distrust that there is any more, or much more, as good for us. If we felt that the universe was ours, that we dwelled in eternity, and advance into all wisdom, we should be less covetous of these sparks and cinders. Why should we covetously build a Saint Peter’s, if we had the seeing Eye which beheld all the radiance of beauty and majesty in the matted grass and the overarching boughs? Why should a man spend years upon the carving an Apollo, who looked

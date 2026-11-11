@@ -97,6 +97,18 @@ pub enum Command {
         #[arg(long, value_parser = parse_origin)]
         origin: Option<anamnesis_core::Origin>,
     },
+    /// Build the demo brain (import, embeddings, regions, suggestions) in
+    /// `<data dir>/anamnesis/demo`, apart from yours. `serve --demo` then shows it.
+    Demo {
+        #[command(flatten)]
+        data: DataArgs,
+        /// Remove the demo brain first and build it afresh.
+        #[arg(long)]
+        rebuild: bool,
+        /// Demo notes to use instead of the shipped ones: a folder of notes or a bundle.
+        #[arg(long)]
+        demo_bundle: Option<PathBuf>,
+    },
     /// Verify the hash chain of the event log.
     Verify {
         #[command(flatten)]
@@ -279,6 +291,20 @@ pub async fn run(cli: Cli) -> Result<()> {
             let r = crate::sync::sync_source(&app.brain(), &app.plugins, &src.id).await?;
             println!("synced: {}", serde_json::to_string(&r)?);
             Ok(())
+        }
+        Command::Demo {
+            data,
+            rebuild,
+            demo_bundle,
+        } => {
+            let mut cfg = config(&data, 7368);
+            cfg.demo_bundle = demo_bundle;
+            cfg.detect_backends = false;
+            if rebuild && crate::importer::remove_demo_brain(&cfg)? {
+                eprintln!("removed the old demo brain");
+            }
+            let app = App::open(cfg, true)?;
+            crate::importer::build_demo(&app).await
         }
         Command::Verify { data } => {
             let app = open(&data, config(&data, 7368), false)?;
