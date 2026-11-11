@@ -268,7 +268,7 @@ for (const [kind, list] of Object.entries(TH)) {
     const status = kind === 'open_question' ? (rnd() < 0.75 ? 'open' : 'resolved') : kind === 'plan' ? pick(['open', 'open', 'resolved', 'abandoned']) : kind === 'decision' ? pick(['open', 'resolved', 'superseded']) : 'resolved';
     threads.push({
       id: ulid(q.t * 1000), kind, status, statement, item_id: q.id,
-      quote: statement.replace(/^rejected: /, 'i will not do this: ') + '.',
+      quote: statement.replace(/^rejected: /, 'i will not do this: ') + (/[.?!]$/.test(statement) ? '' : '.'),
       resolved_by: status === 'resolved' || status === 'superseded' ? pick(pts.filter((z) => z.t > q.t).map((z) => z.id)) || null : null,
       created_at: iso(q.t), updated_at: iso(Math.min(T1, q.t + 40 * DAY)),
       extractor: rnd() < 0.5 ? 'rule' : 'local:qwen3-4b',

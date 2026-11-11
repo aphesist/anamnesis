@@ -168,7 +168,7 @@ a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-under
 .dock-bottom { position: relative; z-index: 4; min-height: 0; }
 .dock-bottom .dock-tabs { padding: var(--space-2) var(--space-6) 0; justify-content: flex-start; }
 .dock-bottom .dock-body { height: 0; overflow: hidden; padding: 0 var(--space-6); transition: height var(--dur-mid) var(--ease); }
-.dock-bottom.open .dock-body { height: min(330px, 42vh); overflow: auto; padding-top: var(--space-3); }
+.dock-bottom.open .dock-body { height: min(360px, 44vh); overflow: auto; padding-top: var(--space-3); }
 .dock-bottom::before { content: ""; position: absolute; left: 4%; right: 4%; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--line), transparent); }
 
 /* section disclosures in the view panel */
@@ -238,7 +238,7 @@ input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 0; bo
 /* ---------- charts ---------- */
 .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-4) var(--space-6); }
 .chart h4 { margin: 0 0 4px; font-weight: normal; font-size: 11px; letter-spacing: 0.12em; color: var(--ink-soft); }
-.chart canvas { display: block; width: 100%; height: 120px; cursor: crosshair; }
+.chart canvas { display: block; width: 100%; height: 110px; cursor: crosshair; }
 .chart .keys { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 10.5px; color: var(--ink-soft); }
 .chart .keys button { color: inherit; }
 .chart .keys button:hover { color: var(--ink); }
@@ -386,3 +386,6 @@ table.tbl tr:hover td { color: var(--dot-hot); }
 .peek h1 { font-family: var(--font-display); font-weight: normal; font-size: 1.7em; line-height: 1.15; margin: var(--space-3) 0; text-transform: none; }
 .peek .reader-body { font-size: 13px; }
 .peek-tools { display: flex; justify-content: flex-end; gap: var(--space-4); font-size: 11.5px; }
+.app:not([data-page="brain"]) .dock-bottom { display: none; }
+.page-brain.alt .slot, .page-brain.alt .labels, .page-brain.alt .caption, .page-brain.alt .peek { display: none; }
+.page-brain.alt .alt-view { inset: 64px var(--space-5) var(--space-5) var(--space-6); background: color-mix(in oklch, var(--bg) 95%, transparent); }

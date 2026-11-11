@@ -12,6 +12,7 @@ export class OrbitCamera {
     this.eye = [0, 0, 0];
     this.flight = null;
     this.dragging = false;
+    this.sway = false; this.swayCentre = 0;
     this.version = 0;
     this.home = { yaw: 1.25, pitch: 0.12, dist: 4.5, target: [0, 0, 0] };
     this.shift = [0, 0]; // lens shift in ndc, to keep the brain clear of overlays
@@ -38,12 +39,22 @@ export class OrbitCamera {
       this.yaw += this.vYaw * dt;
       this.pitch = clamp(this.pitch + this.vPitch * dt, -1.35, 1.35);
       this.dist = clamp(this.dist * Math.exp(this.vZoom * dt), 0.6, 12);
-      if (this.turning && this.motion > 0 && !this.dragging) this.yaw += this.speed * 0.25 * dt;
+      if (this.turning && this.motion > 0 && !this.dragging) {
+        if (this.sway) {
+          // flat layouts: sway gently around the front instead of turning away
+          this.swayT = (this.swayT || 0) + dt * this.speed * 0.6;
+          this.yaw += (this.swayCentre + 0.32 * Math.sin(this.swayT) - this.yaw) * Math.min(1, dt * 2);
+        } else this.yaw += this.speed * 0.25 * dt;
+      }
     }
     const cp = Math.cos(this.pitch);
-    this.eye[0] = this.target[0] + this.dist * cp * Math.sin(this.yaw);
-    this.eye[1] = this.target[1] + this.dist * Math.sin(this.pitch);
-    this.eye[2] = this.target[2] + this.dist * cp * Math.cos(this.yaw);
+    // short stages (a bottom dock open) back the camera off so the brain still fits
+    const fit = Math.min(1.8, Math.pow(Math.max(1, aspect / 1.1), 0.6));
+    const d = this.dist * fit;
+    this.effDist = d;
+    this.eye[0] = this.target[0] + d * cp * Math.sin(this.yaw);
+    this.eye[1] = this.target[1] + d * Math.sin(this.pitch);
+    this.eye[2] = this.target[2] + d * cp * Math.cos(this.yaw);
     lookAt(this.view, this.eye, this.target, [0, 1, 0]);
     perspective(this.proj, this.fov, aspect, 0.05, 50);
     this.proj[8] = -this.shift[0]; this.proj[9] = -this.shift[1];

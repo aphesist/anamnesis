@@ -203,7 +203,19 @@ export class Brain {
     this.dirty = true;
   }
 
-  setMorph(m, instant) { this.morphTarget = m; if (instant || theme().motion === 0) this.morph = m; this.dirty = true; }
+  setMorph(m, instant) {
+    const wasLayout = this.morphTarget >= 0.5;
+    this.morphTarget = m;
+    if (instant || theme().motion === 0) this.morph = m;
+    const isLayout = m >= 0.5;
+    if (isLayout !== wasLayout) {
+      // layouts are laid out facing the viewer: come round to the front
+      this.cam.sway = isLayout;
+      if (isLayout) { const y = Math.round(this.cam.yaw / (2 * Math.PI)) * 2 * Math.PI; this.cam.swayCentre = y; this.cam.swayT = 0; this.cam.flyTo([0, 0, 0], 4.3, { yaw: y, pitch: 0.06, dur: 1100 }); }
+      else this.cam.flyTo([0, 0, 0], this.cam.home.dist, { pitch: this.cam.home.pitch, dur: 1100 });
+    }
+    this.dirty = true;
+  }
   setGlow(regionIdx, v) { if (regionIdx >= 0 && regionIdx < 64) this.glowTarget[regionIdx] = v; this.dirty = true; }
   flashRegion(regionIdx) { if (regionIdx >= 0 && regionIdx < 64) { this.glow[regionIdx] = 1; this.glowTarget[regionIdx] = 0; this.dirty = true; } }
 
@@ -225,7 +237,7 @@ export class Brain {
     c[0] /= indices.length; c[1] /= indices.length; c[2] /= indices.length;
     let r = 0;
     for (const i of indices) { this.pos(i, p); r = Math.max(r, Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2])); }
-    const dist = Math.max(1.1, Math.min(4.2, r * 2.6 + 0.6));
+    const dist = indices.length === 1 ? 1.6 : Math.max(2.2, Math.min(4.4, r * 2.6 + 0.8));
     this.cam.flyTo(indices.length === 1 ? c : c.map((x) => x * 0.85), opts.dist ?? dist, opts);
     this.dirty = true;
   }
@@ -284,7 +296,8 @@ export class Brain {
       const depthFade = Math.max(0.35, Math.min(1, 1.6 - wc * 0.22));
       op *= depthFade;
       if (op > 0.15) {
-        const box = [sx - l.w / 2, sy - 9, sx + l.w / 2, sy + 9];
+        if (!l.mw) l.mw = l.el.offsetWidth || l.w;
+        const box = [sx - l.mw / 2 - 6, sy - 10, sx + l.mw / 2 + 6, sy + 10];
         if (placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) op *= 0.0;
         else placed.push(box);
       }
@@ -459,7 +472,7 @@ export class Brain {
     gl.uniform1f(u.uTime, this.time); gl.uniform1f(u.uMotion, theme().motion);
     gl.uniform1f(u.uTmin, v.time[0]); gl.uniform1f(u.uTmax, v.time[1]);
     gl.uniform1f(u.uAnyLit, this.anyLit ? 1 : 0);
-    gl.uniform1f(u.uNear, this.cam.dist - 1.2); gl.uniform1f(u.uFar, this.cam.dist + 1.6);
+    gl.uniform1f(u.uNear, this.cam.effDist - 1.2); gl.uniform1f(u.uFar, this.cam.effDist + 1.6);
     if (u.uGlow) gl.uniform1fv(u.uGlow, this.glow);
     const tex = [['uA', 'A'], ['uP', 'P'], ['uN', 'N'], ['uM', 'M'], ['uS', 'S']];
     tex.forEach(([name, k], unit) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, this.tex[k]); if (u[name]) gl.uniform1i(u[name], unit); });
@@ -485,7 +498,7 @@ export class Brain {
       gl.uniform1f(u.uViewH, hgt * this.dpr);
       gl.uniform1f(u.uAlpha, outline * (this.light ? 0.45 : 0.6));
       gl.uniform1f(u.uTime, this.time); gl.uniform1f(u.uMotion, theme().motion);
-      gl.uniform1f(u.uNear, this.cam.dist - 1.2); gl.uniform1f(u.uFar, this.cam.dist + 1.6);
+      gl.uniform1f(u.uNear, this.cam.effDist - 1.2); gl.uniform1f(u.uFar, this.cam.effDist + 1.6);
       gl.uniform3f(u.cDim, (c.dot[0] + c['dot-dim'][0]) * 0.5, (c.dot[1] + c['dot-dim'][1]) * 0.5, (c.dot[2] + c['dot-dim'][2]) * 0.5);
       gl.bindVertexArray(this.shellVao);
       gl.drawArrays(gl.POINTS, 0, this.nShell);

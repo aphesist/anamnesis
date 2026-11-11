@@ -117,7 +117,7 @@ function packCircles(radii, gap) {
     if (!placed.length) { placed.push([0, 0, r]); continue; }
     for (let s = 1; s < 4000; s++) {
       const rr = 0.05 * Math.sqrt(s) * 1.6, a = s * golden;
-      const x = Math.cos(a) * rr * 1.5, y = Math.sin(a) * rr; // a little wider than tall
+      const x = Math.cos(a) * rr * 1.25, y = Math.sin(a) * rr; // a little wider than tall
       if (placed.every(([px, py, pr]) => Math.hypot(px - x, py - y) > pr + r + gap)) { placed.push([x, y, r]); break; }
     }
     if (placed.length <= k) placed.push([k, 0, r]);
@@ -129,13 +129,12 @@ function packCircles(radii, gap) {
 // Points that are in no group stay at their fallback position (collapsed to the origin).
 export function spheres(n, groups, orderKey) {
   const pos = new Float32Array(n * 3);
-  const radii = groups.map(([, idx]) => 0.075 * Math.cbrt(idx.length));
-  const pack = packCircles(radii, 0.07);
+  const radii = groups.map(([, idx]) => 0.07 * Math.cbrt(idx.length));
+  const pack = packCircles(radii, 0.14);
   // fit into a box about 3.2 wide
   let ext = 0;
   pack.forEach(([x, y, r]) => { ext = Math.max(ext, Math.abs(x) * 0.67 + r, Math.abs(y) + r); });
   const s = 1.15 / (ext || 1);
-  const golden = Math.PI * (3 - Math.sqrt(5));
   const centres = [];
   groups.forEach(([key, idx], g) => {
     const [cx, cy, R0] = pack[g];
@@ -143,14 +142,16 @@ export function spheres(n, groups, orderKey) {
     const sorted = orderKey ? [...idx].sort((a, b) => orderKey(a) - orderKey(b)) : idx;
     const m = sorted.length;
     sorted.forEach((i, k) => {
+      // radius by order (core = first), direction from an R2 low-discrepancy
+      // sequence so the sphere fills evenly without spiral arms
       const u = (k + 0.5) / m;
-      const rad = R * Math.cbrt(u);
-      const yy = 1 - 2 * ((k * 0.618034 + hash(i) * 0.1) % 1);
-      const rr = Math.sqrt(Math.max(0, 1 - yy * yy));
-      const a = k * golden;
-      pos[i * 3] = cx * s + Math.cos(a) * rr * rad;
-      pos[i * 3 + 1] = cy * s + yy * rad;
-      pos[i * 3 + 2] = Math.sin(a) * rr * rad;
+      const rad = R * Math.cbrt(u) * (0.92 + 0.08 * hash(i));
+      const zz = 1 - 2 * ((0.5 + 0.7548776662 * (k + 1)) % 1);
+      const ph = 2 * Math.PI * ((0.5 + 0.5698402910 * (k + 1)) % 1);
+      const rr = Math.sqrt(Math.max(0, 1 - zz * zz));
+      pos[i * 3] = cx * s + Math.cos(ph) * rr * rad;
+      pos[i * 3 + 1] = cy * s + Math.sin(ph) * rr * rad;
+      pos[i * 3 + 2] = zz * rad;
     });
     centres.push({ key, pos: [cx * s, cy * s + R + 0.06, 0], count: m });
   });
@@ -163,7 +164,7 @@ export function split(n, groups, base) {
   const G = groups.length;
   const cols = Math.ceil(Math.sqrt(G * 1.6));
   const rows = Math.ceil(G / cols);
-  const cell = 3.4 / Math.max(cols, rows * 1.4);
+  const cell = 3.0 / Math.max(cols, rows * 1.3);
   const centres = [];
   groups.forEach(([key, idx], g) => {
     let cx = 0, cy = 0, cz = 0;

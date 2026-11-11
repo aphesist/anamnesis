@@ -81,7 +81,7 @@ function bodyFor(s, i) {
   const title = c.titles[i];
   if (base && i % 4 === 0) return base;
   const reg = c.region[i] >= 0 ? c.regions[c.region[i]].label : 'nothing yet';
-  return `${title}.\n\nwritten close to ${reg}. a short entry; the rest is in the margins.\n\n- what i noticed\n- what i want to remember\n\nsee also [[${c.titles[(i * 7 + 3) % c.ids.length]}]].`;
+  return `${title.replace(/\.$/, '')}.\n\nwritten close to ${reg}. a short entry; the rest is in the margins.\n\n- what i noticed\n- what i want to remember\n\nsee also [[${c.titles[(i * 7 + 3) % c.ids.length]}]].`;
 }
 
 function itemAt(s, i) {
@@ -242,7 +242,7 @@ async function handle(method, url, body) {
     const hits = search(s, body.message || '', 5);
     const cited = hits.slice(0, 4).map((h) => h.item_id);
     const backend = body.backend || 'ollama:qwen3-8b';
-    const titles = hits.slice(0, 3).map((h) => `"${h.title}"`);
+    const titles = [...new Set(hits.map((h) => h.title))].slice(0, 3).map((t) => `"${t}"`);
     const answer = hits.length
       ? `you have written about this before. the clearest traces are ${titles.join(', ')}. read together, they lean the same way: you keep returning to the question rather than settling it. the dots that carry it are lit in the brain.`
       : 'i could not find anything you wrote that touches this yet. that is an answer of a kind: this is new ground.';

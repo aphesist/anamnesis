@@ -135,6 +135,7 @@ function renderAlt() {
   const mode = store.view.mode;
   for (const b of viewsBar.children) b.setAttribute('aria-selected', String(b.dataset.mode === mode));
   altEl.hidden = mode === 'brain';
+  document.getElementById('page-brain').classList.toggle('alt', mode !== 'brain');
   if (mode !== 'brain') { clear(altEl); altViews[mode].mount(altEl, ctx); }
 }
 on('view', (patch) => {

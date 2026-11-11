@@ -67,12 +67,15 @@ void main() {
   if (filtered) alpha = 0.0;
   float px = size * uProj[1][1] * uViewH * 0.5 / max(depth, 0.05);
   vSize = clamp(px, 1.0, 48.0);
+  bool ringed = (s & 72u) != 0u;          // cited | focus get a stipple halo
+  if (ringed) vSize = max(vSize * 1.6, 9.0);
+  else if (lit) vSize = max(vSize, 3.0);
   // small dots lose ink as they shrink rather than vanishing abruptly
   vAlpha = alpha * min(1.0, px / 1.2);
   gl_PointSize = alpha <= 0.0 ? 0.0 : vSize;
   vCol = col;
   vSeed = seed;
-  vRing = hover ? 1.0 : 0.0;
+  vRing = (hover || ringed) ? 1.0 : 0.0;
 }
 `;
 
@@ -107,7 +110,12 @@ void main() {
     // dither against noise: ink, not paint
     a *= step(h2(gl_FragCoord.xy + vSeed * 97.0) * 0.6, a);
   }
-  if (vRing > 0.5) a = max(a, smoothstep(0.08, 0.0, abs(r - 0.85)) * 0.9);
+  if (vRing > 0.5) {
+    // a ring of stipple: dashed by angle so it reads as dots, not a line
+    float ang = atan(pc.y, pc.x);
+    float dash = step(0.5, fract(ang * 2.546 + vSeed * 3.0));
+    a = max(a * step(r, 0.45), smoothstep(0.1, 0.0, abs(r - 0.82)) * dash);
+  }
   a *= vAlpha;
   if (a < 0.004) discard;
   frag = vec4(vCol * a, a);
