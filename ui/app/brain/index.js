@@ -309,14 +309,15 @@ export class Brain {
     const cand = [];
     for (const l of this.labels) {
       let op = l.kind === 'a' ? 1 - m : l.kind === 'b' ? m : 1;
-      if (l.born && l.born > tmax + 1) op = 0;
+      // a region born after the window closes is not there yet (at "now" every region is)
+      if (l.born && l.born > tmax + 1 && store.view.time[1] < 0.999) op = 0;
       const p = [0, 1, 2].map((d) => l.a[d] + (l.b[d] - l.a[d]) * m);
       const x = vp[0] * p[0] + vp[4] * p[1] + vp[8] * p[2] + vp[12];
       const y = vp[1] * p[0] + vp[5] * p[1] + vp[9] * p[2] + vp[13];
       const wc = vp[3] * p[0] + vp[7] * p[1] + vp[11] * p[2] + vp[15];
       if (wc <= 0.05) op = 0;
       l.sx = (x / wc * 0.5 + 0.5) * w; l.sy = (0.5 - y / wc * 0.5) * hgt;
-      op *= Math.max(0.35, Math.min(1, 1.6 - wc * 0.22));
+      op *= Math.max(0.6, Math.min(1, 1.7 - wc * 0.2));
       l.op = op;
       const reg = l.region != null ? store.cloud.regions[l.region] : null;
       l.forced = op > 0.05 && l.region != null && (this.glowTarget[l.region] > 0.3 || this.labelHover === l.region || hoverPoint === l.region || (!!lit && reg?.label === lit));
