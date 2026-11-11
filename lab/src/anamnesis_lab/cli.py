@@ -49,7 +49,7 @@ def _bench(args: argparse.Namespace) -> int:
         from .bench.linkpred import run_linkpred
 
         run_linkpred(Path(args.bundle), models=args.models.split(","), cache=Path(args.cache), results=results,
-                     split=args.split)
+                     split=args.split, targets=args.targets)
     elif args.what == "layout":
         from .bench.layout import run_layout
 
@@ -83,7 +83,9 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--dataset", default="scifact", help="retrieval: comma list of scifact,nfcorpus")
     b.add_argument("--models", default="hash", help="comma list: hash, bm25, e5-small, minilm")
     b.add_argument("--bundle", help="links/layout: a demo bundle folder (with manifest.json)")
-    b.add_argument("--split", type=float, default=0.8, help="links: time quantile for the temporal split")
+    b.add_argument("--split", type=float, default=0.5, help="links: queries are notes after this time quantile")
+    b.add_argument("--targets", default="content", choices=["content", "all"],
+                   help="links: score links to entries/essays only, or also to person/index notes")
     b.add_argument("--rust-placements", help="layout: placements json exported from the rust layout")
     b.add_argument("--snapshots", type=int, default=5, help="layout: number of incremental snapshots")
     b.add_argument("--max-items", type=int, default=4000, help="layout: subsample the bundle to this many notes")

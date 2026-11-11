@@ -183,12 +183,32 @@ def build(theme: Theme, out: Path, cache_dir: Path, *, small: bool = False) -> d
             )
         )
 
-    # Explicit cross-author references → wikilinks.
+    # Hub notes list the person's works; unlink the ones this build does not contain.
     targets = {n.basename for n in notes}
+    for n in notes:
+        if n.kind == "hub":
+            n.body = re.sub(r"\[\[([^\]|]+)\]\]", lambda m: m.group(0) if m.group(1) in targets else f"_{m.group(1)}_", n.body)
+
+    # Explicit cross-author references → wikilinks. A person's name in a dated entry
+    # points at that person's own entry of the same day when there is one (both wrote
+    # about the same walk or visit); otherwise at the person's hub note.
+    targets = {n.basename for n in notes}
+    hub_author = {hub_names[h.title]: h.author for h in theme.hubs}
+    same_day: dict[tuple[str, dt.date], str] = {}
+    for n in notes:
+        if n.kind in ("journal", "letter") and n.precision == "day":
+            same_day.setdefault((n.author, n.created), n.basename)
     for n in notes:
         if n.kind in ("index", "hub"):
             continue
-        n.body, n.links = apply_links(n.body, n.author, theme.link_rules, targets)
+
+        def resolve(target: str, n: Note = n) -> str:
+            person = hub_author.get(target)
+            if person and n.precision == "day":
+                return same_day.get((person, n.created), target)
+            return target
+
+        n.body, n.links = apply_links(n.body, n.author, theme.link_rules, targets, resolve)
 
     notes.sort(key=lambda n: (n.created, n.author, n.basename))
     manifest = write_bundle(
