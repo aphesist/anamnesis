@@ -86,6 +86,7 @@ export async function mountSettings(host, opts = {}) {
       list.appendChild(b);
     }
     const modes = radioRow('light or dark', [
+      ['theme', 'the theme’s own'],
       ['system', 'follow the system'],
       ['light', 'eye open'],
       ['dark', 'eye closed'],

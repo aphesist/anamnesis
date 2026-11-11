@@ -3,6 +3,7 @@
   "name": "paper",
   "description": "plain ink on paper: light by default, serif, one blue-black ink, no ornament.",
   "defaultMode": "light",
+  "modeFollowsSystem": true,
   "tokens": "tokens.json",
   "modes": {
     "light": "light.tokens.json",
