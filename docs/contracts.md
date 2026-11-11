@@ -32,35 +32,102 @@ the seams between the parts of anamnesis. each work package owns its files; thes
 
 ## http api (served by `anamnesis`, default `http://127.0.0.1:7368`)
 
-all json. times are rfc3339 utc. ids are ulid strings. the ui must work against `ui/app/mock/` fixtures with the same shapes.
+all json. times are rfc3339 utc. ids are ulid strings. the ui must work against `ui/app/mock/` fixtures with the same shapes. errors are `{ error: "message" }` with status 400 (invalid), 404 (not found) or 500. the api answers only to loopback host names (`localhost`, `127.0.0.1`, `::1`); any other `Host` header gets 403 (a dns-rebinding guard).
+
+### the brain
 
 | method + path | returns / body |
 |---|---|
-| `GET /api/cloud` | the brain, columnar: `{ ids: [id], xyz: [f32 × 3n], region: [i32 index into regions or -1], kind: [u8 index into kinds], speaker: [u8 0=you 1=assistants 2=other], t: [unix seconds], titles: [string], kinds: [string], regions: [{ id, label, anatomy, size, centroid: [x,y,z], born_at }], links: [[i, j, kind]] }` |
+| `GET /api/cloud` | the brain, columnar: `{ ids: [id], xyz: [f32 × 3n], xyz_anatomy: [f32 × 3n], xyz_spheres: [f32 × 3n], region: [i32 index into regions or -1], kind: [u8 index into kinds], speaker: [u8 0=you 1=assistants 2=other], t: [unix seconds], titles: [string], kinds: [string], regions: [{ id, label, anatomy, size, centroid: [x,y,z], born_at }], links: [[i, j, kind]] }`. `xyz` is the `layout` view; `xyz_anatomy` / `xyz_spheres` are the other two views of the same layout (equal to `xyz` until the first full layout run). |
 | `GET /api/items/:id` | `{ item, links_out: [link], links_in: [link], threads: [thread], region }` |
 | `POST /api/items` | body `{ title, body, kind?, tags? }` (editor) → `item` |
 | `PUT /api/items/:id` | body `{ title?, body?, tags? }` → `item` |
-| `GET /api/search?q=&k=` | `{ hits: [hit] }` (hybrid fts + vector) |
-| `POST /api/chat` | body `{ chat_id?, message, backend? }` → `text/event-stream` with events `token {text}`, `cited {ids}`, `usage {backend, input, output, estimated}`, `done {chat_id, item_id}`, `error {message}` |
+| `GET /api/search?q=&k=` | `{ hits: [hit] }` (hybrid fts + vector; `k` defaults to 20, max 200) |
 | `GET /api/timeline` | `{ days: [{date, count}], months: [ym], by_region: [{region_id, counts: [n per month]}], by_speaker: {you: [n], assistants: [n], other: [n]}, threads_by_month: {decision: [n], open_question: [n], plan: [n], rejection: [n]} }` |
 | `GET /api/threads?kind=&status=` | `{ threads: [thread] }` |
 | `POST /api/threads/:id` | body `{ status, resolved_by? }` → `thread` |
-| `GET /api/review` | `{ items: [{ resurface_id, item, reason }] }` |
-| `POST /api/review/:resurface_id` | body `{ useful: bool }` |
-| `GET /api/suggestions?item=` | `{ suggestions: [{ suggestion_id, to: item_summary, score }] }` |
-| `POST /api/suggestions/:id` | body `{ accept: bool }` |
-| `POST /api/links` | body `{ from, to }` (manual link) |
+| `GET /api/review` | `{ items: [{ resurface_id, item, reason, arm }] }` — today's review, drawn on first request of the day if the job loop has not yet. `arm` is `"algorithm"` or `"random"`. |
+| `POST /api/review/:resurface_id` | body `{ useful: bool }` → `{ ok: true }` |
+| `GET /api/suggestions?item=` | `{ suggestions: [{ suggestion_id, to: item_summary, score }] }` — the shown arm only; held-out suggestions are never returned |
+| `POST /api/suggestions/:id` | body `{ accept: bool }` → suggestion. held-out suggestions answer 404. |
+| `POST /api/links` | body `{ from, to }` (manual link) → `link` |
 | `GET /api/lineage` | `{ runs: [{ run_id, at, regions: [region], transitions: [transition] }] }` |
-| `GET /api/eval` | `{ links: {...}, retrieval: {...}, resurfacing: {...}, growth: {...} }` — each with `n`, point estimate, interval, and `status: "measuring" | "enough data"` |
-| `POST /api/eval/label` | body `{ query, item_id, grade }` |
 | `GET /api/skills` | `{ skills: [{ id, title, body }] }` (items of kind `skill`) |
-| `GET /api/sources` / `POST /api/sources` / `DELETE /api/sources/:id` | sources |
-| `POST /api/sources/:id/sync` | trigger a sync |
-| `GET /api/backends` | `{ backends: [{ id, kind, label, available, capabilities, status, terms: "allowed"|"grey", notice? }], routing: {chat, label, extract} }` |
-| `PUT /api/settings` / `GET /api/settings` | user settings json (backend routing, theme id, motion, privacy defaults) |
-| `GET /api/egress?limit=` | `{ entries: [egress event] }` |
-| `GET /api/events?after=&limit=` | `{ events: [event] }` (for replay) |
-| `GET /api/export` | the whole brain as a portable bundle (json lines of events + items) |
+
+### chat
+
+`POST /api/chat`, body `{ chat_id?, message, backend?, approved?: [id] }` → `text/event-stream` with events:
+
+| event | data |
+|---|---|
+| `token` | `{ text }` |
+| `cited` | `{ ids }` — context items the reply cited as `[n]` |
+| `usage` | `{ backend, input, output, estimated }` |
+| `done` | `{ chat_id, item_id }` — `item_id` is the stored reply (null if the reply was empty) |
+| `error` | `{ message }` |
+| `consent_required` | `{ ids, chat_id }` — the chosen backend is not local and the context holds items marked `ask` that are not in `approved`. the stream ends here; nothing was sent. resend the same body with the ids the user agreed to in `approved`. |
+
+`backend` picks a backend for this request (an id from `/api/backends`); `"retrieval"` is the built-in responder that lists matching items without any model. with no backend configured, chat falls back to `retrieval`. items marked `local_only` are left out of the context whenever the backend is not local.
+
+### evaluation
+
+| method + path | returns / body |
+|---|---|
+| `GET /api/eval` | `{ events, links: {...}, retrieval: {...}, resurfacing: {...}, growth: {...}, honesty: { claims: [...] }, config }` — each section with `n`, point estimate, interval, `status: "measuring" \| "enough data"` and `novelty` (see `crates/anamnesis-eval/README.md`) |
+| `POST /api/eval/label` | body `{ query, item_id, grade }` (grade 0–3) → `{ ok: true }` |
+
+### sources
+
+| method + path | returns / body |
+|---|---|
+| `GET /api/sources` | `{ sources: [source], connectors: [manifest] }` — the built-in connectors' manifests, so a ui can render their config forms |
+| `POST /api/sources` | body `{ connector, name?, config, default_origin?, default_privacy? }` → `source`. the config is validated against the connector's schema and checked (`check`) before the source is stored. |
+| `PUT /api/sources/:id` | body `{ name?, config?, default_origin?, default_privacy? }` → `source`. a changed config resyncs from scratch. new defaults apply to items created from then on. |
+| `DELETE /api/sources/:id` | → `{ ok: true, items_deleted: n }` |
+| `POST /api/sources/:id/sync` | sync now → `{ created, updated, unchanged, duplicates, deleted, renamed, pages }` |
+
+### model backends
+
+| method + path | returns / body |
+|---|---|
+| `GET /api/backends` | `{ backends: [backend], routing: { chat, label, extract, summarise }, embedder: { id, backend, status, fallback, local }, usage: [backend_usage] \| null, detected: bool }`. a backend row is `{ id, kind, label, available, status, capabilities, terms: "allowed" \| "grey", notice?, cooldown?, models? }`; `kind` is `openai_compatible`, `anthropic`, `gemini`, `chatgpt`, `claude_cli`, or `retrieval` for the built-in responder (always present). `capabilities` holds `streaming, tools, json_schema, max_context, vision, cost_model ("free_local" \| "metered" \| "subscription"), background_allowed, forbidden_params, terms, maturity ("stable" \| "experimental"), notice`. `detected` is false until detection has run (or when the server runs with `--no-detect`). |
+| `POST /api/backends/refresh` | re-read settings and keys, re-run detection → same as `GET /api/backends` |
+| `PUT /api/backends/:id/key` | body `{ key }` → `{ ok: true }`. stores an api key in the os keychain under service `anamnesis`, account `:id` (e.g. `anthropic`, `gemini`, or an openai-compatible backend's id), then re-detects in the background. the key is never returned by any endpoint. |
+| `DELETE /api/backends/:id/key` | removes it → `{ ok: true }` |
+| `GET /api/backends/chatgpt` | `{ button_label: "Continue with ChatGPT", notice, usage_settings_url, status: { signed_in, plan_usage, email, message }, sign_in: { in_progress, last_error } }` |
+| `POST /api/backends/chatgpt/sign-in` | → `{ authorize_url, button_label }`. the ui opens `authorize_url` in the browser; a loopback listener waits for the callback, then the `chatgpt` backend is enabled and detection re-runs. poll `GET /api/backends/chatgpt` for the outcome. |
+| `POST /api/backends/chatgpt/sign-out` | forgets the app's own token → `{ ok: true }`. this does not revoke the app's access on openai's side. |
+
+### settings
+
+`GET /api/settings` → the settings object. `PUT /api/settings` merges a json object into it (a key set to `null` is removed) and returns the result. every change is a `SettingSet` event. these keys are typed and validated before anything is stored (400 on error):
+
+| key | type |
+|---|---|
+| `embedder` | an `EmbedderSpec` (`crates/anamnesis-embed/src/spec.rs`), e.g. `{ "backend": "local", "model": "multilingual-e5-small" }`, `{ "backend": "ollama", "model": "…" }`, `{ "backend": "openai_compatible", "base_url": "…", "model": "…" }`, `{ "backend": "hash" }`. changing it reloads the embedder and re-embeds (ignored while the server runs with `--hash-embedder`). |
+| `routing` | `{ chat?, label?, extract?, summarise?, fallbacks?: { task: [id] }, background_to_api_by_default?: bool }` — backend ids per task |
+| `harness` | the harness configuration: `{ openai_compatible: [{ id, provider, base_url, model, label?, local?, … }], anthropic?: { chat_model?, label_model?, … }, gemini?: { model?, label_model? }, chatgpt?: { enabled, model? }, claude_cli: { enabled, binary?, model? }, prices?, probe_local? }`. api keys never go here. changing it re-runs detection. |
+| `privacy` | `{ default: "local_only" \| "cloud_ok" \| "ask" }` (validated and stored; see the note in `docs/privacy.md`) |
+| `theme`, `motion` | written by `ui/theme` (`{ theme: {…}, motion: "full" \| "reduced" }`) |
+
+other keys are stored as given.
+
+### log, export, status
+
+| method + path | returns / body |
+|---|---|
+| `GET /api/egress?limit=` | `{ entries: [egress event] }` — newest first, default 100 |
+| `GET /api/events?after=&limit=` | `{ events: [event] }` (for replay; `after` is a sequence number, default limit 1000, max 10000) |
+| `GET /api/export` | the whole brain as a portable bundle (`application/x-ndjson`: a manifest line, then every event) |
+| `GET /api/status` | `{ version, demo, items, events, head, embedder }` |
+| `POST /api/jobs/run` | run the background jobs once now → `{ embedded, mind: { full, items, placed_new, regions, labelled_by } \| null, suggestions, threads, resurfaced }` |
+| `GET /api/demo` | `{ active, available, bundle, items }` |
+| `POST /api/demo` | body `{ enabled: bool }` (default true) — switch to the demo brain (imported on first use) or back to yours → same as `GET /api/demo`. 400 if no demo bundle is found. |
+| `GET /api/mcp/snippets` | `{ snippets: { claude_code_command, claude_code_http_command, claude_code_mcp_json, claude_code_mcp_json_http, claude_desktop_json, codex_toml, codex_toml_http, gemini_settings_json, gemini_settings_json_http }, http_url, token_env_var: "ANAMNESIS_MCP_TOKEN", token, tools: [name] }` — ready-to-paste client config; the http variants reference the token through the environment variable, never inline |
+
+### mcp
+
+`/mcp` (outside `/api`) is the streamable http mcp transport, guarded by `Authorization: Bearer <token>` (the token is in `<brain dir>/mcp_token` and in `GET /api/mcp/snippets`). browser requests must come from a loopback origin. `anamnesis mcp` serves the same tools over stdio. see `docs/mcp.md`.
 
 ## theme tokens (css custom properties on `:root`)
 
