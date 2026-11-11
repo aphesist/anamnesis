@@ -1,5 +1,6 @@
 [package]
 name = "anamnesis-mcp"
+description = "anamnesis: mcp server (stdio + streamable http) over the brain"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,3 +8,20 @@ repository.workspace = true
 
 [dependencies]
 anamnesis-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+async-trait.workspace = true
+rmcp = { version = "3.9", features = ["server", "macros", "transport-io", "transport-streamable-http-server"] }
+schemars = "1.2"
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+tokio-util = "0.7"
+
+[dev-dependencies]
+rmcp = { version = "3.9", features = ["client", "server", "macros"] }
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
