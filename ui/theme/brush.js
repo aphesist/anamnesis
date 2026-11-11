@@ -193,7 +193,8 @@ export function frame(w, h, seed = 9, width = 2.2, over = 6) {
     line(w + over * 0.4, h + j(), -over * 0.8, h + j(), 40),
     line(j(), h + over * 0.3, j(), -over, 40),
   ];
-  return strokes.map((p, i) => brush(p, width, seed + i * 31, 0.28, 0.12)).join('');
+  // each side its own stroke: thick in the middle, tapering off past the corners, edges drifting
+  return strokes.map((p, i) => brush(p, width * (0.8 + r() * 0.5), seed + i * 31, 0.3, 0.22, { contrast: 1.8 })).join('');
 }
 
 /** a ring drawn in one sweep with a gap, like a hand closing a circle */

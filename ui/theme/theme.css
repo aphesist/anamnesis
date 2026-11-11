@@ -1,0 +1,115 @@
+/* anamnesis theme behaviours: the browser defaults and small type roles, drawn from the tokens only.
+   Load after the theme's dist/<id>.css (theme.js manages that link). Everything here reads custom properties,
+   so every theme gets it. Most rules sit in :where() and weigh nothing: the app's own rules win. */
+
+:where(html) {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: calc(var(--type-size-body, 16px) * var(--type-scale, 1));
+  line-height: var(--type-leading-body, 1.6);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  caret-color: var(--accent);
+  accent-color: var(--accent);
+  transition: background-color var(--dur-theme, 0.8s) var(--ease), color var(--dur-theme, 0.8s) var(--ease);
+}
+:where(body) { margin: 0; background: var(--bg); color: var(--ink); }
+
+/* focus: a 1px accent hairline offset 4px, keyboard only */
+:where(:focus-visible) { outline: 1px solid var(--accent); outline-offset: 4px; }
+:where(:focus:not(:focus-visible)) { outline: none; }
+
+/* selection: red ink on a veil of accent, never the system blue */
+::selection { background: var(--veil); color: var(--accent-text); -webkit-text-fill-color: var(--accent-text); text-shadow: none; }
+
+/* buttons and fields: words, not boxes */
+:where(button) {
+  appearance: none; background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer;
+}
+:where(button:disabled) { color: var(--ink-soft); cursor: default; }
+:where(input, textarea, select) {
+  appearance: none; background: none; border: 0; border-radius: 0;
+  font: inherit; color: inherit; caret-color: var(--accent);
+}
+:where(input, textarea)::placeholder { color: var(--ink-soft); opacity: 1; }
+:where(input[type="range"]) { appearance: auto; accent-color: var(--accent); }
+:where(input[type="checkbox"], input[type="radio"]) { appearance: auto; accent-color: var(--accent); }
+:where(a) { color: inherit; text-decoration-color: var(--line); text-underline-offset: 0.2em; }
+:where(a:hover) { color: var(--accent-text); }
+
+/* type roles */
+.anm-display {
+  font-family: var(--font-display);
+  font-weight: var(--type-display-weight, 400);
+  font-variation-settings: "slnt" var(--type-display-slant, 0);
+  line-height: var(--type-leading-display, 1);
+  text-transform: lowercase;
+  padding-right: 0.2em; /* slanted script leans out of its box */
+}
+.anm-title { font-size: calc(var(--type-size-title) * var(--type-scale, 1)); }
+.anm-heading { font-size: calc(var(--type-size-heading) * var(--type-scale, 1)); }
+.anm-gloss {
+  font-family: var(--font-display); color: var(--ink-soft);
+  font-size: calc(var(--type-size-gloss) * var(--type-scale, 1));
+  font-variation-settings: "slnt" var(--type-display-slant, 0);
+  letter-spacing: calc(var(--type-tracking-gloss, 0) * 1em);
+}
+.anm-lede { font-size: calc(var(--type-size-lede) * var(--type-scale, 1)); line-height: var(--type-leading-lede); }
+.anm-label {
+  font-family: var(--font-text); font-size: calc(var(--type-size-label) * var(--type-scale, 1));
+  letter-spacing: calc(var(--type-tracking-label, 0) * 1em); line-height: var(--type-leading-label, 1);
+  text-transform: lowercase;
+}
+.anm-meta {
+  font-family: var(--font-text); font-size: calc(var(--type-size-meta) * var(--type-scale, 1));
+  letter-spacing: calc(var(--type-tracking-meta, 0) * 1em); line-height: var(--type-leading-meta, 1.6);
+  color: var(--ink-soft);
+}
+.anm-data { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+/* text over stipple keeps a halo of ground so it never sits on dots */
+.anm-on-fog { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg), 0 0 18px var(--bg); }
+
+/* marks: drawn as a mask so they take the theme's colour (an uploaded png logo keeps its own colours: .anm-mark-img) */
+.anm-mark {
+  display: inline-block; aspect-ratio: 100 / 140; height: 64px;
+  background: var(--seal);
+  -webkit-mask: var(--mark) center / contain no-repeat; mask: var(--mark) center / contain no-repeat;
+}
+.anm-wordmark {
+  display: inline-block; aspect-ratio: 360 / 64; height: 32px;
+  background: var(--seal);
+  -webkit-mask: var(--wordmark) left center / contain no-repeat; mask: var(--wordmark) left center / contain no-repeat;
+}
+
+/* brushed underline drawn by brush.js inside a control */
+.anm-underline { display: block; width: 100%; height: 6px; color: var(--ink-soft); overflow: visible; }
+:where(:hover, :focus-visible) > .anm-underline { color: var(--accent); }
+
+/* scrollbars: hidden everywhere when the theme (or the person) asks; scrolling stays native */
+:root[data-scrollbars="hidden"], :root[data-scrollbars="hidden"] * { scrollbar-width: none !important; }
+:root[data-scrollbars="hidden"] ::-webkit-scrollbar { display: none !important; }
+:root[data-scrollbars="system"] { scrollbar-color: var(--line) transparent; }
+
+/* custom cursor (cursor.js): a disc in difference blend. The system cursor hides only for fine pointers. */
+@media (hover: hover) and (pointer: fine) {
+  :root[data-cursor="custom"].anm-has-cursor,
+  :root[data-cursor="custom"].anm-has-cursor * { cursor: none !important; }
+}
+.anm-cursor {
+  position: fixed; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  border-radius: 50%; background: #fff; mix-blend-mode: difference; pointer-events: none;
+  z-index: var(--z-cursor, 20); opacity: 0; transform: translate(-100px, -100px) scale(0.2);
+  transition: opacity var(--dur-short) ease;
+}
+.anm-cursor.on { opacity: 1; }
+:root:not([data-cursor="custom"]) .anm-cursor { display: none; }
+
+/* dialogs: no box; the backdrop is a veil of ground */
+:where(dialog) { background: transparent; color: var(--ink); border: 0; padding: 0; }
+:where(dialog)::backdrop { background: color-mix(in oklab, var(--bg) 78%, transparent); backdrop-filter: blur(3px); }
+
+/* reduced motion: things that announce themselves with motion only fade */
+:root[data-motion="reduced"] .anm-anim { animation: none !important; }
