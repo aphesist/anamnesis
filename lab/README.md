@@ -154,7 +154,67 @@ are cached in `cache/emb/`.
 
 results land in `results/<benchmark>-<name>.json` and are small enough to commit.
 
-<!-- results tables: paste `anamnesis-lab report` output here -->
+### results (2026-11-11, cpu, 2 threads)
+
+retrieval matches published numbers closely (bm25 on scifact ≈ 0.66), and multilingual-e5-small edges bm25 on both sets. link prediction on the demo brain is a demonstration: only 30 later notes have content links (same-day cross-author references), and the hash baseline finds none of them in the top 10 — e5-small was not run on it. layout: 2,000 sampled notes, hash embeddings; warm-starting umap roughly halves drift in later snapshots at equal trustworthiness. no rust placements file exists yet, so the rust column is empty.
+
+#### layout stability — transcendentalist (2026-11-11, 2000 notes, embeddings: hash)
+
+| method | snapshot | trustworthiness | continuity |
+|---|---|---|---|
+| umap | 1000 | 0.655 | 0.740 |
+| umap | 1333 | 0.664 | 0.773 |
+| umap | 1667 | 0.667 | 0.783 |
+| umap | 2000 | 0.666 | 0.789 |
+| umap-warm | 1000 | 0.655 | 0.740 |
+| umap-warm | 1333 | 0.664 | 0.774 |
+| umap-warm | 1667 | 0.667 | 0.786 |
+| umap-warm | 2000 | 0.672 | 0.789 |
+| pacmap | 1000 | 0.664 | 0.689 |
+| pacmap | 1333 | 0.672 | 0.709 |
+| pacmap | 1667 | 0.681 | 0.729 |
+| pacmap | 2000 | 0.677 | 0.730 |
+
+drift between consecutive snapshots:
+
+| method | snapshot | shared | disparity | rms (relative) |
+|---|---|---|---|---|
+| umap | 1333 | 1000 | 0.309 | 0.556 |
+| umap | 1667 | 1333 | 0.203 | 0.450 |
+| umap | 2000 | 1667 | 0.292 | 0.540 |
+| umap-warm | 1333 | 1000 | 0.316 | 0.563 |
+| umap-warm | 1667 | 1333 | 0.180 | 0.425 |
+| umap-warm | 2000 | 1667 | 0.154 | 0.393 |
+| pacmap | 1333 | 1000 | 0.383 | 0.619 |
+| pacmap | 1667 | 1333 | 0.243 | 0.493 |
+| pacmap | 2000 | 1667 | 0.176 | 0.420 |
+
+#### link prediction — transcendentalist (2026-11-11, demonstration)
+
+split at 1852-11-01 (quantile 0.5): 4619 earlier notes, 30 later notes with links to earlier ones; target kinds {'journal': 30}
+
+| model | queries | hits@1 | hits@10 | hits@50 | recall@10 | MRR |
+|---|---|---|---|---|---|---|
+| random | 30 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
+| popularity | 30 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
+| hash | 30 | 0.000 | 0.000 | 0.033 | 0.000 | 0.001 |
+
+#### retrieval — nfcorpus (2026-11-11)
+
+| model | docs | queries | nDCG@10 | 95% CI | Recall@100 | 95% CI | s |
+|---|---|---|---|---|---|---|---|
+| hash | 3633 | 323 | 0.125 | [0.103, 0.152] | 0.148 | [0.126, 0.172] | 3 |
+| bm25 | 3633 | 323 | 0.305 | [0.269, 0.344] | 0.239 | [0.211, 0.269] | 0 |
+| e5-small | 3633 | 323 | 0.306 | [0.270, 0.342] | 0.276 | [0.245, 0.303] | 526 |
+
+#### retrieval — scifact (2026-11-11)
+
+| model | docs | queries | nDCG@10 | 95% CI | Recall@100 | 95% CI | s |
+|---|---|---|---|---|---|---|---|
+| hash | 5183 | 300 | 0.327 | [0.276, 0.376] | 0.614 | [0.558, 0.667] | 3 |
+| bm25 | 5183 | 300 | 0.659 | [0.614, 0.704] | 0.889 | [0.854, 0.923] | 1 |
+| e5-small | 5183 | 300 | 0.682 | [0.636, 0.723] | 0.941 | [0.916, 0.966] | 1030 |
+
 
 ## copyright notes
 

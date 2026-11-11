@@ -26,7 +26,7 @@ def table(headers: list[str], rows: list[list]) -> str:
 
 def render_retrieval(doc: dict) -> str:
     rows = [[r["model"], r["docs"], r["queries"], r["ndcg@10"], _ci(r.get("ndcg@10_ci95")), r["recall@100"],
-             _ci(r.get("recall@100_ci95")), r.get("seconds")] for r in doc["rows"]]
+             _ci(r.get("recall@100_ci95")), f"{r.get('seconds', 0):.0f}"] for r in doc["rows"]]
     title = f"### retrieval — {doc['dataset']}{' (subset)' if doc.get('subset') else ''} ({doc['date']})"
     return title + "\n\n" + table(["model", "docs", "queries", "nDCG@10", "95% CI", "Recall@100", "95% CI", "s"], rows)
 

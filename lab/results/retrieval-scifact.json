@@ -1,0 +1,60 @@
+{
+  "benchmark": "retrieval",
+  "dataset": "scifact",
+  "date": "2026-11-11",
+  "subset": false,
+  "rows": [
+    {
+      "dataset": "scifact",
+      "model": "hash",
+      "docs": 5183,
+      "queries": 300,
+      "ndcg@10": 0.3265786110647962,
+      "ndcg@10_ci95": [
+        0.27560637503948626,
+        0.37631488802020013
+      ],
+      "recall@100": 0.6137222222222223,
+      "recall@100_ci95": [
+        0.5583277777777778,
+        0.6673722222222221
+      ],
+      "seconds": 3.0
+    },
+    {
+      "dataset": "scifact",
+      "model": "bm25",
+      "docs": 5183,
+      "queries": 300,
+      "ndcg@10": 0.658832725066825,
+      "ndcg@10_ci95": [
+        0.6135781676377413,
+        0.7040395912101908
+      ],
+      "recall@100": 0.8885555555555555,
+      "recall@100_ci95": [
+        0.8535444444444444,
+        0.9225749999999999
+      ],
+      "seconds": 0.8
+    },
+    {
+      "dataset": "scifact",
+      "model": "e5-small",
+      "docs": 5183,
+      "queries": 300,
+      "ndcg@10": 0.6820404676557632,
+      "ndcg@10_ci95": [
+        0.6359354510647759,
+        0.7232603479480243
+      ],
+      "recall@100": 0.9410000000000001,
+      "recall@100_ci95": [
+        0.9159833333333334,
+        0.9660000000000001
+      ],
+      "seconds": 1029.5
+    }
+  ],
+  "note": "BEIR test split; nDCG@10 with graded qrels; 95% bootstrap intervals over queries"
+}
