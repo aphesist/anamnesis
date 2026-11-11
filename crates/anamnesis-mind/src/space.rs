@@ -5,7 +5,7 @@
 use crate::knn::{Knn, knn_graph};
 use crate::linalg::{Pca, Rows};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct SpaceParams {
     /// Dimensions kept by PCA before the kNN graph (vectors with fewer
     /// dimensions are only centred).

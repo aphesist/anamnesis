@@ -41,6 +41,7 @@ fn fsrs_intervals_grow_and_lapse() {
     assert_eq!(Engagement::from_useful(true).rating(), Some(Rating::Good));
 }
 
+#[allow(clippy::type_complexity)]
 fn pool(now: chrono::DateTime<Utc>) -> (Vec<Id>, Vec<Vec<f32>>, Vec<ReviewInfo>, Vec<Vec<f32>>) {
     let mut r = Rng::new(5);
     let d = 16;

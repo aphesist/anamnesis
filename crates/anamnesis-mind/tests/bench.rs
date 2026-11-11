@@ -36,6 +36,10 @@ fn bench_20k_384d() {
     let t_layout = t.elapsed();
 
     let t = Instant::now();
+    let _seq = layout_full(&ids, &space, None, &LayoutParams { parallel_above: None, ..Default::default() });
+    eprintln!("layout (fresh, sequential): {:?}", t.elapsed());
+
+    let t = Instant::now();
     let lay2 = layout_full(&ids, &space, Some(&lay.layout), &LayoutParams::default());
     let t_relayout = t.elapsed();
 
