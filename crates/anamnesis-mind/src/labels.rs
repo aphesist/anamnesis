@@ -325,12 +325,16 @@ fn stopset() -> &'static HashSet<&'static str> {
 
 /// c-TF-IDF (Grootendorst 2022, as in BERTopic): treat each class as one
 /// document; weight `W(t,c) = tf(t,c)/|c| · ln(1 + A / f(t))` where `f(t)` is
-/// the frequency of `t` over all classes and `A` the mean words per class.
+/// the frequency of `t` over all classes and `A` the mean words per class,
+/// times `ln(1 + C / c(t))` where `c(t)` is the number of the `C` classes `t`
+/// occurs in, so words spread over every region don't name one.
 /// `classes[c]` lists the texts of class `c`. Returns the top `top` terms per
 /// class with their weights.
 pub fn c_tf_idf(classes: &[Vec<&str>], top: usize) -> Vec<Vec<(String, f32)>> {
     let mut counts: Vec<HashMap<String, u32>> = Vec::with_capacity(classes.len());
     let mut global: HashMap<String, u32> = HashMap::new();
+    // number of classes a term occurs in
+    let mut spread: HashMap<String, u32> = HashMap::new();
     let mut total_words = 0usize;
     for texts in classes {
         let mut m: HashMap<String, u32> = HashMap::new();
@@ -342,9 +346,11 @@ pub fn c_tf_idf(classes: &[Vec<&str>], top: usize) -> Vec<Vec<(String, f32)>> {
         }
         for (w, c) in &m {
             *global.entry(w.clone()).or_default() += c;
+            *spread.entry(w.clone()).or_default() += 1;
         }
         counts.push(m);
     }
+    let nclasses = classes.iter().filter(|c| !c.is_empty()).count().max(1) as f32;
     let a = total_words as f32 / classes.len().max(1) as f32;
     counts
         .into_iter()
@@ -355,7 +361,10 @@ pub fn c_tf_idf(classes: &[Vec<&str>], top: usize) -> Vec<Vec<(String, f32)>> {
                 .filter(|(_, c)| *c >= 1)
                 .map(|(w, c)| {
                     let f = global[&w] as f32;
-                    let weight = c as f32 / len.max(1) as f32 * (1.0 + a / f).ln();
+                    // words that occur in most classes ("said", "men") say little
+                    // about any one of them
+                    let class_idf = (1.0 + nclasses / spread[&w] as f32).ln();
+                    let weight = c as f32 / len.max(1) as f32 * (1.0 + a / f).ln() * class_idf;
                     (w, weight)
                 })
                 .collect();
