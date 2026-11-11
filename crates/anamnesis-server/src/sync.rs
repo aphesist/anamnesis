@@ -8,16 +8,20 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anamnesis_connectors::{Batch, Connector, RESERVED_CONNECTOR_IDS, builtin, validated_list};
-use anamnesis_core::{Actor, EventKind, Id, Source, UpsertOutcome, canon::canonical_json};
+use anamnesis_connectors::{
+    Batch, Connector, META_ORIGIN_EXPLICIT, RESERVED_CONNECTOR_IDS, validated_list,
+};
+use anamnesis_core::{Actor, EventKind, Id, Origin, Source, UpsertOutcome, canon::canonical_json};
 use anyhow::{Context, Result};
 use serde::Serialize;
+use serde_json::json;
 use sha2::{Digest, Sha256};
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
 use crate::app::App;
 use crate::brain::Brain;
+use crate::plugins::Plugins;
 
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(1500);
 const DEFAULT_POLL: Duration = Duration::from_secs(300);
@@ -57,11 +61,11 @@ fn wrap_cursor(source: &Source, inner: Option<String>) -> Option<String> {
 }
 
 /// A connector for a source, or `None` for sources the server writes itself.
-pub fn connector_for(source: &Source) -> Result<Option<Box<dyn Connector>>> {
+pub fn connector_for(plugins: &Plugins, source: &Source) -> Result<Option<Box<dyn Connector>>> {
     if RESERVED_CONNECTOR_IDS.contains(&source.connector.as_str()) {
         return Ok(None);
     }
-    Ok(Some(builtin(&source.connector)?))
+    Ok(Some(plugins.resolve(&source.connector)?))
 }
 
 /// Apply one batch: renames (re-keyed in place, so the item keeps its id, links and
@@ -69,6 +73,7 @@ pub fn connector_for(source: &Source) -> Result<Option<Box<dyn Connector>>> {
 fn apply_batch(
     store: &anamnesis_core::Store,
     source: &Source,
+    connector_default_origin: Option<Origin>,
     batch: Batch,
     r: &mut SyncReport,
 ) -> Result<()> {
@@ -83,12 +88,45 @@ fn apply_batch(
             r.renamed += 1;
         }
     }
-    for doc in batch.upserts {
-        match store.upsert_document(&source.id, doc)? {
-            UpsertOutcome::Created(_) => r.created += 1,
-            UpsertOutcome::Updated(_) => r.updated += 1,
-            UpsertOutcome::Unchanged(_) => r.unchanged += 1,
-            UpsertOutcome::Duplicate { .. } => r.duplicates += 1,
+    for mut doc in batch.upserts {
+        if !doc.meta.is_object() {
+            doc.meta = if doc.meta.is_null() {
+                json!({})
+            } else {
+                json!({ "connector_meta": doc.meta })
+            };
+        }
+        // keys the server keeps on the item survive a connector update (which replaces meta)
+        if let Some(old) = store.get_item_by_external_id(&source.id, &doc.external_id)?
+            && crate::privacy::is_explicit(&old)
+        {
+            doc.meta[crate::privacy::META_PRIVACY_EXPLICIT] = json!(true);
+        }
+        // the source's default origin, unless the document stated its own
+        let explicit_origin = doc.meta.get(META_ORIGIN_EXPLICIT) == Some(&json!(true));
+        if !explicit_origin && Some(doc.origin) == connector_default_origin {
+            doc.origin = source.default_origin;
+        }
+        let item = match store.upsert_document(&source.id, doc)? {
+            UpsertOutcome::Created(i) => {
+                r.created += 1;
+                Some(i)
+            }
+            UpsertOutcome::Updated(i) => {
+                r.updated += 1;
+                Some(i)
+            }
+            UpsertOutcome::Unchanged(id) => {
+                r.unchanged += 1;
+                store.get_item(&id)?
+            }
+            UpsertOutcome::Duplicate { .. } => {
+                r.duplicates += 1;
+                None
+            }
+        };
+        if let Some(item) = item {
+            crate::privacy::reconcile_item(store, &item, source, actor.clone())?;
         }
     }
     for ext in &batch.deletes {
@@ -101,15 +139,20 @@ fn apply_batch(
 
 /// Sync one source until the connector has nothing more, persisting the cursor after each
 /// applied page. No store lock is held while the connector runs.
-pub async fn sync_source(brain: &Arc<Brain>, source_id: &Id) -> Result<SyncReport> {
+pub async fn sync_source(
+    brain: &Arc<Brain>,
+    plugins: &Plugins,
+    source_id: &Id,
+) -> Result<SyncReport> {
     let sid = source_id.clone();
     let mut source = brain
         .db(move |s| Ok(s.get_source(&sid)?))
         .await?
         .with_context(|| format!("no source {source_id}"))?;
-    let Some(conn) = connector_for(&source)? else {
+    let Some(conn) = connector_for(plugins, &source)? else {
         return Ok(SyncReport::default());
     };
+    let default_origin = Some(conn.manifest().default_origin);
     let mut report = SyncReport::default();
     let mut cursor = inner_cursor(&source);
     for _ in 0..10_000 {
@@ -123,7 +166,7 @@ pub async fn sync_source(brain: &Arc<Brain>, source_id: &Id) -> Result<SyncRepor
         let mut r = std::mem::take(&mut report);
         let (r, updated) = brain
             .db(move |s| {
-                apply_batch(s, &src, batch, &mut r)?;
+                apply_batch(s, &src, default_origin, batch, &mut r)?;
                 let updated = s.set_source_cursor(&src.id, wrap_cursor(&src, next))?;
                 Ok((r, updated))
             })
@@ -157,7 +200,7 @@ pub async fn sync_all(app: &Arc<App>) -> Result<Vec<(Source, Result<SyncReport>)
         if RESERVED_CONNECTOR_IDS.contains(&src.connector.as_str()) || src.connector == "editor" {
             continue;
         }
-        let r = sync_source(&brain, &src.id).await;
+        let r = sync_source(&brain, &app.plugins, &src.id).await;
         out.push((src, r));
     }
     Ok(out)
@@ -215,7 +258,7 @@ pub async fn reconcile(app: &Arc<App>) -> Result<()> {
         if tasks.contains_key(&src.id.0) {
             continue;
         }
-        let Ok(Some(conn)) = connector_for(&src) else {
+        let Ok(Some(conn)) = connector_for(&app.plugins, &src) else {
             continue;
         };
         let poll = conn
@@ -262,7 +305,7 @@ async fn source_loop(
         }
     };
     loop {
-        match sync_source(&brain, &src.id).await {
+        match sync_source(&brain, &app.plugins, &src.id).await {
             Ok(r) if r.changed() => app.jobs_notify.notify_one(),
             Ok(_) => {}
             Err(e) => tracing::warn!("{e:#}"),

@@ -28,6 +28,11 @@ pub trait Backend: Send + Sync {
     fn is_local(&self) -> bool {
         self.capabilities().cost_model == CostModel::FreeLocal
     }
+    /// True when prompts travel to another machine. A local backend on the user's own
+    /// lan server is local (no egress gate) yet still leaves this machine.
+    fn leaves_machine(&self) -> bool {
+        !self.is_local()
+    }
     /// Health check: configured, reachable, signed in.
     async fn available(&self) -> Availability;
     /// Start a streamed chat. Errors before the first byte are returned here; errors after

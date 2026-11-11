@@ -13,7 +13,7 @@ what does reach the network, and only when you set it up: the sources you add (a
 
 ## privacy flags
 
-every item has a privacy flag, inherited from its source when the item is created:
+every item has a privacy flag. it comes from, most specific first: the flag you set on the item by hand; the note's own frontmatter (`privacy: local_only`); the source's default; and for a new source with no default given, the `privacy.default` setting.
 
 | flag | meaning |
 |---|---|
@@ -21,13 +21,19 @@ every item has a privacy flag, inherited from its source when the item is create
 | `ask` | ask each time: chat stops with a `consent_required` event naming these items, and sends them only if you approve |
 | `local_only` | never sent to a non-local model, never returned with its text over mcp |
 
-set a source's default when you add it, or change it later (it applies to items created from then on):
+set a source's default when you add it (`anamnesis add-source folder --privacy local_only …`), or change it later; its items that took the old default follow the new one, while flags set by hand or by frontmatter stay:
 
 ```sh
 curl -X PUT http://127.0.0.1:7368/api/sources/<source id> -H 'content-type: application/json' -d '{"default_privacy":"local_only"}'
 ```
 
-current limits, stated plainly: there is no per-item control yet, changing a source's default does not re-flag items already imported, and the `privacy.default` setting is stored but not yet applied to new sources (built-in connectors default to `cloud_ok`). to keep an existing folder local-only today, remove the source and add it again with `"default_privacy": "local_only"`.
+set one item by hand (`null` hands it back to its frontmatter or source):
+
+```sh
+curl -X PUT http://127.0.0.1:7368/api/items/<item id> -H 'content-type: application/json' -d '{"privacy":"ask"}'
+```
+
+every change is an `ItemUpdated` event in the log. one detail, stated plainly: an imported note whose frontmatter says `local_only` is created with the source's flag and re-flagged in the same write, so the log holds both events.
 
 ## the egress gate and ledger
 
@@ -55,7 +61,7 @@ external harnesses that connect over mcp get a deliberately small surface ([mcp.
 
 ## credentials
 
-- api keys live in the os keychain (service `anamnesis`). they are not settings, so they never enter the event log or an exported bundle, and no endpoint returns them.
+- api keys live in the os keychain (service `anamnesis`), or, where there is no usable keychain, in `secrets.json` in the data directory with mode 0600. they are not settings, so they never enter the event log or an exported bundle, nothing logs them, and no endpoint returns them (`GET /api/backends` says only where each key is: `keychain`, `file` or `env`).
 - the "Continue with ChatGPT" token is anamnesis's own, from openai's sign-in, stored in the keychain (or a 0600 file if there is no keychain).
 - the mcp bearer token is a 0600 file in the brain directory, deliberately not a setting, so it does not travel in exports.
 - anamnesis never reads another program's credentials. see [models.md](models.md#what-anamnesis-will-not-do).

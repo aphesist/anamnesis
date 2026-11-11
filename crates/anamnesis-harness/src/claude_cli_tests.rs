@@ -389,3 +389,20 @@ fn adapter_source_never_touches_cli_credentials() {
         );
     }
 }
+
+#[test]
+fn notice_is_quoted_verbatim_in_the_docs() {
+    assert_eq!(
+        NOTICE,
+        "uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this and could restrict it at any time; the safest routes are the mcp server and an api key. anamnesis never reads your credentials."
+    );
+    for (name, doc) in [
+        ("docs/models.md", include_str!("../../../docs/models.md")),
+        ("README.md", include_str!("../../../README.md")),
+    ] {
+        assert!(
+            doc.contains(NOTICE),
+            "{name} must quote the notice verbatim"
+        );
+    }
+}

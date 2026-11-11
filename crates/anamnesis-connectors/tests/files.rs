@@ -269,3 +269,49 @@ async fn folder_watch_reports_changes() {
         .unwrap();
     assert_eq!(n.external_id.as_deref(), Some("new.md"));
 }
+
+#[tokio::test]
+async fn frontmatter_origin_and_privacy_override_defaults() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    std::fs::write(
+        root.join("draft.md"),
+        "---\norigin: ai_generated\nprivacy: local_only\n---\na model wrote this\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("ask.md"),
+        "---\nprivacy: Ask\norigin: nonsense\n---\nmine, but ask first\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("plain.md"), "just a note\n").unwrap();
+    for connector in ["folder", "obsidian"] {
+        let c = builtin(connector).unwrap();
+        // the config's origin is the source default; the note's own frontmatter wins
+        let config = json!({ "path": root.to_str().unwrap(), "origin": "external" });
+        let b = list_all(c.as_ref(), &config, None).await.unwrap();
+        let d = doc(&b, "draft.md");
+        assert_eq!(d.origin, Origin::AiGenerated, "{connector}");
+        assert_eq!(d.meta[anamnesis_connectors::META_PRIVACY], "local_only");
+        assert_eq!(d.meta[anamnesis_connectors::META_ORIGIN_EXPLICIT], true);
+        let a = doc(&b, "ask.md");
+        // an unknown origin is ignored: the config default stays
+        assert_eq!(a.origin, Origin::External, "{connector}");
+        assert_eq!(a.meta[anamnesis_connectors::META_PRIVACY], "ask");
+        let p = doc(&b, "plain.md");
+        assert_eq!(p.origin, Origin::External);
+        assert!(p.meta.get(anamnesis_connectors::META_PRIVACY).is_none());
+
+        // without a config origin: the connector default, not marked explicit
+        let config = json!({ "path": root.to_str().unwrap() });
+        let b = list_all(c.as_ref(), &config, None).await.unwrap();
+        assert_eq!(doc(&b, "draft.md").origin, Origin::AiGenerated);
+        let p = doc(&b, "plain.md");
+        assert_eq!(p.origin, Origin::OwnerWritten);
+        assert!(
+            p.meta
+                .get(anamnesis_connectors::META_ORIGIN_EXPLICIT)
+                .is_none()
+        );
+    }
+}

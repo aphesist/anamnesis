@@ -40,6 +40,10 @@ pub struct ChatBody {
     /// Ids of `ask` items the user approved for this request.
     #[serde(default)]
     pub approved: Vec<Id>,
+    /// Ids of `ask` items the user declined for this request: left out of the prompt
+    /// (no new `consent_required` for them). A denial wins over an approval.
+    #[serde(default)]
+    pub denied: Vec<Id>,
 }
 
 struct ContextItem {
@@ -299,13 +303,19 @@ async fn run_chat(
             Ok(out)
         })
         .await?;
-    let approved: HashSet<&Id> = body.approved.iter().collect();
+    let denied: HashSet<&Id> = body.denied.iter().collect();
+    let approved: HashSet<&Id> = body
+        .approved
+        .iter()
+        .filter(|i| !denied.contains(i))
+        .collect();
     let mut ctx: Vec<ContextItem> = Vec::new();
     let mut needs_consent: Vec<Id> = Vec::new();
     for c in ctx_all {
         if !local {
             match c.privacy {
                 Privacy::LocalOnly => continue,
+                Privacy::Ask if denied.contains(&c.id) => continue,
                 Privacy::Ask if !approved.contains(&c.id) => {
                     needs_consent.push(c.id.clone());
                     continue;
@@ -392,7 +402,7 @@ async fn run_chat(
         let req = ChatRequest::new(messages).with_system(system_prompt(&ctx));
         let call = CallContext {
             items: ctx.iter().map(|c| (c.id.clone(), c.privacy)).collect(),
-            approved: body.approved.clone(),
+            approved: approved.iter().map(|i| (*i).clone()).collect(),
             backend: wanted.clone(),
         };
         let routed = match router.chat(Task::Chat, req, call).await {

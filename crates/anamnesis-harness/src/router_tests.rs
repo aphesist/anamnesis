@@ -187,6 +187,7 @@ async fn background_refuses_explicit_subscription_choice_and_fallbacks() {
     let mut s = RoutingSettings {
         label: Some("claude-cli".into()),
         extract: Some("chatgpt".into()),
+        background_to_api_by_default: true,
         ..Default::default()
     };
     s.fallbacks
@@ -209,7 +210,7 @@ async fn background_refuses_explicit_subscription_choice_and_fallbacks() {
         r.chat(Task::Summarise, req(), ctx).await,
         Err(HarnessError::Routing(_))
     ));
-    // summarise default goes to the metered backend; the plan fallbacks are dropped
+    // summarise default (opted in) goes to the metered backend; plan fallbacks are dropped
     let plan = r.plan(Task::Summarise, None).unwrap();
     assert_eq!(
         plan.iter().map(|b| b.id().to_string()).collect::<Vec<_>>(),
@@ -306,16 +307,67 @@ async fn local_first_for_background_then_cheapest_api() {
             "claude-haiku-5-5",
             Behaviour::Ok,
         );
+    // by default background work never goes to a metered key: no local model, no label
     let r2 = w2.router(RoutingSettings::default()).await;
-    assert_eq!(r2.plan(Task::Label, None).unwrap()[0].id(), "haiku-api");
-    // background api use can be switched off
+    assert!(r2.plan(Task::Label, None).is_err());
+    assert!(r2.plan(Task::Extract, None).is_err());
+    // chat still may (the user is asking for that call)
+    assert!(r2.plan(Task::Chat, None).is_ok());
+    // opted in: the cheapest priced api backend
     let r3 = w2
         .router(RoutingSettings {
-            background_to_api_by_default: false,
+            background_to_api_by_default: true,
             ..Default::default()
         })
         .await;
-    assert!(r3.plan(Task::Label, None).is_err());
+    assert_eq!(r3.plan(Task::Label, None).unwrap()[0].id(), "haiku-api");
+    // naming a metered backend for a task is an explicit choice and works without opting in
+    let r4 = w2
+        .router(RoutingSettings {
+            label: Some("pricey-api".into()),
+            ..Default::default()
+        })
+        .await;
+    assert_eq!(r4.plan(Task::Label, None).unwrap()[0].id(), "pricey-api");
+    // the setting deserialises to off when absent
+    let s: RoutingSettings = serde_json::from_str("{}").unwrap();
+    assert!(!s.background_to_api_by_default);
+}
+
+#[tokio::test]
+async fn backends_info_says_local_and_leaving() {
+    let w = World::new()
+        .add(
+            "ollama",
+            BackendKind::OpenaiCompatible,
+            CostModel::FreeLocal,
+            "llama",
+            Behaviour::Ok,
+        )
+        .add(
+            "anthropic",
+            BackendKind::Anthropic,
+            CostModel::Metered,
+            "claude-haiku-5-5",
+            Behaviour::Ok,
+        )
+        .add(
+            "claude-cli",
+            BackendKind::ClaudeCli,
+            CostModel::Subscription,
+            "default",
+            Behaviour::Ok,
+        );
+    let r = w.router(RoutingSettings::default()).await;
+    let info = r.backends_info();
+    let row = |id: &str| info.iter().find(|b| b.id == id).unwrap().clone();
+    assert!(row("ollama").is_local && !row("ollama").leaves_machine);
+    assert!(!row("anthropic").is_local && row("anthropic").leaves_machine);
+    assert!(!row("claude-cli").is_local && row("claude-cli").leaves_machine);
+    let v = serde_json::to_value(row("claude-cli")).unwrap();
+    assert_eq!(v["kind"], "claude_cli");
+    assert_eq!(v["is_local"], false);
+    assert_eq!(v["leaves_machine"], true);
 }
 
 #[tokio::test]
@@ -407,7 +459,12 @@ async fn egress_gate_refuses_local_only_items() {
         "claude-haiku-5-5",
         Behaviour::Ok,
     );
-    let r = w.router(RoutingSettings::default()).await;
+    let r = w
+        .router(RoutingSettings {
+            background_to_api_by_default: true,
+            ..Default::default()
+        })
+        .await;
     let ctx = CallContext {
         items: vec![
             (Id("a".into()), Privacy::CloudOk),
@@ -480,7 +537,12 @@ async fn usage_is_recorded_with_prices() {
         "claude-haiku-5-5",
         Behaviour::Ok,
     );
-    let r = w.router(RoutingSettings::default()).await;
+    let r = w
+        .router(RoutingSettings {
+            background_to_api_by_default: true,
+            ..Default::default()
+        })
+        .await;
     let rc = r
         .chat(Task::Label, req(), CallContext::default())
         .await

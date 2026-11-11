@@ -27,6 +27,10 @@ pub struct DataArgs {
     /// Use the deterministic hash embedder instead of the configured one (offline, fast).
     #[arg(long)]
     pub hash_embedder: bool,
+    /// Another folder of connector plugins (each in its own subfolder with a
+    /// `manifest.json`), besides `<data dir>/anamnesis/plugins`. Repeatable.
+    #[arg(long = "plugins-dir")]
+    pub plugins_dirs: Vec<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -84,6 +88,14 @@ pub enum Command {
         name: Option<String>,
         #[arg(long, default_value = "{}")]
         config: String,
+        /// Privacy flag for the source's items: local_only, cloud_ok or ask (default: the
+        /// `privacy.default` setting, else the connector's default).
+        #[arg(long, value_parser = parse_privacy)]
+        privacy: Option<anamnesis_core::Privacy>,
+        /// Origin of the source's items when a document does not say (e.g. external,
+        /// owner_written, ai_generated).
+        #[arg(long, value_parser = parse_origin)]
+        origin: Option<anamnesis_core::Origin>,
     },
     /// Verify the hash chain of the event log.
     Verify {
@@ -100,6 +112,28 @@ pub enum Command {
     },
 }
 
+fn parse_snake<T: serde::de::DeserializeOwned>(
+    s: &str,
+    what: &str,
+    allowed: &str,
+) -> Result<T, String> {
+    let norm = s.trim().to_lowercase().replace('-', "_");
+    serde_json::from_value(serde_json::Value::String(norm))
+        .map_err(|_| format!("unknown {what} {s:?} (one of {allowed})"))
+}
+
+fn parse_privacy(s: &str) -> Result<anamnesis_core::Privacy, String> {
+    parse_snake(s, "privacy", "local_only, cloud_ok, ask")
+}
+
+fn parse_origin(s: &str) -> Result<anamnesis_core::Origin, String> {
+    parse_snake(
+        s,
+        "origin",
+        "owner_written, owner_spoken, owner_annotation, owner_in_chat, ai_generated, ai_edited, external",
+    )
+}
+
 fn config(data: &DataArgs, port: u16) -> ServerConfig {
     let root = data
         .data_dir
@@ -114,6 +148,8 @@ fn config(data: &DataArgs, port: u16) -> ServerConfig {
         demo_bundle: None,
         embedder_override: data.hash_embedder.then(EmbedderSpec::hash),
         detect_backends: true,
+        plugin_dirs: data.plugins_dirs.clone(),
+        key_store: crate::secrets::KeyStoreMode::from_env(),
         // brain_dir handled by `open`
     }
 }
@@ -212,6 +248,8 @@ pub async fn run(cli: Cli) -> Result<()> {
             connector,
             name,
             config: cfg_json,
+            privacy,
+            origin,
         } => {
             let app = open(&data, config(&data, 7368), false)?;
             let config: serde_json::Value =
@@ -222,14 +260,21 @@ pub async fn run(cli: Cli) -> Result<()> {
                     connector,
                     name,
                     config,
-                    default_origin: None,
-                    default_privacy: None,
+                    default_origin: origin,
+                    default_privacy: privacy,
                 },
             )
             .await
             .map_err(|e| anyhow::anyhow!("{}", e.message()))?;
-            println!("added source {} ({})", src.name, src.id);
-            let r = crate::sync::sync_source(&app.brain(), &src.id).await?;
+            println!(
+                "added source {} ({}), privacy {}",
+                src.name,
+                src.id,
+                serde_json::to_value(src.default_privacy)?
+                    .as_str()
+                    .unwrap_or("")
+            );
+            let r = crate::sync::sync_source(&app.brain(), &app.plugins, &src.id).await?;
             println!("synced: {}", serde_json::to_string(&r)?);
             Ok(())
         }
@@ -301,5 +346,45 @@ fn open_url(url: &str) {
     };
     if let Err(e) = std::process::Command::new(cmd).arg(url).spawn() {
         tracing::warn!("could not open the browser ({e}); visit {url}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_source_takes_privacy_and_origin() {
+        let cli = Cli::try_parse_from([
+            "anamnesis",
+            "add-source",
+            "folder",
+            "--config",
+            "{\"path\":\"/tmp\"}",
+            "--privacy",
+            "local-only",
+            "--origin",
+            "external",
+            "--plugins-dir",
+            "/opt/plugins",
+        ])
+        .unwrap();
+        match cli.command {
+            Command::AddSource {
+                privacy,
+                origin,
+                data,
+                ..
+            } => {
+                assert_eq!(privacy, Some(anamnesis_core::Privacy::LocalOnly));
+                assert_eq!(origin, Some(anamnesis_core::Origin::External));
+                assert_eq!(data.plugins_dirs, vec![PathBuf::from("/opt/plugins")]);
+            }
+            other => panic!("{other:?}"),
+        }
+        assert!(
+            Cli::try_parse_from(["anamnesis", "add-source", "folder", "--privacy", "public"])
+                .is_err()
+        );
     }
 }

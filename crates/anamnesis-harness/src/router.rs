@@ -24,7 +24,7 @@ use crate::limits::{CooldownState, Limits};
 use crate::types::*;
 use crate::usage::{BackendUsage, PriceTable, UsageLedger};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RoutingSettings {
     #[serde(default)]
     pub chat: Option<String>,
@@ -39,26 +39,10 @@ pub struct RoutingSettings {
     #[serde(default)]
     pub fallbacks: BTreeMap<Task, Vec<String>>,
     /// When no local backend is available, may background work go to the cheapest
-    /// configured metered api backend by default?
-    #[serde(default = "yes")]
+    /// configured metered api backend by default? Off unless the user opts in: an api
+    /// key is spent only on work the user asked for (chat) or routed by name.
+    #[serde(default)]
     pub background_to_api_by_default: bool,
-}
-
-fn yes() -> bool {
-    true
-}
-
-impl Default for RoutingSettings {
-    fn default() -> Self {
-        Self {
-            chat: None,
-            label: None,
-            extract: None,
-            summarise: None,
-            fallbacks: BTreeMap::new(),
-            background_to_api_by_default: true,
-        }
-    }
 }
 
 impl RoutingSettings {
@@ -102,6 +86,11 @@ pub struct BackendInfo {
     pub status: String,
     pub capabilities: Capabilities,
     pub terms: Terms,
+    /// Calls skip the egress gate: a loopback server, or one the user marked local.
+    pub is_local: bool,
+    /// Prompts travel over the network to another machine (a provider, or the user's
+    /// own lan server marked local).
+    pub leaves_machine: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notice: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -379,6 +368,8 @@ impl Router {
                         .map(|a| a.status.clone())
                         .unwrap_or_else(|| "not checked".into()),
                     terms: caps.terms,
+                    is_local: b.is_local(),
+                    leaves_machine: b.leaves_machine(),
                     notice: caps.notice.clone(),
                     capabilities: caps,
                     cooldown,

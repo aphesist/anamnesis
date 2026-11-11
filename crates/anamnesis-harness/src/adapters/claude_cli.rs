@@ -35,7 +35,7 @@ use crate::backend::Backend;
 use crate::error::{HarnessError, Result};
 use crate::types::*;
 
-pub const NOTICE: &str = "uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this; it could change. anamnesis never reads your credentials.";
+pub const NOTICE: &str = "uses your own claude login through anthropic's official cli. anthropic has not explicitly approved third-party apps doing this and could restrict it at any time; the safest routes are the mcp server and an api key. anamnesis never reads your credentials.";
 pub const SIGN_IN_HINT: &str = "unknown — run `claude` in your terminal to sign in";
 
 /// Environment variables the adapter removes from the child so that a value inherited

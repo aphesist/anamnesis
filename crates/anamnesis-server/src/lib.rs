@@ -14,6 +14,9 @@ pub mod cli;
 pub mod importer;
 pub mod jobs;
 pub mod mcp_brain;
+pub mod plugins;
+pub mod privacy;
+pub mod secrets;
 pub mod sync;
 pub mod ui;
 

@@ -272,6 +272,15 @@ impl ExecConnector {
         };
         meta["connector"] = json!(self.manifest.id);
         meta["plugin_version"] = json!(self.manifest.version);
+        // A plugin cannot set an item's privacy flag: that is the user's call (source
+        // default, frontmatter in their own files, or the item itself).
+        if let Some(o) = meta.as_object_mut() {
+            o.remove(crate::connectors::files::META_PRIVACY);
+            o.remove(crate::connectors::files::META_ORIGIN_EXPLICIT);
+        }
+        if d.origin.is_some() {
+            meta[crate::connectors::files::META_ORIGIN_EXPLICIT] = json!(true);
+        }
         Document {
             external_id: d.external_id,
             uri: d.uri,

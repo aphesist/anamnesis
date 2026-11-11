@@ -29,6 +29,10 @@ pub struct ServerConfig {
     pub detect_backends: bool,
     /// Where local embedding weights are cached.
     pub model_cache: PathBuf,
+    /// Extra connector plugin folders (`--plugins-dir`), besides `<root>/plugins`.
+    pub plugin_dirs: Vec<PathBuf>,
+    /// Where api keys go: the os keychain (with a 0600 file as fallback), or the file only.
+    pub key_store: crate::secrets::KeyStoreMode,
 }
 
 impl ServerConfig {
@@ -42,7 +46,17 @@ impl ServerConfig {
             embedder_override: Some(EmbedderSpec::hash()),
             detect_backends: false,
             model_cache: root.join("models"),
+            plugin_dirs: Vec::new(),
+            // tests never touch the os keychain
+            key_store: crate::secrets::KeyStoreMode::File,
         }
+    }
+
+    /// Every folder scanned for connector plugins: `<root>/plugins`, then `--plugins-dir`.
+    pub fn all_plugin_dirs(&self) -> Vec<PathBuf> {
+        let mut v = vec![self.root.join("plugins")];
+        v.extend(self.plugin_dirs.iter().cloned());
+        v
     }
 
     pub fn user_brain_dir(&self) -> PathBuf {
@@ -96,6 +110,27 @@ pub struct App {
     pub cancel: CancellationToken,
     pub sync: crate::sync::SyncManager,
     pub chatgpt: crate::backends::ChatgptSignIn,
+    /// Api keys (keychain or `<root>/secrets.json`).
+    pub secrets: crate::secrets::Secrets,
+    /// Where each backend's api key came from, as of the last detection.
+    pub key_sources: RwLock<std::collections::HashMap<String, crate::secrets::KeyStorage>>,
+    /// Connector plugins found on disk.
+    pub plugins: crate::plugins::Plugins,
+    /// Progress of a one-shot jobs pass (`jobs` in `/api/status`).
+    pub jobs_progress: RwLock<JobsProgress>,
+}
+
+/// Where a one-shot pass of the background jobs is (`run_jobs_once`).
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct JobsProgress {
+    pub running: bool,
+    /// `embeddings`, `threads`, `mind`, `suggestions`, `review`; null when idle.
+    pub phase: Option<String>,
+    /// Phases finished in this pass, of `total`.
+    pub done: u32,
+    pub total: u32,
+    /// The last pass's error, if it failed.
+    pub error: Option<String>,
 }
 
 impl App {
@@ -112,7 +147,13 @@ impl App {
             (user.clone(), Some(user))
         };
         let spec = Self::spec_for(&cfg, &active)?;
+        let plugins = crate::plugins::Plugins::new(cfg.all_plugin_dirs());
+        plugins.scan();
         let app = Arc::new(App {
+            secrets: crate::secrets::Secrets::new(&cfg.root, cfg.key_store),
+            key_sources: RwLock::default(),
+            plugins,
+            jobs_progress: RwLock::default(),
             embed: RwLock::new(EmbedState {
                 status: "not loaded".into(),
                 spec,
@@ -204,7 +245,7 @@ impl App {
         let built = anamnesis_embed::build_with_secret(
             &spec,
             &self.cfg.model_cache,
-            crate::backends::embed_api_key(&spec).as_deref(),
+            crate::backends::embed_api_key(&self.secrets, &spec).as_deref(),
         );
         let mut e = self.embed.write().unwrap();
         if e.spec != spec {

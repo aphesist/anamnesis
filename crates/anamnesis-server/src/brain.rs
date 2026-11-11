@@ -44,6 +44,12 @@ pub struct JobState {
     /// Embedding model the current layout and regions were computed with.
     #[serde(default)]
     pub mind_model: Option<String>,
+    /// item id → content hash a model last extracted threads from.
+    #[serde(default)]
+    pub extracted_hash: HashMap<String, String>,
+    /// More items wait for model extraction than the last batch took.
+    #[serde(default)]
+    pub extract_pending: bool,
 }
 
 pub struct Brain {
