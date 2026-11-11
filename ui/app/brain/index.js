@@ -86,7 +86,8 @@ export class Brain {
   }
 
   readColors() {
-    const c = theme().colors;
+    // linear colours for the shaders (they encode to srgb on output)
+    const c = theme().linear;
     this.colors = c;
     this.light = theme().light;
     this.cam.motion = theme().motion;

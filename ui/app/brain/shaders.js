@@ -85,6 +85,7 @@ in vec3 vCol;
 in float vAlpha, vSeed, vSize, vRing;
 uniform float uLight;
 out vec4 frag;
+vec3 enc(vec3 c) { return mix(c * 12.92, 1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c)); }
 float h(float n) { return fract(sin(n) * 43758.5453123); }
 float h2(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void main() {
@@ -118,7 +119,7 @@ void main() {
   }
   a *= vAlpha;
   if (a < 0.004) discard;
-  frag = vec4(vCol * a, a);
+  frag = vec4(enc(vCol) * a, a);
 }
 `;
 
@@ -161,6 +162,7 @@ precision highp float;
 in float vT, vAlpha, vSeed, vKind;
 in vec3 vCol;
 out vec4 frag;
+vec3 enc(vec3 c) { return mix(c * 12.92, 1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c)); }
 void main() {
   // written links: dotted stipple; hand links: longer brush dashes
   float k = vKind < 0.5 ? 46.0 : 18.0;
@@ -169,7 +171,7 @@ void main() {
   float ends = smoothstep(0.0, 0.08, vT) * smoothstep(1.0, 0.92, vT);
   float a = vAlpha * d * ends;
   if (a < 0.002) discard;
-  frag = vec4(vCol * a, a);
+  frag = vec4(enc(vCol) * a, a);
 }
 `;
 
@@ -194,10 +196,11 @@ precision highp float;
 in float vA;
 uniform vec3 cDim;
 out vec4 frag;
+vec3 enc(vec3 c) { return mix(c * 12.92, 1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c)); }
 void main() {
   float r = length(gl_PointCoord * 2.0 - 1.0);
   float a = vA * smoothstep(1.0, 0.2, r);
   if (a < 0.003) discard;
-  frag = vec4(cDim * a, a);
+  frag = vec4(enc(cDim) * a, a);
 }
 `;

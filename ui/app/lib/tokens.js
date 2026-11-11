@@ -24,14 +24,27 @@ export function parseColor(str, fallback = [1, 1, 1, 1]) {
 
 const COLOR_TOKENS = ['--bg', '--ink', '--ink-soft', '--line', '--fog', '--accent', '--accent-text', '--seal', '--dot', '--dot-dim', '--dot-hot', '--thread', '--region-label'];
 
+// The theming package's runtime (ui/theme/theme.js), when loaded: its
+// tokenRGB() gives gamma-encoded and linear values for the renderer.
+let themeApi = null;
+export function useThemeApi(t) { themeApi = t; refresh(); }
+const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+
 export function readTheme() {
-  const c = {};
-  for (const t of COLOR_TOKENS) c[t.slice(2)] = parseColor(cssVar(t));
+  const c = {}, lin = {};
+  for (const t of COLOR_TOKENS) {
+    const k = t.slice(2);
+    let rgb = null;
+    if (themeApi) { try { const v = themeApi.tokenRGB(t); if (v) { rgb = [v.r, v.g, v.b, v.alpha ?? 1]; lin[k] = v.linear; } } catch { rgb = null; } }
+    if (!rgb) { rgb = parseColor(cssVar(t)); lin[k] = rgb.slice(0, 3).map(toLinear); }
+    c[k] = rgb;
+  }
   const m = parseFloat(cssVar('--motion'));
-  const motion = Number.isFinite(m) ? m : (matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1);
+  const attr = document.documentElement.dataset.motion;
+  const motion = attr === 'reduced' ? 0 : attr === 'full' ? 1 : Number.isFinite(m) ? m : (matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1);
   const lum = 0.2126 * c.bg[0] + 0.7152 * c.bg[1] + 0.0722 * c.bg[2];
   const durMid = parseFloat(cssVar('--dur-mid')) || 600;
-  return { colors: c, motion, light: lum > 0.5, durMid: /ms/.test(cssVar('--dur-mid')) || durMid > 10 ? durMid : durMid * 1000 };
+  return { colors: c, linear: lin, motion, light: lum > 0.5, durMid: /ms/.test(cssVar('--dur-mid')) || durMid > 10 ? durMid : durMid * 1000 };
 }
 
 let current = null;
@@ -44,13 +57,17 @@ function refresh() {
   for (const fn of subs) fn(current);
 }
 window.addEventListener('anamnesis:themechange', () => requestAnimationFrame(refresh));
-new MutationObserver(refresh).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'style', 'class'].slice(0, 2) });
+new MutationObserver(refresh).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-motion', 'data-theme-id', 'style'] });
 matchMedia('(prefers-reduced-motion: reduce)').addEventListener?.('change', refresh);
 export const refreshTheme = refresh;
 
 // Categorical hues for areas, derived from the accent/dot tokens so a theme
 // change carries through: same lightness, rotated hue, low chroma (stipple, not paint).
 export function areaColor(i, alpha = 1) {
+  // themes may set --area-1 … --area-8; past eight, or without them, rotate a calm hue
+  const k = (i % 8) + 1;
+  const v = i < 8 ? cssVar(`--area-${k}`) : '';
+  if (v) { const c = parseColor(v); return `rgba(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0},${alpha})`; }
   const hue = (i * 137.508 + 210) % 360;
   return `oklch(0.78 0.07 ${hue.toFixed(1)} / ${alpha})`;
 }
