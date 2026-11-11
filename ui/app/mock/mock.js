@@ -24,12 +24,25 @@ const ulid = () => {
 
 const SOURCES = [
   { id: '01SRCEDITOR00000000000000A', connector: 'editor', name: 'the editor' },
-  { id: '01SRCVAULT000000000000000B', connector: 'obsidian', name: 'journal vault' },
-  { id: '01SRCRSS00000000000000000C', connector: 'rss', name: 'feeds' },
-  { id: '01SRCPDF00000000000000000D', connector: 'folder', name: 'papers folder' },
+  { id: '01SRCVAULT000000000000000B', connector: 'obsidian', name: 'journal vault', config: { path: '~/vaults/journal' } },
+  { id: '01SRCRSS00000000000000000C', connector: 'rss', name: 'feeds', config: { url: 'https://example.org/feed.xml' } },
+  { id: '01SRCPDF00000000000000000D', connector: 'pdf', name: 'papers folder', config: { path: '~/papers' } },
   { id: '01SRCCHAT0000000000000000E', connector: 'chat', name: 'anamnesis chats' },
-  { id: '01SRCWEB00000000000000000F', connector: 'web', name: 'web clips' },
+  { id: '01SRCWEB00000000000000000F', connector: 'web', name: 'web clips', config: { url: 'https://example.org/essays' } },
 ];
+
+// A few calls that left the machine, for the ledger (counts only, as the server logs them).
+function seedEgress(c) {
+  const now = Math.floor(Date.now() / 1000);
+  const rows = [['anthropic', 'claude-sonnet-4-5', 'chat', 6, 5120], ['openrouter', 'meta-llama/llama-3.3-70b-instruct', 'label', 12, 3310], ['anthropic', 'claude-haiku-4-5', 'label', 9, 2408], ['anthropic', 'claude-sonnet-4-5', 'chat', 4, 3880]];
+  return rows.map(([provider, model, purpose, n, chars], k) => ({
+    seq: 900 - k * 37, at: iso(now - 3600 * (k * 19 + 2)), actor: { model: provider },
+    kind: { type: 'egress', provider, model, purpose, items: c.ids.slice(k * 7, k * 7 + n), chars }, prev_hash: '', hash: '',
+  }));
+}
+
+// items marked "ask" in the mock: every journal entry, and every eleventh item
+const privacyOf = (s, i) => s.privacy.get(s.cloud.ids[i]) || (s.cloud.kinds[s.cloud.kind[i]] === 'journal' || i % 11 === 0 ? 'ask' : 'cloud_ok');
 
 let state = null;
 async function getState() {
@@ -39,7 +52,10 @@ async function getState() {
   const want = Math.min(60000, parseInt(params.get('n') || '0', 10) || 0);
   if (want > cloud.ids.length) inflate(cloud, want);
   const index = new Map(cloud.ids.map((id, i) => [id, i]));
-  state = { cloud, extra, index, threads: threads.threads, created: new Map(), ratings: [], decided: new Map(), chats: 0 };
+  state = { cloud, extra, index, threads: threads.threads, created: new Map(), ratings: [], decided: new Map(), chats: 0,
+    privacy: new Map(), links: [], labels: [], keys: new Set(['anthropic']), demo: false, chatgpt: false, egress: seedEgress(cloud),
+    sources: SOURCES.map((x) => ({ ...x, config: x.config || {}, default_origin: x.connector === 'rss' || x.connector === 'web' ? 'external' : 'owner_written', default_privacy: x.connector === 'obsidian' ? 'ask' : 'cloud_ok', cursor: null, created_at: iso(cloud.t[0]) })),
+    settings: { privacy: { default: 'cloud_ok' }, routing: { chat: 'ollama' }, harness: { openai_compatible: [{ id: 'openrouter', provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' }], anthropic: {}, claude_cli: { enabled: true } } } };
   return state;
 }
 
@@ -91,7 +107,7 @@ function itemAt(s, i) {
   return {
     id: c.ids[i], source_id: src.id, external_id: `${src.connector}/${c.ids[i].slice(-8).toLowerCase()}.md`,
     uri: null, kind: c.kinds[c.kind[i]], title: c.titles[i], body: bodyFor(s, i),
-    origin: originOf(c, i), privacy: 'cloud_ok', created_at: iso(t), captured_at: iso(t + 3600 * ((i % 40) + 1)),
+    origin: originOf(c, i), privacy: privacyOf(s, i), created_at: iso(t), captured_at: iso(t + 3600 * ((i % 40) + 1)),
     modified_at: iso(t + 7200), content_hash: (c.ids[i] + c.ids[i]).toLowerCase().slice(0, 64),
     tags: [], meta: { source_name: src.name, connector: src.connector }, deleted: false,
   };
@@ -160,17 +176,20 @@ async function handle(method, url, body) {
   if ((m = p.match(/^\/api\/items\/([^/]+)$/))) {
     const id = decodeURIComponent(m[1]);
     if (method === 'PUT') {
+      if (body.privacy && !['local_only', 'cloud_ok', 'ask'].includes(body.privacy)) return json({ error: 'privacy: unknown variant' }, 400);
       const it = s.created.get(id);
-      if (!it) return json({ error: 'not found' }, 404);
-      Object.assign(it, body, { modified_at: iso(Date.now() / 1000) });
-      return json(it);
+      if (it) { Object.assign(it, body, { modified_at: iso(Date.now() / 1000) }); return json(it); }
+      const i = s.index.get(id);
+      if (i == null) return json({ error: 'not found' }, 404);
+      if (body.privacy) s.privacy.set(id, body.privacy);
+      return json(itemAt(s, i));
     }
     if (s.created.has(id)) return json({ item: s.created.get(id), links_out: [], links_in: [], threads: [], region: null });
     const i = s.index.get(id);
     if (i == null) return json({ error: 'not found' }, 404);
     return json({
       item: itemAt(s, i),
-      links_out: c.links.filter((l) => l[0] === i).map((l) => linkObj(c, l)),
+      links_out: [...s.links.filter((l) => l.from === id), ...c.links.filter((l) => l[0] === i).map((l) => linkObj(c, l))],
       links_in: c.links.filter((l) => l[1] === i).map((l) => linkObj(c, l)),
       threads: s.threads.filter((t) => t.item_id === id),
       region: c.region[i] >= 0 ? c.regions[c.region[i]] : null,
@@ -228,18 +247,69 @@ async function handle(method, url, body) {
     s.decided.set(m[1], !!body.accept);
     return json({ ok: true });
   }
-  if (p === '/api/links' && method === 'POST') return json({ ok: true });
+  if (p === '/api/links' && method === 'POST') {
+    if (!s.index.has(body.from) || !s.index.has(body.to)) return json({ error: 'no such item' }, 404);
+    const l = { from: body.from, to: body.to, kind: 'manual', created_at: iso(Date.now() / 1000) };
+    s.links.push(l);
+    return json(l);
+  }
   if (p === '/api/lineage') return json(await load('lineage.json'));
   if (p === '/api/eval') return json(await load('eval.json'));
-  if (p === '/api/eval/label') return json({ ok: true });
+  if (p === '/api/eval/label') {
+    if (!(body.grade >= 0 && body.grade <= 3)) return json({ error: 'grade must be 0–3' }, 400);
+    s.labels.push(body); return json({ ok: true });
+  }
   if (p === '/api/skills') return json(await load('skills.json'));
-  if (p === '/api/backends') return json(await load('backends.json'));
-  if (p === '/api/sources') return json({ sources: SOURCES.map((x) => ({ ...x, config: {}, default_origin: 'owner_written', default_privacy: 'cloud_ok', cursor: null, created_at: iso(c.t[0]) })) });
-  if (p === '/api/settings') { if (method !== 'GET') s.settings = { ...(s.settings || {}), ...body }; return json(s.settings || {}); }
-  if (p === '/api/egress') return json({ entries: [] });
+  if (p === '/api/backends' || p === '/api/backends/refresh') return json(await backendsNow(s));
+  if ((m = p.match(/^\/api\/backends\/([^/]+)\/key$/))) {
+    const id = decodeURIComponent(m[1]);
+    if (method === 'PUT') { if (!String(body.key || '').trim()) return json({ error: 'empty key' }, 400); s.keys.add(id); return json({ ok: true }); }
+    if (method === 'DELETE') { s.keys.delete(id); return json({ ok: true }); }
+  }
+  if (p === '/api/backends/chatgpt') return json(chatgptInfo(s));
+  if (p === '/api/backends/chatgpt/sign-in' && method === 'POST') {
+    s.chatgptPending = Date.now();
+    setTimeout(() => { s.chatgpt = true; s.chatgptPending = 0; }, 3000);
+    return json({ authorize_url: 'about:blank#mock-sign-in', button_label: 'Continue with ChatGPT' });
+  }
+  if (p === '/api/backends/chatgpt/sign-out' && method === 'POST') { s.chatgpt = false; return json({ ok: true }); }
+  if (p === '/api/sources' && method === 'GET') return json({ sources: s.sources, connectors: (await load('connectors.json')).connectors });
+  if (p === '/api/sources' && method === 'POST') {
+    const man = (await load('connectors.json')).connectors.find((x) => x.id === body.connector);
+    if (!man) return json({ error: `unknown connector "${body.connector}"` }, 400);
+    for (const k of man.config_schema?.required || []) if (body.config?.[k] == null || body.config[k] === '') return json({ error: `config: "${k}" is a required property` }, 400);
+    const src = { id: ulid(), connector: body.connector, name: body.name || man.name, config: body.config || {}, default_origin: body.default_origin || man.default_origin, default_privacy: body.default_privacy || man.default_privacy, cursor: null, created_at: iso(Date.now() / 1000) };
+    s.sources.push(src);
+    return json(src);
+  }
+  if ((m = p.match(/^\/api\/sources\/([^/]+)(\/sync)?$/))) {
+    const src = s.sources.find((x) => x.id === decodeURIComponent(m[1]));
+    if (!src) return json({ error: 'no such source' }, 404);
+    if (m[2] && method === 'POST') { await sleep(500); return json({ created: 3, updated: 1, unchanged: 212, duplicates: 0, deleted: 0, renamed: 0, pages: 1 }); }
+    if (method === 'PUT') { Object.assign(src, Object.fromEntries(Object.entries(body).filter(([k]) => ['name', 'config', 'default_origin', 'default_privacy'].includes(k)))); return json(src); }
+    if (method === 'DELETE') { s.sources = s.sources.filter((x) => x !== src); return json({ ok: true, items_deleted: 214 }); }
+  }
+  if (p === '/api/settings') {
+    if (method === 'PUT') { for (const [k, v] of Object.entries(body)) { if (v === null) delete s.settings[k]; else s.settings[k] = v; } }
+    return json(s.settings);
+  }
+  if (p === '/api/egress') return json({ entries: s.egress.slice(0, +(q.get('limit') || 100)) });
+  if (p === '/api/mcp/snippets') return json(await load('snippets.json'));
+  if (p === '/api/demo') {
+    if (method === 'POST') s.demo = body.enabled !== false;
+    return json({ active: s.demo, available: true, bundle: 'demo/brain.jsonl', items: c.ids.length });
+  }
+  if (p === '/api/status') return json({ version: '0.1.0', demo: s.demo, items: c.ids.length, events: 0, head: null, embedder: { id: 'mock', backend: 'hash', status: 'ready', fallback: false, local: true } });
   if (p === '/api/chat' && method === 'POST') {
     s.chats++;
     const hits = search(s, body.message || '', 5);
+    const bk = (await backendsNow(s)).backends.find((b) => b.id === (body.backend || 'ollama'));
+    const remote = bk && bk.is_local === false;
+    if (remote) {
+      const approved = new Set(body.approved || []);
+      const ask = [...new Set(hits.map((x) => x.item_id))].filter((id) => privacyOf(s, s.index.get(id)) === 'ask' && !approved.has(id));
+      if (ask.length) return sse([['consent_required', { ids: ask, chat_id: body.chat_id || (s.lastChat = ulid()) }, 120]]);
+    }
     const seenT = new Set();
     const cited = hits.filter((h) => !seenT.has(h.title) && seenT.add(h.title)).slice(0, 4).map((h) => h.item_id);
     const backend = body.backend || 'ollama:qwen3-8b';
@@ -255,9 +325,31 @@ async function handle(method, url, body) {
     });
     evs.push(['usage', { backend, input: 812 + (body.message || '').length, output: words.length * 1.3 | 0, estimated: backend.startsWith('ollama') }, 10]);
     evs.push(['done', { chat_id: body.chat_id || ulid(), item_id: ulid() }, 10]);
+    if (remote) s.egress.unshift({ seq: 1000 + s.chats, at: iso(Date.now() / 1000), actor: { model: bk.id }, kind: { type: 'egress', provider: bk.id, model: 'mock', purpose: 'chat', items: cited, chars: 900 + (body.message || '').length }, prev_hash: '', hash: '' });
     return sse(evs);
   }
   return json({ error: 'mock: no route for ' + method + ' ' + p }, 404);
+}
+
+// /api/backends with the session's keys and sign-ins applied.
+async function backendsNow(s) {
+  const b = structuredClone(await load('backends.json'));
+  for (const x of b.backends) {
+    if (x.id === 'chatgpt') { x.available = s.chatgpt; x.status = s.chatgpt ? 'ready' : 'not signed in'; }
+    if (x.id === 'anthropic' || x.id === 'openrouter') { x.available = s.keys.has(x.id); x.status = x.available ? 'ready' : 'no api key'; }
+    if (x.id === 'claude-cli') { x.available = !!s.settings.harness?.claude_cli?.enabled; x.status = x.available ? 'found, enabled at your request' : 'found, off'; }
+  }
+  if (s.settings.routing) b.routing = { ...b.routing, ...s.settings.routing };
+  return b;
+}
+function chatgptInfo(s) {
+  return {
+    button_label: 'Continue with ChatGPT',
+    notice: "uses your chatgpt plan through openai's sign-in for open-source apps (preview). you can cap this app's weekly usage in chatgpt settings → usage. signing out here does not disconnect anamnesis; remove it in chatgpt settings to revoke access.",
+    usage_settings_url: 'https://chatgpt.com/#settings',
+    status: { signed_in: s.chatgpt, plan_usage: null, email: s.chatgpt ? 'reader@example.org' : null, message: s.chatgpt ? null : 'not signed in' },
+    sign_in: { in_progress: !!s.chatgptPending, last_error: null },
+  };
 }
 
 export function installMock() {

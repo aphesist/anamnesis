@@ -143,6 +143,13 @@ export class Layout {
     dock.classList.toggle('open', !!open);
     dock.classList.toggle('collapsed', !open && area === 'right');
     if (area === 'right') dock.style.width = open && !dock.classList.contains('collapsed') ? Math.max(300, Math.min(560, open.size || 340)) + 'px' : '';
+    if (!dock.classList.contains('collapsed')) {
+      fitTabs(tabs);
+      if (!this.tabObserver && typeof ResizeObserver !== 'undefined') {
+        this.tabObserver = new ResizeObserver(() => { const t = dock.querySelector('.dock-tabs'); if (t && !dock.classList.contains('collapsed')) fitTabs(t); });
+        this.tabObserver.observe(dock);
+      }
+    }
   }
 
   renderFloat() {
@@ -190,4 +197,36 @@ export class Layout {
   }
   set(config) { if (config && Array.isArray(config.panels)) { this.config = config; this.commit(); } }
   get() { return structuredClone(this.config); }
+}
+
+// Keep a tab strip on one line: tabs that do not fit move into a "more" menu at the end
+// (the selected tab always stays visible). Re-run on resize.
+export function fitTabs(tabs) {
+  if (!tabs || !tabs.isConnected) return;
+  tabs.querySelector('.tab-more')?.remove();
+  tabs.querySelector('.tab-menu')?.remove();
+  const all = [...tabs.querySelectorAll('[role=tab]')];
+  for (const t of all) t.hidden = false;
+  if (tabs.scrollWidth <= tabs.clientWidth + 1) return;
+  const more = h('button.tab-more', { type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false', title: 'more panels' }, '···');
+  tabs.append(more);
+  const hidden = [];
+  for (let k = all.length - 1; k >= 0 && tabs.scrollWidth > tabs.clientWidth + 1; k--) {
+    if (all[k].getAttribute('aria-selected') === 'true') continue;
+    all[k].hidden = true;
+    hidden.unshift(all[k]);
+  }
+  if (!hidden.length) { more.remove(); return; }
+  more.dataset.count = String(hidden.length);
+  if (hidden.some((t) => t.querySelector('.badge'))) more.classList.add('has-badge');
+  const menu = h('div.tab-menu', { role: 'menu', hidden: true });
+  for (const t of hidden) menu.append(h('button', { type: 'button', role: 'menuitem', onclick: () => { menu.hidden = true; t.click(); } }, t.textContent));
+  const close = () => { menu.hidden = true; more.setAttribute('aria-expanded', 'false'); };
+  more.addEventListener('click', () => { menu.hidden = !menu.hidden; more.setAttribute('aria-expanded', String(!menu.hidden)); if (!menu.hidden) menu.querySelector('button')?.focus(); });
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); close(); more.focus(); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { const b = [...menu.children]; const k = b.indexOf(document.activeElement); b[(k + (e.key === 'ArrowDown' ? 1 : b.length - 1)) % b.length]?.focus(); e.preventDefault(); }
+  });
+  menu.addEventListener('focusout', (e) => { if (!menu.contains(e.relatedTarget) && e.relatedTarget !== more) close(); });
+  tabs.append(menu);
 }

@@ -577,36 +577,36 @@
       "--dot": {
         "type": "color",
         "path": "brain.dot",
-        "description": "A note at rest.",
-        "hex": "#c2dcec",
+        "description": "a note at rest: a cool blue-white grain, saturated enough that dense (additive) clusters stay blue rather than burning white.",
+        "hex": "#9ecaef",
         "alpha": 1,
         "linear": [
-          0.5409,
-          0.7144,
-          0.836
+          0.3407,
+          0.5898,
+          0.8612
         ]
       },
       "--dot-dim": {
         "type": "color",
         "path": "brain.dot-dim",
         "description": "A note outside the current selection or filter.",
-        "hex": "#526676",
+        "hex": "#385e83",
         "alpha": 1,
         "linear": [
-          0.0843,
-          0.133,
-          0.1806
+          0.0402,
+          0.1111,
+          0.2284
         ]
       },
       "--dot-hot": {
         "type": "color",
         "path": "brain.dot-hot",
         "description": "A lit note: selected, hovered, resurfaced.",
-        "hex": "#e2faff",
+        "hex": "#e1faff",
         "alpha": 1,
         "linear": [
-          0.7578,
-          0.9519,
+          0.7551,
+          0.9536,
           1
         ]
       },
@@ -1011,9 +1011,9 @@
       "--accent-text": "oklch(0.66 0.17 26)",
       "--seal": "oklch(0.57 0.2 26)",
       "--veil": "oklch(0.57 0.2 26 / 0.28)",
-      "--dot": "oklch(0.88 0.035 235)",
-      "--dot-dim": "oklch(0.5 0.035 242)",
-      "--dot-hot": "oklch(0.97 0.03 230)",
+      "--dot": "oklch(0.82 0.07 244)",
+      "--dot-dim": "oklch(0.47 0.075 250)",
+      "--dot-hot": "oklch(0.97 0.03 228)",
       "--thread": "oklch(0.72 0.04 238 / 0.55)",
       "--region-label": "oklch(0.72 0.04 238)",
       "--area-1": "oklch(0.78 0.06 235)",
