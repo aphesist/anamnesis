@@ -1,5 +1,6 @@
 [package]
 name = "anamnesis-mind"
+description = "anamnesis: regions with stable identity, 3d layout, link suggestion, threads extraction and resurfacing"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,3 +8,10 @@ repository.workspace = true
 
 [dependencies]
 anamnesis-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+nalgebra = { version = "0.34", default-features = false, features = ["std"] }
+pathfinding = "4"
+rayon = "1"
+matrixmultiply = "0.3"
