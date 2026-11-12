@@ -58,7 +58,10 @@
 
 <section class="hero" id="top" aria-labelledby="hero-h">
   <div id="brain" data-src="hero/brain-data.bin">
-    <img src="hero/fallback.webp" width="1600" height="1000" alt="a stipple point cloud in the shape of a brain, dots in grey and a few in red, drifting out into fog" fetchpriority="high">
+    <picture>
+      <source srcset="hero/fallback-light.webp" media="(prefers-color-scheme: light)">
+      <img src="hero/fallback.webp" width="1600" height="900" alt="the demo brain: 1,100 dated journal entries drawn as fine stipple in the shape of a brain" fetchpriority="high">
+    </picture>
   </div>
   <div class="wrap hero-in">
     <div class="col">

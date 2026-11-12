@@ -161,6 +161,7 @@ code { font-size: .92em; }
   .hero { min-height: 0; padding: var(--space-6) 0 var(--space-5); align-items: flex-start; }
   #brain { opacity: .32; -webkit-mask-image: none; mask-image: none; }
   #brain img, #brain canvas { object-position: 62% 50%; }
+  #brain img { object-fit: contain; }
   .top-in { gap: var(--space-3); }
   .top-name { font-size: 22px; }
   .eye { font-size: 12px; letter-spacing: .12em; }
