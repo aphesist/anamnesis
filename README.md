@@ -58,6 +58,8 @@ the brain keeps its history. every entry carries the date it was written, so the
 
 ## quick start
 
+on windows, no build needed: [download the installer](docs/install.md#download-the-installer-no-build-needed) from a release and start anamnesis from the start menu.
+
 build from source: you need [rust](https://rustup.rs) 1.90+ and a c compiler (on windows, the visual studio build tools with "desktop development with c++"). the first build downloads the onnx runtime for local embeddings.
 
 ```sh

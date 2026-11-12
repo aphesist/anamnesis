@@ -19,6 +19,39 @@ the ui opens at `http://127.0.0.1:7368/`. the first run downloads the local embe
 
 tested targets: windows 10 (1903 or newer) and windows 11, x86_64.
 
+### download the installer (no build needed)
+
+tagged releases carry three windows packages; pick one:
+
+| file | what |
+|---|---|
+| `anamnesis-<version>-windows-x86_64-setup.exe` | the installer (recommended). no administrator rights needed. |
+| `anamnesis-<version>-windows-x86_64.msi` | the same as an msi, for those who prefer one (no options, no `PATH` entry). |
+| `anamnesis-<version>-windows-x86_64-portable.zip` | no install: unzip anywhere and double-click `anamnesis.exe`. |
+
+1. **run the installer.** it is not code-signed yet, so smartscreen says "windows protected your pc": choose **more info → run anyway**. (the msi may show the same warning; a browser may also ask whether to keep the download.)
+2. the installer shows the licence, then lets you add a **desktop shortcut** and **add anamnesis to your `PATH`** (both off by default; the `PATH` entry lets you run `anamnesis` in a terminal and point mcp clients at it).
+3. **start it** from the start menu: **anamnesis**. a console window opens with the log and the browser opens `http://127.0.0.1:7368/`. closing the console window stops anamnesis; starting it again while it runs just opens the browser.
+
+`anamnesis.exe` with no command behaves like `anamnesis serve --open`; every command in [the command line](#the-command-line) still works.
+
+where things go:
+
+| what | location |
+|---|---|
+| the program | `%LOCALAPPDATA%\Programs\anamnesis\` (`anamnesis.exe`, `onnxruntime.dll`, licences) |
+| start-menu entry | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\anamnesis.lnk` |
+| your brain | `%APPDATA%\anamnesis\` |
+| embedding models | `%LOCALAPPDATA%\anamnesis\models\` (about 465 mb, downloaded on first run) |
+
+**on-device embeddings** use microsoft's `onnxruntime.dll`, installed next to `anamnesis.exe`. it needs the [microsoft visual c++ redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) (x64), which most pcs already have; the installer checks and offers the download page if it is missing. without it anamnesis still runs, with the offline hash embedder, and settings say why. gpu embeddings (directml, cuda) are not in these packages: build from source with the features below for those.
+
+**uninstall** from settings → apps → installed apps → anamnesis (or control panel → programs and features). this removes the program, the shortcuts and the `PATH` entry. your brain (`%APPDATA%\anamnesis\`) and the downloaded models (`%LOCALAPPDATA%\anamnesis\`) stay, unless you tick "also delete my brain and downloaded models" in the setup.exe uninstaller (the msi never deletes them). api keys stay in the credential manager (see [uninstalling](#uninstalling)).
+
+the packages are cross-built on linux (`packaging/windows/build.sh`, mingw-w64, nsis and wixl); see [packaging/windows/](../packaging/windows/).
+
+### build from source
+
 1. **install the c++ build tools.** download the [visual studio build tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and, in the installer, tick the workload **desktop development with c++** (it brings the msvc compiler and the windows sdk). a full visual studio with that workload works too.
 2. **install rust.** run [rustup-init.exe](https://rustup.rs) and accept the defaults (the `x86_64-pc-windows-msvc` toolchain). open a new terminal afterwards so `cargo` is on your `PATH`, then check with `cargo --version` (1.90 or newer).
 3. **install git** if you do not have it: [git for windows](https://git-scm.com/download/win).
@@ -87,7 +120,8 @@ pushing a `v*` tag runs `.github/workflows/release.yml`, which attaches these to
 
 | archive | contents |
 |---|---|
-| `anamnesis-<version>-windows-x86_64.zip` | `anamnesis.exe` (ui embedded, on-device embeddings) |
+| `anamnesis-<version>-windows-x86_64.zip` | `anamnesis.exe` (ui embedded, on-device embeddings; msvc build) |
+| `anamnesis-<version>-windows-x86_64-setup.exe`, `.msi`, `-portable.zip` | the windows installers and the portable folder (see [download the installer](#download-the-installer-no-build-needed)) |
 | `anamnesis-<version>-macos-arm64.tar.gz` | `anamnesis` (ui embedded, on-device embeddings) |
 | `anamnesis-<version>-macos-x86_64.tar.gz` | `anamnesis` (ui embedded, no on-device embeddings: use ollama or an api embedder) |
 | `anamnesis-<version>-linux-x86_64.tar.gz` | `anamnesis` (ui embedded, on-device embeddings; glibc 2.35 or newer) |
@@ -157,6 +191,8 @@ the "installed cli (claude)" chat backend finds `claude.exe` (the native install
 |---|---|---|
 | `embed-ui` | on | embed `ui/` in the release binary. debug builds read `ui/` from the repository. |
 | `local-embed` | on | on-device embeddings with onnx runtime (fastembed). without it the default embedder is the hashing embedder, and you can point anamnesis at ollama or any openai-compatible embeddings endpoint instead. |
+| `local-embed-dynamic` | off | the same embeddings, with onnx runtime loaded at run time from `onnxruntime.dll` (`libonnxruntime.so`, `.dylib`) next to the binary, or from `ORT_DYLIB_PATH`. used by the windows packages; build with `--no-default-features --features embed-ui,embed-demo,local-embed-dynamic`. |
+| `embed-demo` | on | embed the curated demo notes so a lone binary can show the demo brain. |
 | `gpu-directml` | off | local embeddings on a directx 12 gpu (windows). |
 | `gpu-cuda` | off | local embeddings with cuda (nvidia, windows and linux). |
 
