@@ -1,6 +1,6 @@
 # site
 
-the landing page of [anamnesis](https://github.com/aphesist/anamnesis), served at [anamnesis.aphes.ist](https://anamnesis.aphes.ist) by github pages straight from this branch (settings → pages → deploy from a branch → `site`, `/ (root)`).
+the landing page of [anamnesis](https://github.com/aphesist/anamnesis), served at [anamnesis.aphes.ist](https://anamnesis.aphes.ist) by github pages: every push to this branch runs `.github/workflows/pages.yml`, which publishes the page (settings → pages → source: github actions).
 
 - plain static files, no build step: `index.html`, `style.css`, `main.js`.
 - `hero/`: the turning demo brain (`brain.js`, `brain-data.bin`, static fallbacks). `hero/build/extract.py` repacks the data from a checkout of `main`: `python3 hero/build/extract.py ../anamnesis/demo/transcendentalist/snapshot`.
