@@ -125,7 +125,8 @@ the stdio snippets start `anamnesis mcp` on the default data directory. if your 
 | `region_overview` | | the regions of the brain with labels and sizes |
 | `timeline` | `from?`, `to?`, `limit?` | items written in a time range, oldest first (rfc3339 or `yyyy-mm-dd`) |
 | `recent` | `n?` | the most recently captured items |
-| `capture` | `title`, `body`, `origin?`, `kind?`, `tags?` | append a new item (never overwrites) |
+| `capture` | `title?`, `body`, `origin?`, `kind?`, `tags?`, or `proposal_id`, `title?` | append a new item (never overwrites). with a `proposal_id` from `distil`, keep that proposal: a note of your exact words (origin `owner_in_chat`), linked to the chat message it came from |
+| `distil` | `chat_id?` or `messages?` | propose a few atomic notes (idea, decision, open question, plan) quoting your own words: the user messages of an anamnesis chat, or the user's messages from the harness's conversation (the harness passes them; never its own replies). each quote is checked verbatim against the source. runs on this machine only (a local model, else the rules); nothing is stored until a proposal is kept with `capture` |
 | `link` | `from`, `to`, `note?` | add a manual link between two items |
 | `update_thread` | `id`, `status`, `resolved_by?` | move a thread to `open`, `resolved`, `abandoned` or `superseded` |
 
@@ -150,7 +151,7 @@ the default is `assistant`, so a careless client errs on the side of not putting
 
 ## privacy over mcp
 
-- items whose privacy is `local_only` or `ask` are returned without their text (`[withheld: the user keeps this item local-only]`), and threads quoting them are not listed.
+- items whose privacy is `local_only` or `ask` are returned without their text (`[withheld: the user keeps this item local-only]`), and threads quoting them are not listed. `distil` on an app chat leaves such messages out.
 - every read that returns brain content to a harness is logged as an `Egress` event with provider `mcp:<client>`, purpose = the tool name, the item ids and the number of characters. see [privacy.md](privacy.md).
 - the http endpoint answers only on `127.0.0.1`, requires the bearer token, and refuses browser requests from non-loopback origins.
 

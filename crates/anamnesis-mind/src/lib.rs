@@ -26,6 +26,7 @@
 #![allow(clippy::needless_range_loop)]
 
 pub mod anatomy;
+pub mod distil;
 pub mod hdbscan;
 pub mod knn;
 pub mod lab;

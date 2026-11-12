@@ -52,7 +52,7 @@ async function getState() {
   const want = Math.min(60000, parseInt(params.get('n') || '0', 10) || 0);
   if (want > cloud.ids.length) inflate(cloud, want);
   const index = new Map(cloud.ids.map((id, i) => [id, i]));
-  state = { cloud, extra, index, threads: threads.threads, created: new Map(), ratings: [], decided: new Map(), chats: 0,
+  state = { cloud, extra, index, threads: threads.threads, created: new Map(), ratings: [], decided: new Map(), chats: 0, distil: [], chatTurns: {},
     privacy: new Map(), links: [], labels: [], keys: new Set(['anthropic']), demo: false, chatgpt: false, egress: seedEgress(cloud),
     sources: SOURCES.map((x) => ({ ...x, config: x.config || {}, default_origin: x.connector === 'rss' || x.connector === 'web' ? 'external' : 'owner_written', default_privacy: x.connector === 'obsidian' ? 'ask' : 'cloud_ok', cursor: null, created_at: iso(cloud.t[0]) })),
     settings: { privacy: { default: 'cloud_ok' }, routing: { chat: 'ollama' }, harness: { openai_compatible: [{ id: 'openrouter', provider: 'openrouter', base_url: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' }], anthropic: {}, claude_cli: { enabled: true } } } };
@@ -300,6 +300,24 @@ async function handle(method, url, body) {
     return json({ active: s.demo, available: true, bundle: 'demo/brain.jsonl', items: c.ids.length });
   }
   if (p === '/api/status') return json({ version: '0.1.0', demo: s.demo, items: c.ids.length, events: 0, head: null, embedder: { id: 'mock', backend: 'hash', status: 'ready', fallback: false, local: true } });
+  if (p === '/api/distil' && method === 'POST') {
+    await sleep(600);
+    const turns = s.chatTurns?.[body.chat_id] || [];
+    const proposals = mockDistil(turns, body.chat_id).filter((x) => !s.distil.some((y) => y.quote === x.quote));
+    s.distil.push(...proposals);
+    return json({ proposals, distiller: 'local:qwen3-8b', note: null });
+  }
+  if (p === '/api/distil' && method === 'GET') {
+    return json({ proposals: s.distil.filter((x) => (!q.get('chat_id') || x.chat_id === q.get('chat_id')) && (!q.get('status') || x.status === q.get('status'))) });
+  }
+  if (p.startsWith('/api/distil/') && method === 'POST') {
+    const x = s.distil.find((y) => y.id === decodeURIComponent(p.slice('/api/distil/'.length)));
+    if (!x) return json({ error: 'not found: proposal' }, 404);
+    if (x.status !== 'pending') return json({ error: `proposal was already ${x.status}` }, 400);
+    x.status = body.keep ? 'kept' : 'dropped';
+    x.item_id = body.keep ? ulid() : null;
+    return json({ proposal: x, item: body.keep ? { id: x.item_id, title: body.title || x.title, body: x.quote, origin: 'owner_in_chat', kind: 'note' } : null });
+  }
   if (p === '/api/chat' && method === 'POST') {
     s.chats++;
     const hits = search(s, body.message || '', 5);
@@ -324,11 +342,36 @@ async function handle(method, url, body) {
       if (k === 8 && cited.length) evs.push(['cited', { ids: cited }, 0]);
     });
     evs.push(['usage', { backend, input: 812 + (body.message || '').length, output: words.length * 1.3 | 0, estimated: backend.startsWith('ollama') }, 10]);
-    evs.push(['done', { chat_id: body.chat_id || ulid(), item_id: ulid() }, 10]);
+    const chatId = body.chat_id || ulid();
+    (s.chatTurns ||= {})[chatId] = [...(s.chatTurns[chatId] || []), { id: ulid(), text: body.message || '' }];
+    evs.push(['done', { chat_id: chatId, item_id: ulid() }, 10]);
     if (remote) s.egress.unshift({ seq: 1000 + s.chats, at: iso(Date.now() / 1000), actor: { model: bk.id }, kind: { type: 'egress', provider: bk.id, model: 'mock', purpose: 'chat', items: cited, chars: 900 + (body.message || '').length }, prev_hash: '', hash: '' });
     return sse(evs);
   }
   return json({ error: 'mock: no route for ' + method + ' ' + p }, 404);
+}
+
+// The mock distiller: first-person decisions, questions to oneself, plans and ideas, one
+// sentence each, quoted exactly from the user's messages (titles as a model might write them).
+function mockDistil(turns, chatId) {
+  const cues = [
+    [/^(i decided|i've decided|i will no longer|i won't)\b/i, 'decision'],
+    [/^(should i|i wonder whether|i wonder if)\b/i, 'open_question'],
+    [/^(i'll|i will|tomorrow i)\b/i, 'plan'],
+    [/^(idea:|what if we|what if i)/i, 'idea'],
+  ];
+  const out = [];
+  for (const t of turns) {
+    for (const m of t.text.matchAll(/[^.!?]+[.!?]?/g)) {
+      const sentence = m[0].trim();
+      const hit = cues.find(([re]) => re.test(sentence));
+      if (!hit || sentence.length < 12) continue;
+      const words = sentence.replace(/^(idea:|i decided to|i've decided to|should i|i'll|what if we|what if i)\s*/i, '').replace(/[.!?]$/, '').split(/\s+/).slice(0, 6).join(' ').toLowerCase();
+      out.push({ id: ulid(), chat_id: chatId, kind: hit[1], title: words, quote: sentence, source_item: t.id, start: m.index, end: m.index + sentence.length, extractor: 'local:qwen3-8b', created_at: iso(Date.now() / 1000), status: 'pending', item_id: null, decided_at: null });
+      if (out.length >= 5) return out;
+    }
+  }
+  return out;
 }
 
 // /api/backends with the session's keys and sign-ins applied.

@@ -53,6 +53,9 @@ export const api = {
   demo: () => req('GET', '/api/demo'),
   setDemo: (enabled) => req('POST', '/api/demo', { enabled }),
   status: () => req('GET', '/api/status'),
+  distil: (chat_id) => req('POST', '/api/distil', { chat_id }),
+  distilList: (chat_id, status) => req('GET', '/api/distil?' + new URLSearchParams({ ...(chat_id ? { chat_id } : {}), ...(status ? { status } : {}) })),
+  distilDecide: (id, keep, title) => req('POST', '/api/distil/' + encodeURIComponent(id), { keep, ...(title ? { title } : {}) }),
 };
 
 // POST /api/chat and parse the text/event-stream response.

@@ -493,10 +493,10 @@ fn leads_with(lower: &str, cue: &str) -> bool {
 /// A candidate span of the source: byte offsets of a trimmed sentence/line,
 /// plus what the surrounding text says about it.
 #[derive(Debug, Clone, Copy)]
-struct Span {
-    start: usize,
-    end: usize,
-    ctx: Ctx,
+pub(crate) struct Span {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) ctx: Ctx,
 }
 
 /// What the surroundings of a sentence say about it.
@@ -522,7 +522,7 @@ fn is_close_quote(c: char) -> bool {
 
 /// Split text into sentence-ish spans (per line, then on `. ! ?` followed by
 /// whitespace), skipping fenced code blocks, and note each span's context.
-fn spans(text: &str) -> Vec<Span> {
+pub(crate) fn spans(text: &str) -> Vec<Span> {
     let mut out = vec![];
     let mut in_fence = false;
     let mut line_start = 0;
@@ -681,7 +681,7 @@ fn push_span(line: &str, offset: usize, s: usize, e: usize, ctx: Ctx, out: &mut 
 
 /// Strip list/quote/heading markers and checkboxes from the start.
 /// Returns the remainder and the checkbox state, if any.
-fn strip_markers(s: &str) -> (&str, Option<bool>) {
+pub(crate) fn strip_markers(s: &str) -> (&str, Option<bool>) {
     let mut t = s.trim_start();
     loop {
         let before = t;
@@ -1058,7 +1058,7 @@ pub fn find_verbatim(source: &str, quote: &str) -> Option<(usize, usize)> {
     Some((start, end))
 }
 
-fn strip_fences(s: &str) -> &str {
+pub(crate) fn strip_fences(s: &str) -> &str {
     let t = s.trim();
     let t = t
         .strip_prefix("```json")

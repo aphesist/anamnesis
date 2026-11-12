@@ -24,6 +24,7 @@ pub(crate) const PROJECTION_TABLES: &[&str] = &[
     "retrieval_labels",
     "chat_turns",
     "settings",
+    "distil_proposals",
 ];
 
 const MIGRATIONS: &[&str] = &[
@@ -205,6 +206,20 @@ CREATE TABLE settings (
     // v2: when a suggestion was first put in front of the user (`SuggestionDisplayed`)
     r#"
 ALTER TABLE suggestions ADD COLUMN displayed_at TEXT;
+"#,
+    // v3: notes distilled from conversations (`DistilProposed`, `DistilDecided`)
+    r#"
+CREATE TABLE distil_proposals (
+    id          TEXT PRIMARY KEY,
+    seq         INTEGER NOT NULL,
+    ord         INTEGER NOT NULL,
+    chat_id     TEXT,
+    status      TEXT NOT NULL,
+    item_id     TEXT,
+    decided_at  TEXT,
+    json        TEXT NOT NULL
+);
+CREATE INDEX distil_proposals_chat ON distil_proposals(chat_id, seq);
 "#,
 ];
 

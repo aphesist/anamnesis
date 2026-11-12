@@ -50,6 +50,12 @@ pub struct JobState {
     /// More items wait for model extraction than the last batch took.
     #[serde(default)]
     pub extract_pending: bool,
+    /// Day (`YYYY-MM-DD`) of the last daily distil pass.
+    #[serde(default)]
+    pub distil_day: Option<String>,
+    /// When the last daily distil pass started (chats with newer user turns are next).
+    #[serde(default)]
+    pub distil_since: Option<Timestamp>,
 }
 
 pub struct Brain {

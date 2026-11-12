@@ -363,6 +363,11 @@ const evalFix = {
     n: 38, estimate: 0.11, interval: [-0.08, 0.30], status: 'measuring', basis: 'measured',
     unit: 'difference in useful-rate', detail: 'micro-randomised: algorithm 0.58 vs random 0.47. too early to say.',
   },
+  distil: {
+    title: 'distilled notes worth keeping', question: 'of the notes distil proposed from my own words, how many did i keep?',
+    n: 23, estimate: 0.61, interval: [0.41, 0.78], status: 'measuring', basis: 'measured',
+    unit: 'share', detail: '14 kept, 9 dropped, 3 waiting for an answer · kept / proposed over the proposals you answered.',
+  },
   growth: {
     title: 'growth', question: 'is the brain still finding new regions?',
     n: 5, estimate: 0.8, interval: [0.4, 1.4], status: 'measuring', basis: 'modelled',

@@ -240,6 +240,40 @@ pub struct Thread {
     pub extractor: String,
 }
 
+/// What a distilled note is (see [`DistilProposal`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DistilKind {
+    Idea,
+    Decision,
+    OpenQuestion,
+    Plan,
+}
+
+/// A proposed atomic note distilled from a conversation: the user's exact words (`quote`,
+/// verified to occur verbatim in `source_item`'s body, or in `source_text` when the words
+/// came from outside the brain, e.g. over mcp) plus a short title. Nothing is stored as an
+/// item until the user keeps it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DistilProposal {
+    pub id: Id,
+    /// The app's chat the words came from (`None` for words handed in over mcp).
+    pub chat_id: Option<Id>,
+    pub kind: DistilKind,
+    /// Short title. Written by a model unless `extractor` is a rule extractor.
+    pub title: String,
+    /// The user's exact words.
+    pub quote: String,
+    /// The chat turn (an item of origin `owner_in_chat`) the quote was found in.
+    pub source_item: Option<Id>,
+    /// Byte span of the quote in the source turn's body (or in the handed-in text).
+    pub start: usize,
+    pub end: usize,
+    /// `"rule:<version>"` | `"local:<model>"` | `"<provider>:<model>"`
+    pub extractor: String,
+    pub created_at: Timestamp,
+}
+
 /// A stable cluster ("region of the brain").
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Region {
@@ -405,6 +439,17 @@ pub enum EventKind {
     SettingSet {
         key: String,
         value: serde_json::Value,
+    },
+    /// Notes distilled from a conversation were proposed to the user (nothing is stored
+    /// as an item yet).
+    DistilProposed {
+        proposals: Vec<DistilProposal>,
+    },
+    /// The user kept (`item_id` is the new note) or dropped a distilled proposal.
+    DistilDecided {
+        proposal_id: Id,
+        kept: bool,
+        item_id: Option<Id>,
     },
 }
 

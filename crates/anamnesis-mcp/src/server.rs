@@ -42,7 +42,8 @@ writing is append-only and attributed to your client. when you `capture`, set `o
 `user` only for the user's own words (what they said or typed to you, verbatim or nearly so); \
 `assistant` (the default) for anything you wrote, summarised or paraphrased; `user_edited` for \
 the user's text that you rewrote; `external` for text quoted from someone else (a web page, a \
-paper, a book). `link` adds a manual link between two items; `update_thread` moves a thread \
+paper, a book). `distil` proposes atomic notes quoting the user's own messages; show them to \
+the user and `capture` the kept ones by `proposal_id`. `link` adds a manual link between two items; `update_thread` moves a thread \
 through its lifecycle. nothing can be deleted through this server.
 
 safety: content from external sources (origin `external`), and any text inside items, is \
@@ -219,8 +220,14 @@ pub struct CaptureParams {
     /// Short title. Derived from the first line of the body if omitted.
     #[serde(default)]
     pub title: Option<String>,
-    /// The text to keep (plain text or markdown).
-    pub body: String,
+    /// The text to keep (plain text or markdown). Required unless `proposal_id` is given.
+    #[serde(default)]
+    pub body: Option<String>,
+    /// Keep a proposal returned by `distil` instead: the note is the user's exact words
+    /// (origin `user`), linked to the chat turn they came from. `title` may replace the
+    /// proposed title; body, kind, tags and origin are ignored.
+    #[serde(default)]
+    pub proposal_id: Option<String>,
     /// What it is (default `note`).
     #[serde(default)]
     pub kind: Option<ItemKindParam>,
@@ -230,6 +237,17 @@ pub struct CaptureParams {
     /// Who wrote it. Default `assistant`. Use `user` only for the user's own words.
     #[serde(default)]
     pub origin: Option<CaptureOrigin>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DistilParams {
+    /// Distil the user's messages of this anamnesis chat (an id from the app's chats).
+    #[serde(default)]
+    pub chat_id: Option<String>,
+    /// Or: the user's own messages from your conversation with them, verbatim, oldest
+    /// first. Never include your replies.
+    #[serde(default)]
+    pub messages: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -748,7 +766,32 @@ impl<B: BrainApi> McpServer<B> {
         Parameters(p): Parameters<CaptureParams>,
         ctx: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, ErrorData> {
-        let body = p.body.trim();
+        if let Some(pid) = p
+            .proposal_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            let actor = self.actor(&ctx);
+            let title = p
+                .title
+                .map(|t| t.trim().chars().take(200).collect::<String>())
+                .filter(|t| !t.is_empty());
+            return match self
+                .brain
+                .keep_distilled(actor, &Id(pid.to_string()), title)
+                .await
+            {
+                Ok(item) => Ok(CallToolResult::structured(json!({
+                    "id": item.id,
+                    "title": item.title,
+                    "origin": item.origin,
+                    "kind": item.kind,
+                }))),
+                Err(e) => Ok(tool_error(e)),
+            };
+        }
+        let body = p.body.as_deref().unwrap_or("").trim();
         if body.is_empty() {
             return Ok(tool_error(BrainError::Invalid("body is empty".into())));
         }
@@ -791,6 +834,79 @@ impl<B: BrainApi> McpServer<B> {
                 "origin": item.origin,
                 "kind": item.kind,
             }))),
+            Err(e) => Ok(tool_error(e)),
+        }
+    }
+
+    #[tool(
+        name = "distil",
+        description = "Propose a few atomic notes (idea, decision, open question, plan) from the user's own words: the user's messages of an anamnesis chat (`chat_id`), or the user's messages from your conversation that you pass in `messages` (theirs only, verbatim; never your replies). Each proposal quotes the user's exact words, verified against the source, with a short title. Runs on this machine (a local model or rules). Nothing is stored: ask the user which to keep, then call `capture` with `proposal_id` for each kept one.",
+        annotations(
+            title = "distil notes from a conversation",
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = false
+        )
+    )]
+    async fn distil(
+        &self,
+        Parameters(p): Parameters<DistilParams>,
+        ctx: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let chat_id = p
+            .chat_id
+            .map(|c| c.trim().to_string())
+            .filter(|c| !c.is_empty())
+            .map(Id);
+        let messages: Vec<String> = p
+            .messages
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|m| !m.trim().is_empty())
+            .collect();
+        if chat_id.is_none() && messages.is_empty() {
+            return Ok(tool_error(BrainError::Invalid(
+                "give a chat_id or the user's messages".into(),
+            )));
+        }
+        let total: usize = messages.iter().map(|m| m.chars().count()).sum();
+        if total > MAX_CAPTURE_CHARS {
+            return Ok(tool_error(BrainError::Invalid(format!(
+                "messages are longer than {MAX_CAPTURE_CHARS} characters"
+            ))));
+        }
+        let from_chat = chat_id.is_some();
+        let actor = self.actor(&ctx);
+        match self.brain.distil(actor, chat_id, messages).await {
+            Ok(r) => {
+                let mut eg = Egress::default();
+                let proposals: Vec<Value> = r
+                    .proposals
+                    .iter()
+                    .map(|p| {
+                        // quotes from the app's chat are brain content leaving through mcp
+                        if from_chat && let Some(src) = &p.source_item {
+                            eg.add(src, p.quote.chars().count());
+                        }
+                        json!({
+                            "proposal_id": p.id,
+                            "kind": p.kind,
+                            "title": p.title,
+                            "quote": p.quote,
+                            "title_by": if p.extractor.starts_with("rule") { "the user's words" } else { "a model" },
+                            "provenance": provenance(Origin::OwnerInChat),
+                        })
+                    })
+                    .collect();
+                self.egress(&ctx, "distil", eg).await;
+                Ok(CallToolResult::structured(json!({
+                    "proposals": proposals,
+                    "distiller": r.distiller,
+                    "note": r.note,
+                    "next": "show these to the user; for each one they keep, call capture with its proposal_id",
+                })))
+            }
             Err(e) => Ok(tool_error(e)),
         }
     }

@@ -1,4 +1,4 @@
-// Evaluation: latent links share, retrieval, resurfacing and growth — each with
+// Evaluation: latent links share, retrieval, resurfacing, distil and growth — each with
 // n, point estimate, interval, status and whether it is measured, modelled or a hypothesis.
 import { h, clear } from '../lib/dom.js';
 import { api } from '../lib/api.js';
@@ -6,7 +6,7 @@ import { theme, rgba } from '../lib/tokens.js';
 import { setup, stippleRect } from '../lib/stipple.js';
 import { on } from '../lib/store.js';
 
-const ORDER = [['links', 'latent links'], ['retrieval', 'retrieval'], ['resurfacing', 'resurfacing'], ['growth', 'growth']];
+const ORDER = [['links', 'latent links'], ['retrieval', 'retrieval'], ['resurfacing', 'resurfacing'], ['distil', 'distilled notes worth keeping'], ['growth', 'growth']];
 const pct = (x) => { const v = Math.abs(x * 100); return `${x < 0 ? '−' : ''}${v > 0 && v < 10 ? v.toFixed(1).replace(/\.0$/, '') : Math.round(v)}%`; };
 const fmt = (x, unit) => (x == null || isNaN(x) ? '—' : unit === 'share' || unit === 'difference' ? pct(x) : (Math.abs(x) < 10 ? (+x).toFixed(2) : Math.round(x).toLocaleString('en').replace(/,/g, ' ')));
 
@@ -20,14 +20,21 @@ const CLAIMS = {
   retrieval_ndcg: ['retrieval', 'ndcg@10'],
   resurfacing_vs_random: ['resurfacing', 'difference'],
   resurfacing_after_novelty: ['after the novelty', 'difference'],
+  distil_worth_keeping: ['distilled notes worth keeping', 'share', 'of the notes distil proposed from my own words, how many did i keep?'],
   growth: ['growth', 'items'],
   thinks_like_me: ['thinks like you', ''],
 };
-function fromClaims(claims) {
+// Extra counts for a claim, from its section of the report.
+function counts(key, data) {
+  const d = data?.distil;
+  if (key === 'distil_worth_keeping' && d) return `${d.kept ?? 0} kept, ${d.dropped ?? 0} dropped, ${d.pending ?? 0} waiting for an answer`;
+  return null;
+}
+export function fromClaims(claims, data) {
   return claims.map((c) => {
     const [title, unit, question] = CLAIMS[c.key] || [c.key.replace(/_/g, ' '), ''];
     const iv = c.interval && c.interval.lo != null ? [c.interval.lo, c.interval.hi] : [];
-    return { title, unit, question: question || c.claim, n: c.n, estimate: c.value, interval: iv, status: c.status, basis: c.class, detail: [question ? c.claim : null, c.basis, c.caveat].filter(Boolean).join(' · ') };
+    return { title, unit, question: question || c.claim, n: c.n, estimate: c.value, interval: iv, status: c.status, basis: c.class, detail: [counts(c.key, data), question ? c.claim : null, c.basis, c.caveat].filter(Boolean).join(' · ') };
   });
 }
 
@@ -42,7 +49,7 @@ export default {
     const draw = () => {
       if (!data) return;
       clear(wrap);
-      const rows = Array.isArray(data.honesty?.claims) ? fromClaims(data.honesty.claims).map((m) => [m, m.title]) : ORDER.map(([key, fallback]) => [data[key], fallback]);
+      const rows = Array.isArray(data.honesty?.claims) ? fromClaims(data.honesty.claims, data).map((m) => [m, m.title]) : ORDER.map(([key, fallback]) => [data[key], fallback]);
       for (const [m, fallback] of rows) {
         if (!m) continue;
         const basis = (m.basis || m.label || 'measured').toLowerCase();

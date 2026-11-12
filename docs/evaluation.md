@@ -69,6 +69,16 @@ each day's review draws a few items from three pools: *due* (scheduled seeds and
 
 **enough data:** once the smaller arm has 95 ratings. the report also says which effect the current sample could detect.
 
+## distilled notes worth keeping
+
+**what it answers:** of the notes distil proposed from your own words, how many did you keep?
+
+every proposal is a `DistilProposed` event and every answer a `DistilDecided` (keep or drop). the headline is **kept / proposed over the proposals you answered**, with a 95% wilson interval; proposals still waiting are counted (`pending`) but are evidence of nothing, and are left out. the report also splits it by distiller (the rules, a local model, an api model), so you can see whether a model earns its keep over the rules.
+
+**enough data:** 40 answered proposals (the interval is then about ±15 points around one half). before that it reads "measuring" and the honesty table calls it a hypothesis.
+
+**what it does not say:** there is no control arm. a high rate says the proposals were worth keeping to you, not that distil beats anything else, and you may keep more of them while the feature is new (see the novelty split below).
+
 ## growth and lineage
 
 items over time (by month, by speaker, by origin, by kind), links by kind, live regions per clustering run, and births, splits, merges and deaths of regions ([architecture.md](architecture.md#regions-and-lineage)). growth is descriptive: it is shown, not claimed.

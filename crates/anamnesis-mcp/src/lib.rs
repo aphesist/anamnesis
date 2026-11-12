@@ -18,8 +18,8 @@ pub mod snippets;
 pub mod transport;
 
 pub use api::{
-    BrainApi, BrainError, BrainResult, EgressNote, ItemSummary, ItemView, LinkSuggestion,
-    Neighbour, NewCapture, RegionView, Related, SearchHit,
+    BrainApi, BrainError, BrainResult, DistilResult, EgressNote, ItemSummary, ItemView,
+    LinkSuggestion, Neighbour, NewCapture, RegionView, Related, SearchHit,
 };
 pub use server::{McpServer, SERVER_INSTRUCTIONS, normalise_client_name};
 pub use snippets::{ConfigSnippets, SnippetOptions, config_snippets};
@@ -35,6 +35,7 @@ pub const TOOL_NAMES: &[&str] = &[
     "timeline",
     "recent",
     "capture",
+    "distil",
     "link",
     "update_thread",
 ];

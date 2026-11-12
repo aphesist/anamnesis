@@ -8,8 +8,8 @@ use anamnesis_core::{
     ThreadKind, ThreadStatus, Timestamp, UpsertOutcome, refs::extract_refs,
 };
 use anamnesis_mcp::{
-    BrainApi, BrainError, BrainResult, EgressNote, ItemSummary, ItemView, LinkSuggestion,
-    Neighbour, NewCapture, RegionView, Related, SearchHit,
+    BrainApi, BrainError, BrainResult, DistilResult, EgressNote, ItemSummary, ItemView,
+    LinkSuggestion, Neighbour, NewCapture, RegionView, Related, SearchHit,
 };
 use async_trait::async_trait;
 use serde_json::json;
@@ -340,6 +340,38 @@ impl BrainApi for StoreBrain {
             .db(move |s| Ok(s.set_thread_status(&id, status, resolved_by, actor)?))
             .await
             .map_err(internal)
+    }
+
+    async fn distil(
+        &self,
+        actor: Actor,
+        chat_id: Option<Id>,
+        messages: Vec<String>,
+    ) -> BrainResult<DistilResult> {
+        let source = match chat_id {
+            Some(c) => crate::distil::DistilSource::Chat(c),
+            None => crate::distil::DistilSource::Text(messages),
+        };
+        let o = crate::distil::distil(&self.app, source, actor, false)
+            .await
+            .map_err(internal)?;
+        Ok(DistilResult {
+            proposals: o.proposals.into_iter().map(|r| r.proposal).collect(),
+            distiller: o.distiller,
+            note: o.note,
+        })
+    }
+
+    async fn keep_distilled(
+        &self,
+        actor: Actor,
+        proposal_id: &Id,
+        title: Option<String>,
+    ) -> BrainResult<Item> {
+        let (_, item) = crate::distil::keep(&self.app, proposal_id, title, actor)
+            .await
+            .map_err(internal)?;
+        Ok(item)
     }
 
     async fn note_egress(&self, actor: Actor, note: EgressNote) -> BrainResult<()> {

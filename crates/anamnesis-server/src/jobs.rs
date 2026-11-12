@@ -863,7 +863,7 @@ async fn extract_one(
 }
 
 /// Collect a routed stream's text (two minutes at most).
-async fn collect_text(
+pub(crate) async fn collect_text(
     mut stream: anamnesis_harness::ChatStream,
     backend: &str,
 ) -> std::result::Result<String, String> {
@@ -1092,6 +1092,11 @@ async fn jobs_pass(app: &Arc<App>) -> Result<()> {
     let js = brain.job_state();
     let changed = js.seen_head != head;
     let review_due = js.review_day.as_deref() != Some(today.as_str());
+    if js.distil_day.as_deref() != Some(today.as_str())
+        && let Err(e) = crate::distil::run_daily(app, &brain).await
+    {
+        tracing::warn!("daily distil: {e:#}");
+    }
     let embedded = run_embeddings(app, &brain).await?;
     if !changed && embedded == 0 && !review_due && !js.extract_pending {
         return Ok(());

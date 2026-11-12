@@ -575,6 +575,21 @@ impl Store {
         }
     }
 
+    /// Store a document the user asked for explicitly, without deduplication against other
+    /// items (e.g. a distilled note whose text is also the whole chat message it came from).
+    /// A document with the same external id in the source is updated.
+    pub fn upsert_document_explicit(
+        &self,
+        source_id: &Id,
+        doc: Document,
+        actor: Actor,
+    ) -> Result<UpsertOutcome> {
+        let source = self
+            .get_source(source_id)?
+            .ok_or_else(|| Error::NotFound(format!("source {source_id}")))?;
+        self.write(|w| upsert_in(w, &source, doc, &actor, false))
+    }
+
     /// Edit an item (`ItemUpdated`). A changed body re-extracts its references.
     pub fn update_item(&self, id: &Id, patch: ItemPatch, actor: Actor) -> Result<Item> {
         self.write(|w| {

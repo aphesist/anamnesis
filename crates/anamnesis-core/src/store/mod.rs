@@ -8,6 +8,7 @@
 //! `LayoutUpdated { placements_hash, count }` digest).
 
 mod bundle;
+mod distil;
 mod ingest;
 mod project;
 mod queries;
@@ -29,6 +30,7 @@ use crate::error::{Error, Result};
 use crate::model::{Actor, Event, EventKind, Timestamp};
 
 pub use bundle::{BUNDLE_FORMAT, Manifest};
+pub use distil::{DistilFilter, DistilRecord, DistilStatus};
 pub use ingest::{ItemFilter, ItemPatch, ItemSummary, NewNote, PendingRef, UpsertOutcome};
 pub use queries::{
     ChatTurnRecord, DayCount, RegionCounts, RegionRun, Resurfacing, RetrievalLabel, SpeakerCounts,

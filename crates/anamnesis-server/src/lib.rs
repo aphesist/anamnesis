@@ -12,6 +12,7 @@ pub mod backends;
 pub mod brain;
 pub mod chat;
 pub mod cli;
+pub mod distil;
 pub mod importer;
 pub mod jobs;
 pub mod mcp_brain;

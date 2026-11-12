@@ -50,6 +50,24 @@ the **chat** panel answers from your brain and cites the items it used as `[n]`.
 
 your chats are stored as items too (yours as "owner in chat", the assistant's as "ai generated"), so they can be searched and linked, and never pass for your own writing. items flagged `local_only` are never sent to a remote model; items flagged `ask` make chat ask first.
 
+a fresh install opens on the demo brain, and a chat goes into whichever brain is open: the chat panel says *you're in the demo brain — chats are stored there* and offers **switch to your brain**.
+
+<img alt="the chat panel in the demo brain: a note says chats are stored there, with a switch to your brain" src="../ui/app/docs-screens/chat-demo-note.png" width="380">
+
+### distil
+
+a conversation is a poor place to keep a thought. **distil** (next to *send*, once the chat has a reply) reads **only your own messages** in this chat and proposes a few atomic notes, each one an **idea**, a **decision**, an **open question** or a **plan**:
+
+- each proposal quotes **your exact words**, checked character for character against the message they came from (a quote that is not there verbatim is thrown away, as for threads), with a short title;
+- **keep** turns it into a note of origin "owner in chat" whose text is your quote, linked to the chat message it came from, as private as that message. a title written by a model is marked as such on the note (`meta.distil.title_by`); **drop** discards it. nothing is stored until you keep it;
+- with the keyboard: each proposal is focusable; **k** keeps, **d** drops, the arrows move, and focus goes on to the next open proposal.
+
+<img alt="distil in the chat panel: a decision already kept as a note, an open question and an idea waiting, each quoting the user's exact words with a short title" src="../ui/app/docs-screens/distil.png" width="380">
+
+what reads your messages: a **local model** when one is routed for extraction; else the routed `extract` api, **only if you allowed background api use** ([models.md](models.md)), and then only messages flagged `cloud_ok`, through the egress gate (logged); never a subscription (chatgpt, the claude cli). with no model, or when the model fails, the rule-based thread extractor proposes instead, with titles cut from your own words. distilling the same chat again proposes only what is new.
+
+**also distil new chats once a day** (under the proposals; the setting `distil.daily`, off by default) runs the same distiller in the background on chats with new messages of yours, and leaves the proposals waiting: `GET /api/distil?status=pending` lists them. every keep and drop is recorded, and the evaluation reports how many proposals were worth keeping ([evaluation.md](evaluation.md#distilled-notes-worth-keeping)). over mcp, `distil` and `capture` do the same for a harness's conversations ([mcp.md](mcp.md#tools)).
+
 ## today and review
 
 **today** gathers what you captured today, a few items **worth seeing again**, and **questions still open**. the review draws each day from items that are due, items near what you wrote recently, and old items far from your recent attention, and mixes in random picks as a control. rate each one **useful** or **not**: those ratings are how the app finds out whether its picks beat chance ([evaluation.md](evaluation.md#resurfacing-a-micro-randomised-trial)).
@@ -64,7 +82,7 @@ items of kind `skill` (reusable instructions, prompts, procedures) are listed in
 
 ## evaluation
 
-**more → evaluation** opens the panel: latent links, retrieval, resurfacing and growth, each with its sample size, interval and status, and the honesty table. `anamnesis eval` prints the same table in a terminal. relevance labels for retrieval are recorded with `POST /api/eval/label {"query": …, "item_id": …, "grade": 0-3}`. read [evaluation.md](evaluation.md) before reading too much into a number.
+**more → evaluation** opens the panel: latent links, retrieval, resurfacing, distilled notes worth keeping and growth, each with its sample size, interval and status, and the honesty table. `anamnesis eval` prints the same table in a terminal. relevance labels for retrieval are recorded with `POST /api/eval/label {"query": …, "item_id": …, "grade": 0-3}`. read [evaluation.md](evaluation.md) before reading too much into a number.
 
 ## search
 

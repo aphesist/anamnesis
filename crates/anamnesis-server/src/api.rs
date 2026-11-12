@@ -84,6 +84,8 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/items/{id}", get(get_item).put(update_item))
         .route("/search", get(search))
         .route("/chat", post(chat))
+        .route("/distil", get(distil_list).post(distil_run))
+        .route("/distil/{id}", post(distil_decide))
         .route("/timeline", get(timeline))
         .route("/threads", get(threads))
         .route("/threads/{id}", post(update_thread))
@@ -450,6 +452,61 @@ async fn update_thread(
         .brain()
         .db(move |s| Ok(s.set_thread_status(&id, b.status, b.resolved_by, Actor::User)?))
         .await?)
+}
+
+#[derive(Deserialize)]
+struct DistilRun {
+    chat_id: Id,
+}
+
+async fn distil_run(State(app): S, Json(b): Json<DistilRun>) -> ApiResult {
+    ok(crate::distil::distil(
+        &app,
+        crate::distil::DistilSource::Chat(b.chat_id),
+        Actor::User,
+        true,
+    )
+    .await?)
+}
+
+#[derive(Deserialize)]
+struct DistilQuery {
+    chat_id: Option<String>,
+    status: Option<String>,
+}
+
+async fn distil_list(State(app): S, Query(q): Query<DistilQuery>) -> ApiResult {
+    let status = match q.status.as_deref().filter(|s| !s.is_empty()) {
+        Some(s) => Some(parse_enum::<anamnesis_core::DistilStatus>(s, "status")?),
+        None => None,
+    };
+    let f = anamnesis_core::DistilFilter {
+        chat_id: q.chat_id.filter(|c| !c.is_empty()).map(Id),
+        status,
+    };
+    let proposals = app.brain().db(move |s| Ok(s.distil_proposals(&f)?)).await?;
+    ok(json!({ "proposals": proposals }))
+}
+
+#[derive(Deserialize)]
+struct DistilDecision {
+    keep: bool,
+    title: Option<String>,
+}
+
+async fn distil_decide(
+    State(app): S,
+    Path(id): Path<String>,
+    Json(b): Json<DistilDecision>,
+) -> ApiResult {
+    let id = Id(id);
+    if b.keep {
+        let (rec, item) = crate::distil::keep(&app, &id, b.title, Actor::User).await?;
+        ok(json!({ "proposal": rec, "item": item }))
+    } else {
+        let rec = crate::distil::drop_proposal(&app, &id, Actor::User).await?;
+        ok(json!({ "proposal": rec, "item": null }))
+    }
 }
 
 async fn review(State(app): S) -> ApiResult {

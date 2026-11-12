@@ -114,7 +114,7 @@ async fn lists_exactly_the_documented_tools_and_none_destructive() {
             Some(false),
             "{name} stays inside the brain"
         );
-        let writes = ["capture", "link", "update_thread"].contains(&name.as_str());
+        let writes = ["capture", "distil", "link", "update_thread"].contains(&name.as_str());
         assert_eq!(ann.read_only_hint, Some(!writes), "{name} read-only hint");
     }
 
@@ -124,8 +124,15 @@ async fn lists_exactly_the_documented_tools_and_none_destructive() {
     for v in ["assistant", "user", "user_edited", "external"] {
         assert!(schema.contains(&format!("\"{v}\"")), "origin {v} in schema");
     }
-    let required = capture.input_schema.get("required").unwrap();
-    assert_eq!(required, &json!(["body"]));
+    // body or proposal_id: neither is required by the schema, the tool checks
+    assert!(
+        capture
+            .input_schema
+            .get("required")
+            .is_none_or(|r| r.as_array().is_some_and(|a| a.is_empty())),
+        "{schema}"
+    );
+    assert!(schema.contains("proposal_id"));
 }
 
 #[tokio::test]

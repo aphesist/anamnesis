@@ -9,6 +9,7 @@
 //!   recall@k / MRR, acceptance (a diagnostic), time to link.
 //! * [`retrieval`] — nDCG@10, P@5, MRR on the user's own labels, bootstrap intervals.
 //! * [`resurfacing`] — the algorithm-vs-random micro-randomised trial.
+//! * [`distil`] — distilled notes worth keeping: kept / proposed, answered proposals only.
 //! * [`growth`] — items, links and regions over time.
 //! * [`honesty`] — measured / modelled / hypothesis for each headline claim.
 //! * [`synthetic`] — a seeded, plausible event log for a simulated user.
@@ -17,6 +18,7 @@
 //! (`novelty`), because new features are rated more kindly while they are new.
 
 pub mod common;
+pub mod distil;
 pub mod growth;
 pub mod honesty;
 pub mod links;
@@ -31,6 +33,7 @@ use anamnesis_core::{Event, Id};
 use serde::{Deserialize, Serialize};
 
 pub use common::{Estimate, NOVELTY_DAYS, Novelty, Status, Window};
+pub use distil::{DistilConfig, DistilReport, distil_metrics};
 pub use growth::{GrowthReport, growth_metrics};
 pub use honesty::{Claim, ClaimClass, Honesty, honesty};
 pub use links::{LinkConfig, LinksReport, link_metrics};
@@ -46,6 +49,8 @@ pub struct EvalConfig {
     pub links: LinkConfig,
     pub retrieval: RetrievalConfig,
     pub resurfacing: ResurfacingConfig,
+    #[serde(default)]
+    pub distil: DistilConfig,
 }
 
 /// The body of `GET /api/eval`.
@@ -57,6 +62,7 @@ pub struct EvalReport {
     pub retrieval: Option<RetrievalReport>,
     pub resurfacing: ResurfacingReport,
     pub growth: GrowthReport,
+    pub distil: DistilReport,
     pub honesty: Honesty,
     pub config: EvalConfig,
 }
@@ -73,12 +79,14 @@ pub fn evaluate(
     let retrieval = search.map(|s| retrieval_metrics(events, s, &cfg.retrieval));
     let resurfacing = resurfacing_metrics(events, &cfg.resurfacing);
     let growth = growth_metrics(events, cohesion);
+    let distil = distil_metrics(events, &cfg.distil);
     let mut report = EvalReport {
         events: events.len(),
         links,
         retrieval,
         resurfacing,
         growth,
+        distil,
         honesty: Honesty { claims: Vec::new() },
         config: cfg.clone(),
     };

@@ -2,13 +2,15 @@
 // cited dots in the brain, lets the user pick a backend (with its terms status,
 // notice and whether it leaves the machine) from /api/backends, asks before any
 // item marked "ask" leaves the machine (consent_required), and takes one-tap
-// relevance grades on the citations.
+// relevance grades on the citations. "distil" proposes a few notes quoting the user's own
+// messages in this chat; each is kept or dropped with one tap (or k / d on a focused card).
 import { h, clear } from '../lib/dom.js';
 import { store, on, BIT, setBit, clearBit } from '../lib/store.js';
 import { api, streamChat } from '../lib/api.js';
 import { normKind, isLocal, egressLabel, displayLabel, keepsCase, termsGrey, initialChoice } from '../lib/backends.js';
 import { createConsent, setChat, resetConsent, withApprovals, onConsentRequired, approve, deny } from '../lib/consent.js';
 import { gradeControl } from '../lib/grade.js';
+import { kindLabel, titleBy, summary as distilSummary, nextOpen, keyAction } from '../lib/distil.js';
 
 let unread = 0;
 
@@ -34,7 +36,7 @@ export default {
   badge: () => unread || '',
   mount(el, ctx) {
     el.classList.add('chat');
-    let resp = null, backends = [], settings = null, chosen = null, busy = null, accepted = new Set(), noticeFor = null;
+    let resp = null, backends = [], settings = null, chosen = null, busy = null, accepted = new Set(), noticeFor = null, chatId = null;
     const consent = createConsent();
     const picker = h('div.backend-picker', { role: 'radiogroup', 'aria-label': 'model' });
     const pickerWrap = h('details.sect', h('summary', 'model'), picker);
@@ -43,11 +45,23 @@ export default {
     const input = h('textarea', { placeholder: 'ask your notes something…', 'aria-label': 'message', rows: 3 });
     const send = h('button.textbtn.strong', { type: 'submit' }, 'send');
     const stop = h('button.textbtn', { type: 'button', hidden: true, onclick: () => busy?.abort() }, 'stop');
-    const fresh = h('button.textbtn', { type: 'button', title: 'start a new chat', onclick: () => { resetConsent(consent); clear(log).append(emptyNote()); clearBit(BIT.CITED); } }, 'new chat');
-    const form = h('form.chat-form', chosenLabel, input, h('div.btnrow', send, stop, fresh));
+    const newChat = () => { resetConsent(consent); chatId = null; distilBtn.disabled = true; clear(log).append(emptyNote()); clearBit(BIT.CITED); };
+    const fresh = h('button.textbtn', { type: 'button', title: 'start a new chat', onclick: newChat }, 'new chat');
+    const distilBtn = h('button.textbtn', { type: 'button', disabled: true, title: 'propose a few notes from your own words in this chat', onclick: () => distil() }, 'distil');
+    const form = h('form.chat-form', chosenLabel, input, h('div.btnrow', send, stop, distilBtn, fresh));
     const emptyNote = () => h('p.empty', 'ask anything. answers cite your own notes, and the cited dots light up in the brain.');
     log.append(emptyNote());
-    el.append(pickerWrap, log, form);
+    // a fresh install opens on the demo brain: say where chats go, and offer the way back
+    const demoNote = h('p.notice.demo-note', { role: 'status', hidden: true });
+    const drawDemoNote = () => {
+      clear(demoNote).append(h('span', "you're in the demo brain — chats are stored there. "),
+        h('button.textbtn.strong', { type: 'button', onclick: () => ctx.setDemo?.(false) }, 'switch to your brain'));
+      demoNote.hidden = !store.demo;
+    };
+    drawDemoNote();
+    on('demo', drawDemoNote);
+    on('brain-switched', () => { drawDemoNote(); newChat(); });
+    el.append(demoNote, pickerWrap, log, form);
 
     const byId = (id) => backends.find((b) => b.id === id);
     const nameOf = (b) => h(keepsCase(b) ? 'span.brand-label' : 'span', displayLabel(b));
@@ -166,6 +180,7 @@ export default {
             usage.textContent = `${data.backend} · ${data.input} in · ${data.output} out${data.estimated ? ' · estimated' : ''}`;
           } else if (ev === 'done') {
             setChat(consent, data.chat_id);
+            if (data.chat_id) { chatId = data.chat_id; distilBtn.disabled = false; }
           } else if (ev === 'consent_required') {
             consentEv = data || {};
           } else if (ev === 'error') {
@@ -192,6 +207,71 @@ export default {
         });
       }
     };
+    // ---- distil: notes in the user's own words, kept or dropped one by one ----
+    const dailyToggle = () => {
+      const on = !!settings?.distil?.daily;
+      const box = h('input', { type: 'checkbox', checked: on, onchange: async () => {
+        try { settings = await api.put('/api/settings', { distil: { daily: box.checked } }); }
+        catch { box.checked = !box.checked; ctx.toast?.('the setting could not be saved.'); }
+      } });
+      return h('label.meta.distil-daily', box, ' also distil new chats once a day, in the background (same model rules: local first, an api only if you allowed background use)');
+    };
+    const distil = async () => {
+      if (!chatId || distilBtn.disabled) return;
+      distilBtn.disabled = true;
+      const box = h('div.distil', { role: 'region', 'aria-label': 'distilled notes' }, h('p.meta', 'reading your messages…'));
+      log.append(box);
+      box.scrollIntoView({ block: 'nearest' });
+      let out;
+      try { out = await api.distil(chatId); }
+      catch (e) { clear(box).append(h('p.meta', e.serverMessage || 'distil did not work this time.')); distilBtn.disabled = false; return; }
+      distilBtn.disabled = false;
+      clear(box).append(h('p.meta.distil-summary', distilSummary(out)));
+      const ps = out.proposals || [];
+      const answered = ps.map(() => false);
+      const cards = [];
+      const decide = async (i, keep) => {
+        if (answered[i]) return;
+        const p = ps[i], card = cards[i];
+        card.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+        let r;
+        try { r = await api.distilDecide(p.id, keep); }
+        catch (e) { card.querySelectorAll('button').forEach((b) => { b.disabled = false; }); ctx.toast?.(e.serverMessage || 'that did not work.'); return; }
+        answered[i] = true;
+        card.classList.add('answered', keep ? 'kept' : 'dropped');
+        const row = card.querySelector('.btnrow');
+        clear(row).append(keep
+          ? h('span.meta', 'kept as a note · ', h('button.textbtn', { type: 'button', onclick: () => ctx.open(r.item.id) }, 'open it'))
+          : h('span.meta', 'dropped'));
+        const j = nextOpen(answered, i);
+        if (j >= 0) cards[j].focus({ preventScroll: false });
+        else { box.append(h('p.meta', 'all answered.')); input.focus({ preventScroll: true }); }
+      };
+      ps.forEach((p, i) => {
+        const card = h('div.distil-card', { role: 'group', tabindex: '0', 'aria-label': `${kindLabel(p.kind)}: ${p.title}. k keeps, d drops.` },
+          h('div.who', kindLabel(p.kind)),
+          h('div.distil-title.keep-case', p.title),
+          h('blockquote.keep-case', p.quote),
+          h('div.meta', titleBy(p)),
+          h('div.btnrow',
+            h('button.textbtn.strong', { type: 'button', onclick: () => decide(i, true) }, 'keep'),
+            h('button.textbtn', { type: 'button', onclick: () => decide(i, false) }, 'drop')));
+        card.addEventListener('keydown', (e) => {
+          if (e.target !== card) return; // the buttons handle their own keys
+          const a = keyAction(e.key);
+          if (!a) return;
+          e.preventDefault();
+          if (a === 'keep' || a === 'drop') decide(i, a === 'keep');
+          else cards[a === 'next' ? Math.min(i + 1, cards.length - 1) : Math.max(i - 1, 0)].focus();
+        });
+        cards.push(card);
+        box.append(card);
+      });
+      box.append(dailyToggle());
+      if (cards.length) cards[0].focus({ preventScroll: true });
+      box.scrollIntoView({ block: 'nearest' });
+    };
+
     form.addEventListener('submit', (e) => { e.preventDefault(); const t = input.value; input.value = ''; ask(t); });
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
     on('chat-ask', (t) => { ask(t); });

@@ -320,6 +320,16 @@ select.quiet option { background: var(--bg); color: var(--ink); }
 .backend-picker .terms { font-size: 9.5px; letter-spacing: 0.08em; }
 .backend-picker .terms.grey { color: var(--seal); }
 .notice { font-size: 11px; color: var(--ink-soft); border-left: 1px solid var(--seal); padding-left: 10px; margin: 6px 0; }
+.demo-note { margin: 0 0 var(--space-2); }
+.distil { display: grid; gap: var(--space-2); padding-left: var(--space-3); border-left: 1px solid var(--accent); }
+.distil-card { display: grid; gap: 4px; padding: var(--space-2) var(--space-2) var(--space-2) 0; outline: none; }
+.distil-card:focus-visible { box-shadow: -10px 0 0 -9px var(--dot-hot); }
+.distil-card .who { font-size: 10px; letter-spacing: 0.14em; color: var(--accent-text); }
+.distil-card .distil-title { font-family: var(--font-display); font-size: 1.15em; line-height: 1.25; }
+.distil-card blockquote { margin: 0; padding-left: var(--space-2); border-left: 1px solid var(--line); color: var(--ink-soft); white-space: pre-wrap; }
+.distil-card.answered { opacity: 0.6; }
+.distil-card.dropped .distil-title { text-decoration: line-through; text-decoration-thickness: 1px; }
+.distil-daily { display: flex; gap: 6px; align-items: baseline; }
 
 /* ---------- notes, reader, write, today ---------- */
 .page-notes, .page-today { display: grid; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr); gap: 0; overflow: hidden; }

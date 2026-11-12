@@ -211,6 +211,19 @@ pub fn honesty(r: &EvalReport) -> Honesty {
         "early enthusiasm inflates new features; this half excludes it",
     ));
 
+    let d = &r.distil.all;
+    claims.push(claim(
+        "distil_worth_keeping",
+        "distilled notes are worth keeping",
+        ClaimClass::Measured,
+        d.n,
+        d.keep_rate.value,
+        d.keep_rate.interval.clone(),
+        d.status,
+        "kept / proposed over the proposals you answered (keep or drop), wilson interval",
+        "no control arm: it says how often proposals are kept, not that they beat anything; unanswered proposals are left out",
+    ));
+
     let g = &r.growth;
     // identity over time is only observed across clustering runs on different days
     // (one import followed by two quick recomputes says nothing about time)

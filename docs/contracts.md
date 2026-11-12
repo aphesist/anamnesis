@@ -69,11 +69,21 @@ all json. times are rfc3339 utc. ids are ulid strings. the ui must work against 
 
 `backend` picks a backend for this request (an id from `/api/backends`); `"retrieval"` is the built-in responder that lists matching items without any model. with no backend configured, chat falls back to `retrieval`. items marked `local_only` are left out of the context whenever the backend is not local.
 
+### distil
+
+| method + path | returns / body |
+|---|---|
+| `POST /api/distil` | body `{ chat_id }` → `{ proposals: [proposal], distiller, note }`: a few notes proposed from the user's own messages in that chat (404 when it has none). `distiller` is `"rule:v2"`, `"local:<model>"` or `"<provider>:<model>"`; `note` says, in plain words, why the rules ran instead of a model (null otherwise). the model is the `extract` route (local, or an api only when background api use is allowed or `routing.extract` names it; never a subscription); with a backend that is not local only `cloud_ok` messages are sent, through the egress gate. quotes already proposed for the chat are not proposed again. records `DistilProposed`. |
+| `GET /api/distil?chat_id=&status=` | `{ proposals: [proposal] }`, oldest first; `status` is `pending`, `kept` or `dropped` |
+| `POST /api/distil/:id` | body `{ keep: bool, title? }` → `{ proposal, item }`. keep: a note (kind `note`, origin `owner_in_chat`, body = the quote) in the `distil` source, with `meta.distil = { proposal_id, kind, chat_id, source_item, span, extractor, title_by }` (`title_by`: `"model:<extractor>"`, `"quote"` or `"user"` when `title` replaced it), the source message's privacy, and a manual link to that message; `item` is null on drop. a proposal is answered once (400 after). records `DistilDecided`. |
+
+a `proposal` is `{ id, chat_id, kind: "idea" | "decision" | "open_question" | "plan", title, quote, source_item, start, end, extractor, created_at, status, item_id, decided_at }`; `quote` is exactly `source_item.body[start..end]`.
+
 ### evaluation
 
 | method + path | returns / body |
 |---|---|
-| `GET /api/eval` | `{ events, links: {...}, retrieval: {...}, resurfacing: {...}, growth: {...}, honesty: { claims: [...] }, config }` — each section with `n`, point estimate, interval, `status: "measuring" \| "enough data"` and `novelty` (see `crates/anamnesis-eval/README.md`) |
+| `GET /api/eval` | `{ events, links: {...}, retrieval: {...}, resurfacing: {...}, growth: {...}, distil: { proposed, pending, n, kept, dropped, keep_rate, status, by_distiller, novelty }, honesty: { claims: [...] }, config }` — each section with `n`, point estimate, interval, `status: "measuring" \| "enough data"` and `novelty` (see `crates/anamnesis-eval/README.md`) |
 | `POST /api/eval/label` | body `{ query, item_id, grade }` (grade 0–3) → `{ ok: true }` |
 
 ### sources
@@ -109,6 +119,7 @@ all json. times are rfc3339 utc. ids are ulid strings. the ui must work against 
 | `harness` | the harness configuration: `{ openai_compatible: [{ id, provider, base_url, model, label?, local?, … }], anthropic?: { chat_model?, label_model?, … }, gemini?: { model?, label_model? }, chatgpt?: { enabled, model? }, claude_cli: { enabled, binary?, model? }, prices?, probe_local? }`. api keys never go here. changing it re-runs detection. |
 | `privacy` | `{ default: "local_only" \| "cloud_ok" \| "ask" }` — the flag new sources get when `POST /api/sources` (or `anamnesis add-source`, `anamnesis import <folder>`) names none |
 | `theme`, `motion` | written by `ui/theme` (`{ theme: {…}, motion: "full" \| "reduced" }`) |
+| `distil` | `{ daily?: bool }` — distil chats with new user messages once a day in the background (default false) |
 
 other keys are stored as given.
 

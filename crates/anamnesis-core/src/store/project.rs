@@ -197,6 +197,16 @@ pub(crate) fn apply(conn: &Connection, ev: &Event) -> Result<()> {
                 params![ev.seq as i64, chat_id.0, role, item_id.0, serde_json::to_string(cited)?, at],
             )?;
         }
+        EventKind::DistilProposed { proposals } => {
+            super::distil::apply_proposed(conn, ev.seq, proposals)?;
+        }
+        EventKind::DistilDecided {
+            proposal_id,
+            kept,
+            item_id,
+        } => {
+            super::distil::apply_decided(conn, &at, proposal_id, *kept, item_id.as_ref())?;
+        }
         EventKind::SettingSet { key, value } => {
             if value.is_null() {
                 conn.execute("DELETE FROM settings WHERE key = ?1", params![key])?;

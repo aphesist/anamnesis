@@ -44,6 +44,7 @@ it is one rust binary with a browser ui. it works with no model at all, brings y
 - **provenance everywhere.** every item says who wrote it (you, you in a chat, a model, a model editing you, someone else), where it came from and when. model text never passes for yours.
 - **hybrid search** (bm25 + on-device embeddings, fused) with citation spans; **chat** that answers from your brain and cites it, or, with no model, lists what it holds.
 - **threads:** decisions, open questions, plans and rejections found in your writing, with the verbatim quote, tracked to resolution.
+- **distil:** after a chat, a few atomic notes (idea, decision, open question, plan) proposed from your own messages, each quoting your exact words; keep or drop each with one tap. on a local model, or with no model at all (the rules); never a subscription.
 - **review:** a few items a day worth seeing again, run as a micro-randomised trial against random picks.
 - **an evaluation you can trust:** held-out controls, intervals, sample sizes, "measuring" until there is enough data, and an honesty table.
 - **privacy by construction:** local by default, per-source privacy flags, an egress ledger of every remote call, an mcp surface with no delete and no fetch.
@@ -203,7 +204,7 @@ every change is an event; items, links, threads, regions and suggestions are pro
 | `crates/anamnesis-core` | data model, event log, sqlite storage, chunking, hybrid search, bundles |
 | `crates/anamnesis-connectors` | built-in connectors and the plugin runtime ([PLUGINS.md](crates/anamnesis-connectors/PLUGINS.md)) |
 | `crates/anamnesis-embed` | embedding backends |
-| `crates/anamnesis-mind` | regions, lineage, layout, link suggestion, threads, resurfacing |
+| `crates/anamnesis-mind` | regions, lineage, layout, link suggestion, threads, distil, resurfacing |
 | `crates/anamnesis-eval` | the built-in evaluation ([README](crates/anamnesis-eval/README.md)) |
 | `crates/anamnesis-harness` | model backends, routing, limits, usage, egress gate |
 | `crates/anamnesis-mcp` | the mcp server |

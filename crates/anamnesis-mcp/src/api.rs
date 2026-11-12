@@ -8,8 +8,8 @@
 //! deletes or overwrites data, and none that reaches the network.
 
 use anamnesis_core::{
-    Actor, Hit, Id, Item, ItemKind, Link, Origin, Privacy, Region, Thread, ThreadKind,
-    ThreadStatus, Timestamp,
+    Actor, DistilProposal, Hit, Id, Item, ItemKind, Link, Origin, Privacy, Region, Thread,
+    ThreadKind, ThreadStatus, Timestamp,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -143,6 +143,16 @@ pub struct EgressNote {
     pub chars: u64,
 }
 
+/// What the `distil` tool returns: proposals the user can keep (`capture` with a
+/// `proposal_id`) or leave.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DistilResult {
+    pub proposals: Vec<DistilProposal>,
+    /// `"rule:v2"` or `"local:<model>"` (mcp never sends words off the machine).
+    pub distiller: String,
+    pub note: Option<String>,
+}
+
 /// The brain as seen by the mcp server. Implemented by the server crate.
 ///
 /// Every write takes the [`Actor`] that caused it (always `Actor::Mcp(client)`
@@ -203,6 +213,29 @@ pub trait BrainApi: Send + Sync + 'static {
         status: ThreadStatus,
         resolved_by: Option<Id>,
     ) -> BrainResult<Thread>;
+
+    /// Propose atomic notes from the user's own words: the user turns of the app's chat
+    /// `chat_id`, or `messages` handed in by the harness. Runs on this machine only (a
+    /// local model or the rules). Records the proposals; stores no item.
+    async fn distil(
+        &self,
+        _actor: Actor,
+        _chat_id: Option<Id>,
+        _messages: Vec<String>,
+    ) -> BrainResult<DistilResult> {
+        Err(BrainError::Invalid("distil is not available".into()))
+    }
+
+    /// Keep a proposal from `distil`: a note with the user's exact words (origin
+    /// `owner_in_chat`). `title` replaces the proposed title.
+    async fn keep_distilled(
+        &self,
+        _actor: Actor,
+        _proposal_id: &Id,
+        _title: Option<String>,
+    ) -> BrainResult<Item> {
+        Err(BrainError::Invalid("distil is not available".into()))
+    }
 
     /// Called after a read tool returned brain content to a harness. Default: no-op.
     async fn note_egress(&self, _actor: Actor, _note: EgressNote) -> BrainResult<()> {
