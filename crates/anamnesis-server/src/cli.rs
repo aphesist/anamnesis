@@ -10,10 +10,35 @@ use clap::{Args, Parser, Subcommand};
 use crate::app::{App, ServerConfig, default_root};
 
 #[derive(Debug, Parser)]
-#[command(name = "anamnesis", version, about = "a local-first second brain", long_about = None)]
+#[command(
+    name = "anamnesis",
+    version,
+    about = "a local-first second brain",
+    long_about = None,
+    after_help = "without a command, anamnesis serves on 127.0.0.1:7368 and opens the browser \
+                  (like `serve --open`), so a double-click or a start-menu shortcut works."
+)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
+}
+
+impl Cli {
+    /// True when no subcommand was given (a double-click, a start-menu shortcut).
+    pub fn is_bare(&self) -> bool {
+        self.command.is_none()
+    }
+}
+
+/// What a bare `anamnesis` runs: `serve --open` with the defaults (`ANAMNESIS_PORT` and
+/// `ANAMNESIS_DATA_DIR` still apply).
+fn default_command() -> Command {
+    match Cli::try_parse_from(["anamnesis", "serve", "--open"]) {
+        Ok(Cli {
+            command: Some(c), ..
+        }) => c,
+        _ => unreachable!("`serve --open` always parses"),
+    }
 }
 
 #[derive(Debug, Args, Clone)]
@@ -195,7 +220,7 @@ fn init_tracing() {
 
 pub async fn run(cli: Cli) -> Result<()> {
     init_tracing();
-    match cli.command {
+    match cli.command.unwrap_or_else(default_command) {
         Command::Serve {
             data,
             port,
@@ -332,9 +357,24 @@ pub async fn run(cli: Cli) -> Result<()> {
 
 async fn serve(app: Arc<App>, open_browser: bool) -> Result<()> {
     let port = app.cfg.port;
-    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
-        .await
-        .with_context(|| format!("binding 127.0.0.1:{port}"))?;
+    let listener = match tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await
+    {
+        Ok(l) => l,
+        Err(e) => {
+            // with --open (and a bare `anamnesis`), a second launch while one already
+            // serves on this port just opens the browser on the running one
+            if open_browser
+                && e.kind() == std::io::ErrorKind::AddrInUse
+                && is_anamnesis_running(port).await
+            {
+                let url = format!("http://127.0.0.1:{port}/");
+                eprintln!("anamnesis is already running on {url}; opening it");
+                open_url(&url);
+                return Ok(());
+            }
+            return Err(e).with_context(|| format!("binding 127.0.0.1:{port}"));
+        }
+    };
     let url = format!("http://127.0.0.1:{}/", listener.local_addr()?.port());
     match &app.cfg.ui_dir {
         Some(d) => tracing::info!("ui from {}", d.display()),
@@ -362,6 +402,40 @@ async fn serve(app: Arc<App>, open_browser: bool) -> Result<()> {
         .with_graceful_shutdown(async move { cancel.cancelled_owned().await })
         .await?;
     Ok(())
+}
+
+/// Whether an anamnesis server answers on `127.0.0.1:port`: a plain http/1.0
+/// `GET /api/status` whose json carries the fields only anamnesis reports.
+async fn is_anamnesis_running(port: u16) -> bool {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let probe = async {
+        let mut s = tokio::net::TcpStream::connect((std::net::Ipv4Addr::LOCALHOST, port)).await?;
+        s.write_all(
+            format!(
+                "GET /api/status HTTP/1.0\r\nHost: 127.0.0.1:{port}\r\nAccept: application/json\r\n\r\n"
+            )
+            .as_bytes(),
+        )
+        .await?;
+        let mut buf = Vec::new();
+        s.take(64 * 1024).read_to_end(&mut buf).await?;
+        std::io::Result::Ok(String::from_utf8_lossy(&buf).into_owned())
+    };
+    match tokio::time::timeout(std::time::Duration::from_secs(3), probe).await {
+        Ok(Ok(resp)) => looks_like_status(&resp),
+        _ => false,
+    }
+}
+
+fn looks_like_status(resp: &str) -> bool {
+    let ok = resp
+        .lines()
+        .next()
+        .is_some_and(|l| l.starts_with("HTTP/") && l.contains(" 200"));
+    let body = resp.split_once("\r\n\r\n").map(|(_, b)| b).unwrap_or("");
+    ok && serde_json::from_str::<serde_json::Value>(body).is_ok_and(|v| {
+        v.get("version").is_some() && v.get("embedder").is_some() && v.get("events").is_some()
+    })
 }
 
 /// Open the ui in the default browser (`open` on macos, the registered handler through
@@ -415,6 +489,50 @@ mod tests {
     }
 
     #[test]
+    fn no_subcommand_means_serve_and_open() {
+        let cli = Cli::try_parse_from(["anamnesis"]).unwrap();
+        assert!(cli.is_bare());
+        match default_command() {
+            Command::Serve {
+                open, demo, port, ..
+            } => {
+                assert!(open);
+                assert!(!demo);
+                // 7368 unless ANAMNESIS_PORT is set in the test environment
+                if std::env::var_os("ANAMNESIS_PORT").is_none() {
+                    assert_eq!(port, 7368);
+                }
+            }
+            other => panic!("{other:?}"),
+        }
+        // the subcommands still parse
+        assert!(
+            !Cli::try_parse_from(["anamnesis", "verify"])
+                .unwrap()
+                .is_bare()
+        );
+    }
+
+    #[test]
+    fn status_probe_recognises_anamnesis() {
+        let ok = "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\n\r\n\
+                  {\"version\":\"0.1.0\",\"events\":3,\"embedder\":{}}";
+        assert!(looks_like_status(ok));
+        assert!(!looks_like_status(
+            "HTTP/1.1 200 OK\r\n\r\n<html>something else</html>"
+        ));
+        assert!(!looks_like_status("HTTP/1.1 404 Not Found\r\n\r\n{}"));
+    }
+
+    #[tokio::test]
+    async fn status_probe_on_a_closed_port_is_false() {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = l.local_addr().unwrap().port();
+        drop(l);
+        assert!(!is_anamnesis_running(port).await);
+    }
+
+    #[test]
     fn add_source_takes_privacy_and_origin() {
         let cli = Cli::try_parse_from([
             "anamnesis",
@@ -430,7 +548,7 @@ mod tests {
             "/opt/plugins",
         ])
         .unwrap();
-        match cli.command {
+        match cli.command.unwrap() {
             Command::AddSource {
                 privacy,
                 origin,
