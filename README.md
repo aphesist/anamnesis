@@ -1,11 +1,11 @@
 <div align="center">
 
+<a href="https://anamnesis.aphes.ist/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/header-dark.svg"><img src="assets/readme/header-light.svg" alt="anamnesis: a local-first second brain that measures itself." width="100%"></picture></a>
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.svg">
   <img alt="anamnesis: the transcendentalist demo brain, 9,233 dated entries drawn as stipple, turning slowly while region names surface and fade" src="assets/readme/hero-light.svg" width="100%">
 </picture>
-
-a local-first second brain that measures itself.
 
 </div>
 
@@ -13,7 +13,7 @@ anamnesis gathers what you write and read (notes, journals, obsidian vaults, pdf
 
 > is learning recollection? what share of the links i later make by hand was already latent in what i had written?
 
-it is one rust binary with a browser ui. it works with no model at all, brings your own model when you want one (local, api key, or your chatgpt plan through openai's sign-in), and is also an mcp server, so claude code, codex, gemini cli and claude desktop can read and write your brain with the subscriptions you already have.
+it is a desktop app (rust, with the whole backend inside it) and a headless command line. it works with no model at all, brings your own model when you want one (local, api key, or your chatgpt plan through openai's sign-in), and is also an mcp server, so claude code, codex, gemini cli and claude desktop can read and write your brain with the subscriptions you already have.
 
 <table>
 <tr>
