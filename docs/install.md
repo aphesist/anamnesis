@@ -241,7 +241,7 @@ the "installed cli (claude)" chat backend finds `claude.exe` (the native install
 cargo build --release -p anamnesis-server --no-default-features --features embed-ui
 ```
 
-optional tools: [node](https://nodejs.org) 18+ to run the ui tests or rebuild theme tokens; [uv](https://docs.astral.sh/uv/) to build the demo brain or run the benchmarks in `lab/`.
+optional tools: [node](https://nodejs.org) 18+ to run the ui tests or rebuild theme tokens; [uv](https://docs.astral.sh/uv/) to build the full demo brain or run the benchmarks in the lab, which lives on the `lab` branch (`git worktree add ../anamnesis-lab lab`).
 
 ## where things live
 

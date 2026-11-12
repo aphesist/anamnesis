@@ -45,9 +45,9 @@ the ONNX Runtime library is downloaded when the crate is built and the
 embedding model (intfloat/multilingual-e5-small, MIT) is downloaded on first
 use into the user's cache directory, under their own licences.
 
-The demo brain is not included. The lab builds it on the user's machine from
-texts that are in the public domain in the United States and Brazil
-(lab/README.md).
+The demo brain (demo/) is generated from texts that are in the public domain
+in the United States and Brazil; see demo/transcendentalist/SOURCES.md. The
+lab that builds it lives on the repository's `lab` branch.
 
 -------------------------------------------------------------------------------
 Windows packages

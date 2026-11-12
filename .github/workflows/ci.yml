@@ -117,18 +117,3 @@ jobs:
         run: node --test ui/theme/test/*.test.mjs
       - name: app tests
         run: node --test ui/app/tests/*.test.mjs
-
-  lab:
-    name: lab (pytest)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: lab
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          cache-dependency-glob: lab/uv.lock
-      - name: test (offline, no extras)
-        run: uv run --locked pytest

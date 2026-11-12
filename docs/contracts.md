@@ -17,7 +17,7 @@ the seams between the parts of anamnesis. each work package owns its files; thes
 | `crates/anamnesis-server` | server | the `anamnesis` binary: http api below, background jobs, serves `ui/` |
 | `ui/app` | ui | vanilla js + webgl2 app: the brain, panels, editor, chat |
 | `ui/theme` | theming | design tokens, theme loader, fonts, marks, settings/first-launch |
-| `lab/` | lab | optional python lab: benchmarks, umap comparison, demo-brain builder |
+| `lab/` (on the `lab` branch) | lab | optional python lab: benchmarks, umap comparison, demo-brain builder |
 | `docs/` | docs | user + developer docs |
 
 `model.rs` is shared. only the core package edits it; others define local types or ask.

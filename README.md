@@ -216,9 +216,10 @@ every change is an event; items, links, threads, regions and suggestions are pro
 | `ui/theme` | tokens, themes, fonts, settings, layout config ([README](ui/theme/README.md)) |
 | `demo/` | the demo brain: 1,100 curated public-domain entries and a prebuilt, embedded snapshot shipped inside the app |
 | `packaging/` | installers (windows nsis / msi / zip cross-build) |
-| `lab/` | optional python lab: demo-brain builders and benchmarks ([README](lab/README.md)) |
+| `lab` branch | optional python lab: demo-brain builders, benchmarks and the generators of the readme pictures ([README](https://github.com/aphesist/anamnesis/tree/lab/lab/README.md)) |
+| `site` branch | the landing page at [anamnesis.aphes.ist](https://anamnesis.aphes.ist) |
 | `docs/` | [install](docs/install.md) · [using](docs/using.md) · [models](docs/models.md) · [mcp](docs/mcp.md) · [evaluation](docs/evaluation.md) · [privacy](docs/privacy.md) · [sync](docs/sync.md) · [connectors](docs/connectors.md) · [theming](docs/theming.md) · [architecture](docs/architecture.md) · [demo](docs/demo.md) · [faq](docs/faq.md) · [http api](docs/contracts.md) |
-| `assets/readme/` | the animated pictures in this readme, drawn from the demo brain's real layout and dates |
+| `assets/readme/` | the animated pictures in this readme, drawn from the demo brain's real layout and dates (their generators are on the `lab` branch) |
 
 contributing: [CONTRIBUTING.md](CONTRIBUTING.md). security: [SECURITY.md](SECURITY.md).
 

@@ -40,12 +40,14 @@ to regenerate it (after changing the curated notes, the store schema or the pipe
 
 ```sh
 cargo build --release -p anamnesis-server
-python3 lab/scripts/demo_snapshot.py          # python standard library only
+python3 lab/scripts/demo_snapshot.py   # from the lab checkout          # python standard library only
 ```
 
 the script runs `anamnesis demo --rebuild --demo-bundle demo/transcendentalist` in a temporary data dir (the local model is downloaded once if it is not cached), runs `anamnesis verify` on it, then packs it: `VACUUM INTO` a fresh rollback-journal database (no wal, no free pages), gzip -9 with a fixed header, and the manifest. the mcp token and anything else in the brain directory stay out. `--from-brain <dir>` packs a demo brain you already built. the procedure is reproducible; the bytes are not, because every event records when it was written and each brain draws its own hold-out seed.
 
 ## the curated set
+
+> the lab lives on the repository's `lab` branch, not on `main`. to use the commands below, check it out next to your clone: `git worktree add ../anamnesis-lab lab`, then run them from `../anamnesis-lab` (paths like `lab/out/…` are relative to that checkout).
 
 `demo/transcendentalist/` holds:
 
@@ -108,6 +110,8 @@ every edition used was published before 1931, so the curated set in this reposit
 outside the united states and brazil, check your local law before redistributing a build.
 
 ## build the full corpus
+
+> the lab lives on the repository's `lab` branch, not on `main`. to use the commands below, check it out next to your clone: `git worktree add ../anamnesis-lab lab`, then run them from `../anamnesis-lab` (paths like `lab/out/…` are relative to that checkout).
 
 needs [uv](https://docs.astral.sh/uv/) and python 3.11 or newer.
 

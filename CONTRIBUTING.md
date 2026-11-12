@@ -15,7 +15,6 @@ cargo clippy --workspace --all-targets -- -D warnings
 node --test ui/app/tests/*.test.mjs
 node --test ui/theme/test/*.test.mjs
 node ui/theme/scripts/build-tokens.mjs --check
-(cd lab && uv run pytest)
 ```
 
 the default build includes on-device embeddings (`local` feature of `anamnesis-embed`): building it downloads the onnx runtime library once. to build without it:

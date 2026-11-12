@@ -110,7 +110,7 @@ the demo brain ([demo.md](demo.md)) has no hand-made links: its cross-author lin
 
 ## project benchmarks (not your brain)
 
-the lab ([lab/README.md](../lab/README.md)) checks the components on public data. these numbers describe the parts, not your use:
+the lab (on the `lab` branch: [lab/README.md](https://github.com/aphesist/anamnesis/tree/lab/lab/README.md)) checks the components on public data. these numbers describe the parts, not your use:
 
 | benchmark | result (2026-11-11) |
 |---|---|
