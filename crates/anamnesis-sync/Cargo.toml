@@ -1,0 +1,28 @@
+[package]
+name = "anamnesis-sync"
+description = "anamnesis: end-to-end encrypted sync of the event log across the user's own devices, through storage the user manages"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anamnesis-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+ulid.workspace = true
+sha2.workspace = true
+hex.workspace = true
+tracing.workspace = true
+argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc", "getrandom"] }
+zeroize = "1"
+getrandom = "0.2"
+hmac = "0.12"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+percent-encoding = "2"
+
+[dev-dependencies]
+tempfile = "3"

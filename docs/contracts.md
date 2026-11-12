@@ -13,6 +13,7 @@ the seams between the parts of anamnesis. each work package owns its files; thes
 | `crates/anamnesis-eval` | eval | metrics computed from the event log |
 | `crates/anamnesis-harness` | harness | model backends: local, api keys, sign in with chatgpt, installed claude cli; routing, limits, usage, egress gate |
 | `crates/anamnesis-mcp` | mcp | mcp server (stdio + streamable http) over the brain |
+| `crates/anamnesis-sync` | sync | sync across devices: format, encryption, clocks, merging (docs/sync.md) |
 | `crates/anamnesis-server` | server | the `anamnesis` binary: http api below, background jobs, serves `ui/` |
 | `ui/app` | ui | vanilla js + webgl2 app: the brain, panels, editor, chat |
 | `ui/theme` | theming | design tokens, theme loader, fonts, marks, settings/first-launch |
@@ -122,6 +123,21 @@ a `proposal` is `{ id, chat_id, kind: "idea" | "decision" | "open_question" | "p
 | `distil` | `{ daily?: bool }` — distil chats with new user messages once a day in the background (default false) |
 
 other keys are stored as given.
+
+### devices (sync)
+
+the user's brain only, never the demo ([sync.md](sync.md)).
+
+| method + path | returns / body |
+|---|---|
+| `GET /api/devices` | `{ configured, enabled, place: { kind: "folder" \| "s3", location, inbox, … } \| null, interval_minutes, this_device: { id, name } \| null, devices: [{ id, name, platform, last_sync_at, this, unlinked: { by, at } \| null, error }], conflicts: [conflict], last_sync_at, last_report, last_error, running, demo_active }` |
+| `POST /api/devices/setup` | body `{ kind: "folder", path, passphrase, device_name? }` or `{ kind: "s3", endpoint, bucket, region?, prefix?, access_key, secret_key, passphrase, device_name? }` → the status plus `created` (a new vault was made, or the device joined the one there). a wrong passphrase is a 400. the derived key and the s3 keys go to the os keychain (or `secrets.json`), never to settings; the passphrase is not stored. |
+| `POST /api/devices/sync` | one pass now → the status plus `report: { exported, imported, inbox, new_conflicts, devices, errors } \| null` (null when sync is off). a device that was unlinked gets a 400. |
+| `POST /api/devices/:id/unlink` | mark another device unlinked → the status |
+| `POST /api/devices/conflicts/:id` | body `{ keep: "one", version }` or `{ keep: "all" }` → the status plus `item` (the item as kept) |
+| `DELETE /api/devices` | stop syncing on this device (forget the place and the keys; the brain and the sync root stay) → the status |
+
+a `conflict` is `{ id, item_id, detected_at, versions: [{ version, hlc: { t, c }, device, device_name, item \| null (a deletion), shown }] }`.
 
 ### log, export, status
 

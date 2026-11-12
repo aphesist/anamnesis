@@ -37,6 +37,7 @@ anamnesis-core.workspace = true
 anamnesis-connectors.workspace = true
 anamnesis-embed = { path = "../anamnesis-embed", default-features = false }
 anamnesis-mind.workspace = true
+anamnesis-sync.workspace = true
 anamnesis-eval.workspace = true
 anamnesis-mcp.workspace = true
 anamnesis-harness.workspace = true

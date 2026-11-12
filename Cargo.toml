@@ -17,6 +17,7 @@ anamnesis-mind = { path = "crates/anamnesis-mind" }
 anamnesis-eval = { path = "crates/anamnesis-eval" }
 anamnesis-harness = { path = "crates/anamnesis-harness" }
 anamnesis-mcp = { path = "crates/anamnesis-mcp" }
+anamnesis-sync = { path = "crates/anamnesis-sync" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

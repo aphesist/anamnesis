@@ -43,6 +43,7 @@ one rust program (a desktop app, or the same server headless), one sqlite file, 
 | `anamnesis-eval` | every metric from `&[Event]` | core |
 | `anamnesis-harness` | chat backends, routing, limits, usage, the egress gate | core |
 | `anamnesis-mcp` | the mcp server, generic over a `BrainApi` trait; transports; client snippets | core |
+| `anamnesis-sync` | sync across the user's devices: the sync root's format, argon2id + xchacha20-poly1305, hybrid logical clocks, per-device chains, merging and conflicts, the inbox; folder and s3 storage | core |
 | `anamnesis-server` | the `anamnesis` binary: api, background jobs, chat, `BrainApi` over storage, the ui | all of the above |
 
 the http api is specified in [contracts.md](contracts.md).
@@ -119,6 +120,10 @@ an fsrs-6 scheduler (fixed published defaults; the interval is used as a priorit
 ## the harness
 
 five chat adapters behind one `Backend` trait (openai-compatible, anthropic, gemini, chatgpt, claude cli) plus the built-in retrieval responder; a router with per-task routing, explicit fallbacks, cooldowns, usage accounting and the hard rule that background tasks never go to a subscription; and the egress gate in front of every non-local call. see [models.md](models.md).
+
+## sync across devices
+
+the event log syncs, never the sqlite file ([sync.md](sync.md)). each device publishes its own events, as a hash-chained segment of sealed batch files, into a sync root the user manages (a folder their cloud drive syncs, or an s3-compatible bucket), and replays the other devices' segments in hybrid-logical-clock order through `Store::append_received`, which keeps each event's original time and chains it into the local log like any other. derived state (embeddings, layout, regions, suggestions, reviews, extracted threads) is not synced: each device computes its own. item edits carry the versions they replace, so an edit made without seeing another device's is detected as a conflict, kept, and put to the user. thread ids are derived from (item, kind, quote), so the same sentence is the same thread on every device. `crates/anamnesis-server/src/devices.rs` runs a pass every few minutes; sources that came from another device are marked foreign and their connectors run only where they were added.
 
 ## the ui
 

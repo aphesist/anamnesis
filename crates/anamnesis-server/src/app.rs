@@ -33,6 +33,8 @@ pub struct ServerConfig {
     pub plugin_dirs: Vec<PathBuf>,
     /// Where api keys go: the os keychain (with a 0600 file as fallback), or the file only.
     pub key_store: crate::secrets::KeyStoreMode,
+    /// Derive sync keys with cheap argon2 parameters (tests only).
+    pub fast_kdf_for_tests: bool,
 }
 
 impl ServerConfig {
@@ -50,6 +52,7 @@ impl ServerConfig {
             detect_backends: true,
             plugin_dirs: Vec::new(),
             key_store: crate::secrets::KeyStoreMode::from_env(),
+            fast_kdf_for_tests: false,
         }
     }
 
@@ -66,6 +69,7 @@ impl ServerConfig {
             plugin_dirs: Vec::new(),
             // tests never touch the os keychain
             key_store: crate::secrets::KeyStoreMode::File,
+            fast_kdf_for_tests: true,
         }
     }
 
@@ -135,6 +139,8 @@ pub struct App {
     pub plugins: crate::plugins::Plugins,
     /// Progress of a one-shot jobs pass (`jobs` in `/api/status`).
     pub jobs_progress: RwLock<JobsProgress>,
+    /// Sync across the user's devices.
+    pub devices: crate::devices::DevicesRuntime,
 }
 
 /// Where a one-shot pass of the background jobs is (`run_jobs_once`).
@@ -171,6 +177,7 @@ impl App {
             key_sources: RwLock::default(),
             plugins,
             jobs_progress: RwLock::default(),
+            devices: crate::devices::DevicesRuntime::default(),
             embed: RwLock::new(EmbedState {
                 status: "not loaded".into(),
                 spec,

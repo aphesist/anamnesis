@@ -44,6 +44,7 @@ it is one rust binary with a browser ui. it works with no model at all, brings y
 - **provenance everywhere.** every item says who wrote it (you, you in a chat, a model, a model editing you, someone else), where it came from and when. model text never passes for yours.
 - **hybrid search** (bm25 + on-device embeddings, fused) with citation spans; **chat** that answers from your brain and cites it, or, with no model, lists what it holds.
 - **threads:** decisions, open questions, plans and rejections found in your writing, with the verbatim quote, tracked to resolution.
+- **sync across your devices,** through storage you manage (a folder your own cloud drive syncs, or your own s3-compatible bucket), end-to-end encrypted on the device; the event log is synced, concurrent edits are kept and you choose; a plain `inbox/` folder takes in markdown from anything. no account, no service of ours ([docs/sync.md](docs/sync.md)).
 - **distil:** after a chat, a few atomic notes (idea, decision, open question, plan) proposed from your own messages, each quoting your exact words; keep or drop each with one tap. on a local model, or with no model at all (the rules); never a subscription.
 - **review:** a few items a day worth seeing again, run as a micro-randomised trial against random picks.
 - **an evaluation you can trust:** held-out controls, intervals, sample sizes, "measuring" until there is enough data, and an honesty table.
@@ -205,6 +206,7 @@ every change is an event; items, links, threads, regions and suggestions are pro
 | `crates/anamnesis-connectors` | built-in connectors and the plugin runtime ([PLUGINS.md](crates/anamnesis-connectors/PLUGINS.md)) |
 | `crates/anamnesis-embed` | embedding backends |
 | `crates/anamnesis-mind` | regions, lineage, layout, link suggestion, threads, distil, resurfacing |
+| `crates/anamnesis-sync` | sync across devices: the folder format, encryption, clocks, merging, the inbox |
 | `crates/anamnesis-eval` | the built-in evaluation ([README](crates/anamnesis-eval/README.md)) |
 | `crates/anamnesis-harness` | model backends, routing, limits, usage, egress gate |
 | `crates/anamnesis-mcp` | the mcp server |
@@ -215,7 +217,7 @@ every change is an event; items, links, threads, regions and suggestions are pro
 | `demo/` | the demo brain: 1,100 curated public-domain entries and a prebuilt, embedded snapshot shipped inside the app |
 | `packaging/` | installers (windows nsis / msi / zip cross-build) |
 | `lab/` | optional python lab: demo-brain builders and benchmarks ([README](lab/README.md)) |
-| `docs/` | [install](docs/install.md) · [using](docs/using.md) · [models](docs/models.md) · [mcp](docs/mcp.md) · [evaluation](docs/evaluation.md) · [privacy](docs/privacy.md) · [connectors](docs/connectors.md) · [theming](docs/theming.md) · [architecture](docs/architecture.md) · [demo](docs/demo.md) · [faq](docs/faq.md) · [http api](docs/contracts.md) |
+| `docs/` | [install](docs/install.md) · [using](docs/using.md) · [models](docs/models.md) · [mcp](docs/mcp.md) · [evaluation](docs/evaluation.md) · [privacy](docs/privacy.md) · [sync](docs/sync.md) · [connectors](docs/connectors.md) · [theming](docs/theming.md) · [architecture](docs/architecture.md) · [demo](docs/demo.md) · [faq](docs/faq.md) · [http api](docs/contracts.md) |
 | `assets/readme/` | the animated pictures in this readme, drawn from the demo brain's real layout and dates |
 
 contributing: [CONTRIBUTING.md](CONTRIBUTING.md). security: [SECURITY.md](SECURITY.md).

@@ -209,6 +209,7 @@ pub async fn sync_all(app: &Arc<App>) -> Result<Vec<(Source, Result<SyncReport>)
         if RESERVED_CONNECTOR_IDS.contains(&src.connector.as_str())
             || src.connector == "editor"
             || is_frozen(&src)
+            || crate::devices::is_foreign(app, &brain, &src.id.0)
         {
             continue;
         }
@@ -267,7 +268,10 @@ pub async fn reconcile(app: &Arc<App>) -> Result<()> {
         keep
     });
     for src in sources {
-        if tasks.contains_key(&src.id.0) || is_frozen(&src) {
+        if tasks.contains_key(&src.id.0)
+            || is_frozen(&src)
+            || crate::devices::is_foreign(app, &brain, &src.id.0)
+        {
             continue;
         }
         let Ok(Some(conn)) = connector_for(&app.plugins, &src) else {

@@ -111,6 +111,15 @@ pub(crate) struct Writer<'a> {
 impl Writer<'_> {
     /// Append an event to the log and apply it to the projections.
     pub(crate) fn append(&mut self, actor: &Actor, kind: EventKind) -> Result<Event> {
+        self.append_at(actor, kind, now())
+    }
+
+    pub(crate) fn append_at(
+        &mut self,
+        actor: &Actor,
+        kind: EventKind,
+        at: Timestamp,
+    ) -> Result<Event> {
         let head: Option<(i64, String)> = self
             .tx
             .query_row(
@@ -123,7 +132,6 @@ impl Writer<'_> {
             Some((s, h)) => (s as u64 + 1, h),
             None => (1, GENESIS_HASH.to_string()),
         };
-        let at = now();
         let hash = event_hash(&prev_hash, seq, &at, actor, &kind)?;
         let ev = Event {
             seq,
@@ -269,6 +277,29 @@ impl Store {
     /// sources and links: they also maintain written links and deduplication.
     pub fn append(&self, actor: Actor, kind: EventKind) -> Result<Event> {
         self.write(|w| w.append(&actor, kind))
+    }
+
+    /// Append events received from another device (sync), in one transaction, each with
+    /// the time it happened there. Returns the local `(first, last)` sequence numbers, or
+    /// `None` for an empty list.
+    pub fn append_received(
+        &self,
+        events: Vec<(Actor, EventKind, Timestamp)>,
+    ) -> Result<Option<(u64, u64)>> {
+        if events.is_empty() {
+            return Ok(None);
+        }
+        self.write(|w| {
+            let mut range: Option<(u64, u64)> = None;
+            for (actor, kind, at) in events {
+                let ev = w.append_at(&actor, kind, at)?;
+                range = Some(match range {
+                    None => (ev.seq, ev.seq),
+                    Some((a, _)) => (a, ev.seq),
+                });
+            }
+            Ok(range)
+        })
     }
 
     /// The last event's `(seq, hash)`.

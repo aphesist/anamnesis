@@ -330,6 +330,12 @@ select.quiet option { background: var(--bg); color: var(--ink); }
 .distil-card.answered { opacity: 0.6; }
 .distil-card.dropped .distil-title { text-decoration: line-through; text-decoration-thickness: 1px; }
 .distil-daily { display: flex; gap: 6px; align-items: baseline; }
+.cx-devices > li { display: grid; gap: 2px; padding: 6px 0; }
+.devices pre, .devices .cx-routing .keep-case { white-space: pre-wrap; overflow-wrap: anywhere; }
+.devices pre { font-family: var(--font-data); font-size: 12px; margin: 0; }
+.cx-conflict { display: grid; gap: var(--space-2); padding-left: var(--space-3); border-left: 1px solid var(--seal); }
+.cx-version { display: grid; gap: 4px; }
+.cx-version blockquote { margin: 0; padding-left: var(--space-2); border-left: 1px solid var(--line); color: var(--ink-soft); white-space: pre-wrap; }
 
 /* ---------- notes, reader, write, today ---------- */
 .page-notes, .page-today { display: grid; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr); gap: 0; overflow: hidden; }

@@ -320,3 +320,25 @@ fn rule_threads_carry_the_extractor_version() {
     assert!(is_rule_extractor("rule"));
     assert!(!is_rule_extractor("local:qwen3"));
 }
+
+#[test]
+fn thread_ids_are_the_same_on_every_device() {
+    use anamnesis_mind::threads::thread_id;
+    let item = anamnesis_core::Id("01JX0000000000000000000000".into());
+    let at = chrono::DateTime::parse_from_rfc3339("2026-03-01T10:00:00Z")
+        .unwrap()
+        .with_timezone(&chrono::Utc);
+    let text = "I decided to walk every morning. Should I keep a separate journal?";
+    let a = anamnesis_mind::extract_rules(&item, text, at);
+    let b = anamnesis_mind::extract_rules(&item, text, at);
+    assert_eq!(a.len(), 2);
+    assert_eq!(
+        a.iter().map(|t| &t.id).collect::<Vec<_>>(),
+        b.iter().map(|t| &t.id).collect::<Vec<_>>()
+    );
+    assert_eq!(a[0].id, thread_id(&item, a[0].kind, &a[0].quote, at));
+    assert_ne!(a[0].id, a[1].id);
+    // a ulid whose time is the item's
+    let u: ulid::Ulid = a[0].id.0.parse().unwrap();
+    assert_eq!(u.timestamp_ms() as i64, at.timestamp_millis());
+}

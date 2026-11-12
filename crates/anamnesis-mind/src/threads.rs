@@ -32,6 +32,24 @@ use serde::{Deserialize, Serialize};
 /// [`is_rule_extractor`]).
 pub const RULE_EXTRACTOR: &str = "rule:v2";
 
+/// A thread's id: derived from its item, kind and quote, so every device that extracts
+/// the same sentence gives it the same id (and a status set on one device applies on
+/// another after sync). The first ten characters keep the item's time, like a ulid.
+pub fn thread_id(item_id: &Id, kind: ThreadKind, quote: &str, at: Timestamp) -> Id {
+    let digest = anamnesis_core::canon::sha256_hex(
+        format!("{}\u{1f}{kind:?}\u{1f}{quote}", item_id.0).as_bytes(),
+    );
+    let mut rand = [0u8; 10];
+    for (i, b) in rand.iter_mut().enumerate() {
+        *b = u8::from_str_radix(&digest[i * 2..i * 2 + 2], 16).unwrap_or(0);
+    }
+    let r = rand
+        .iter()
+        .fold(0u128, |acc, b| (acc << 8) | u128::from(*b));
+    let ms = at.timestamp_millis().max(0) as u64;
+    Id(ulid::Ulid::from_parts(ms, r).to_string())
+}
+
 /// Was a thread produced by some version of the rule extractor (`"rule"` was
 /// the unversioned first one)?
 pub fn is_rule_extractor(extractor: &str) -> bool {
@@ -913,7 +931,7 @@ pub fn extract_rules(item_id: &Id, text: &str, at: Timestamp) -> Vec<Thread> {
             }
             let (body, _) = strip_markers(quote);
             out.push(Thread {
-                id: Id::new(),
+                id: thread_id(item_id, kind, quote, at),
                 kind,
                 status,
                 statement: statement_of(body),
@@ -1165,7 +1183,7 @@ pub fn validate_extraction(
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| statement_of(strip_markers(&quote).0));
         accepted.push(Thread {
-            id: Id::new(),
+            id: thread_id(item_id, kind, &quote, at),
             kind,
             status,
             statement,

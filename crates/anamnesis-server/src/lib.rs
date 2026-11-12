@@ -12,6 +12,7 @@ pub mod backends;
 pub mod brain;
 pub mod chat;
 pub mod cli;
+pub mod devices;
 pub mod distil;
 pub mod importer;
 pub mod jobs;
@@ -39,4 +40,6 @@ pub fn start_background(app: &Arc<App>) {
     backends::detect_in_background(app);
     tokio::spawn(sync::sync_supervisor(app.clone()));
     tokio::spawn(jobs::jobs_loop(app.clone()));
+    devices::load(app);
+    tokio::spawn(devices::devices_loop(app.clone()));
 }

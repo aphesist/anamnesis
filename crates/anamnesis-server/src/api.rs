@@ -118,6 +118,11 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/demo", get(demo_status).post(demo))
         .route("/jobs/run", post(run_jobs))
         .route("/status", get(status))
+        .route("/devices", get(devices_status).delete(devices_stop))
+        .route("/devices/setup", post(devices_setup))
+        .route("/devices/sync", post(devices_sync))
+        .route("/devices/{id}/unlink", post(devices_unlink))
+        .route("/devices/conflicts/{id}", post(devices_resolve))
         .layer(middleware::from_fn(loopback_host_only))
         .with_state(app.clone());
 
@@ -507,6 +512,50 @@ async fn distil_decide(
         let rec = crate::distil::drop_proposal(&app, &id, Actor::User).await?;
         ok(json!({ "proposal": rec, "item": null }))
     }
+}
+
+async fn devices_status(State(app): S) -> ApiResult {
+    ok(crate::devices::status(&app)?)
+}
+
+async fn devices_setup(State(app): S, Json(b): Json<crate::devices::Setup>) -> ApiResult {
+    let kdf = if app.cfg.fast_kdf_for_tests {
+        anamnesis_sync::KdfParams::insecure_for_tests()
+    } else {
+        anamnesis_sync::KdfParams::new().map_err(|e| ApiError::from(anyhow::Error::new(e)))?
+    };
+    let created = crate::devices::setup(&app, b, kdf).await?;
+    let mut v = crate::devices::status(&app)?;
+    v["created"] = json!(created);
+    ok(v)
+}
+
+async fn devices_sync(State(app): S) -> ApiResult {
+    let r = crate::devices::sync_now(&app).await?;
+    let mut v = crate::devices::status(&app)?;
+    v["report"] = serde_json::to_value(r).unwrap_or(Value::Null);
+    ok(v)
+}
+
+async fn devices_stop(State(app): S) -> ApiResult {
+    crate::devices::stop(&app)?;
+    ok(crate::devices::status(&app)?)
+}
+
+async fn devices_unlink(State(app): S, Path(id): Path<String>) -> ApiResult {
+    crate::devices::unlink(&app, &id).await?;
+    ok(crate::devices::status(&app)?)
+}
+
+async fn devices_resolve(
+    State(app): S,
+    Path(id): Path<String>,
+    Json(how): Json<anamnesis_sync::Resolution>,
+) -> ApiResult {
+    let item = crate::devices::resolve(&app, &id, how).await?;
+    let mut v = crate::devices::status(&app)?;
+    v["item"] = serde_json::to_value(item).unwrap_or(Value::Null);
+    ok(v)
 }
 
 async fn review(State(app): S) -> ApiResult {

@@ -9,7 +9,7 @@ anamnesis holds what you write to yourself. it is built so that nothing leaves y
 - embeddings run on your machine by default. the ui's fonts are bundled; rendering text makes no network request.
 - without a model configured, chat answers by retrieval alone and nothing is sent anywhere.
 
-what does reach the network, and only when you set it up: the sources you add (a feed or web page is fetched from its host), the first download of the local embedding model, the model backends you configure, and the aphesis theme assets fetched by `npm install` in `ui/theme` (optional, a developer step).
+what does reach the network, and only when you set it up: the sources you add (a feed or web page is fetched from its host), the first download of the local embedding model, the model backends you configure, sync to an s3 bucket you configured (ciphertext only; a synced folder is written on disk and your own cloud drive moves it, see [sync.md](sync.md)), and the aphesis theme assets fetched by `npm install` in `ui/theme` (optional, a developer step).
 
 ## privacy flags
 

@@ -187,6 +187,7 @@ fn config(data: &DataArgs, port: u16) -> ServerConfig {
         detect_backends: true,
         plugin_dirs: data.plugins_dirs.clone(),
         key_store: crate::secrets::KeyStoreMode::from_env(),
+        fast_kdf_for_tests: false,
         // brain_dir handled by `open`
     }
 }

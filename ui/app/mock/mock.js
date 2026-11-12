@@ -318,6 +318,7 @@ async function handle(method, url, body) {
     x.item_id = body.keep ? ulid() : null;
     return json({ proposal: x, item: body.keep ? { id: x.item_id, title: body.title || x.title, body: x.quote, origin: 'owner_in_chat', kind: 'note' } : null });
   }
+  if (p.startsWith('/api/devices')) return json(await mockDevices(s, p, method, body));
   if (p === '/api/chat' && method === 'POST') {
     s.chats++;
     const hits = search(s, body.message || '', 5);
@@ -349,6 +350,36 @@ async function handle(method, url, body) {
     return sse(evs);
   }
   return json({ error: 'mock: no route for ' + method + ' ' + p }, 404);
+}
+
+// Sync across devices, in memory: unconfigured until set up, then two devices.
+async function mockDevices(s, p, method, body) {
+  const d = (s.devices ||= { configured: false });
+  const status = () => d.configured ? {
+    configured: true, enabled: true, interval_minutes: 5, running: false, demo_active: s.demo, last_error: null,
+    place: { kind: d.kind, location: d.location, inbox: d.kind === 'folder' ? d.location + '/inbox' : d.location + '/inbox/' },
+    this_device: { id: 'DEV-THIS', name: d.name },
+    devices: [
+      { id: 'DEV-THIS', name: d.name, platform: 'macos aarch64', last_sync_at: iso(Date.now() / 1000 - 60), this: true, unlinked: null, error: null },
+      { id: 'DEV-PHONE', name: 'phone', platform: 'android aarch64', last_sync_at: iso(Date.now() / 1000 - 3 * 3600), this: false, unlinked: d.unlinked ? { by: d.name, at: iso(Date.now() / 1000) } : null, error: null },
+    ],
+    conflicts: d.conflicts || [], last_sync_at: iso(Date.now() / 1000 - 60),
+    last_report: { exported: 4, imported: 11, inbox: 1, new_conflicts: (d.conflicts || []).length, devices: 2, errors: [] },
+  } : { configured: false, enabled: false, devices: [], conflicts: [], demo_active: s.demo };
+  if (p === '/api/devices/setup' && method === 'POST') {
+    await sleep(700);
+    Object.assign(d, { configured: true, kind: body.kind, name: body.device_name || 'this mac', location: body.kind === 'folder' ? body.path : `${body.endpoint} · ${body.bucket}` });
+    d.conflicts = [{ id: 'C1', item_id: s.cloud.ids[3], detected_at: iso(Date.now() / 1000), versions: [
+      { version: 'v-phone', hlc: { t: 2, c: 0 }, device: 'DEV-PHONE', device_name: 'phone', shown: true, item: { title: s.cloud.titles[3], body: 'walked the long way round the pond; the ice is going.' } },
+      { version: 'v-this', hlc: { t: 1, c: 0 }, device: 'DEV-THIS', device_name: d.name, shown: false, item: { title: s.cloud.titles[3], body: 'walked to the pond. ice still holding at the edges.' } },
+    ] }];
+    return { ...status(), created: false };
+  }
+  if (p === '/api/devices/sync' && method === 'POST') { await sleep(400); return { ...status(), report: status().last_report }; }
+  if (p.startsWith('/api/devices/conflicts/') && method === 'POST') { d.conflicts = []; return { ...status(), item: null }; }
+  if (/\/api\/devices\/[^/]+\/unlink$/.test(p) && method === 'POST') { d.unlinked = true; return status(); }
+  if (p === '/api/devices' && method === 'DELETE') { d.configured = false; return status(); }
+  return status();
 }
 
 // The mock distiller: first-person decisions, questions to oneself, plans and ideas, one

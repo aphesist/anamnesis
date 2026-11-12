@@ -92,6 +92,10 @@ items of kind `skill` (reusable instructions, prompts, procedures) are listed in
 
 **more → settings & theme** changes the theme, colours, fonts, motion, marks and panel layout ([theming.md](theming.md)). **more** also toggles light and dark, reduces motion, and shows or hides panels. model backends and sources' privacy are configured through the api for now ([models.md](models.md), [privacy.md](privacy.md)).
 
+## your other devices
+
+**more → settings & theme → devices** keeps this brain on your other devices through a folder your own cloud drive syncs or your own s3-compatible bucket, encrypted on the device with a passphrase. it lists the linked devices and their last sync, asks you to settle a note changed on two devices at once, and shows the plain **inbox** folder: markdown or text files dropped there by anything (a phone notes app, a shortcut) become your notes on the next sync. see [sync.md](sync.md).
+
 ## export and backup
 
 ```sh

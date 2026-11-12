@@ -369,9 +369,10 @@ ctx.followGrowth = () => {
 };
 
 // settings: a sheet over the stage. connections, sources and privacy talk to the server
-// (panels/connections.js); appearance is ui/theme's settings panel.
+// (panels/connections.js), devices too (panels/devices.js); appearance is ui/theme's
+// settings panel.
 let settingsSheet = null;
-const SETTINGS_TABS = [['connections', 'connections'], ['sources', 'sources'], ['privacy', 'privacy'], ['appearance', 'appearance']];
+const SETTINGS_TABS = [['connections', 'connections'], ['sources', 'sources'], ['devices', 'devices'], ['privacy', 'privacy'], ['appearance', 'appearance']];
 let settingsTab = 'connections';
 async function openSettings(tab) {
   if (typeof tab === 'string' && SETTINGS_TABS.some(([k]) => k === tab)) settingsTab = tab;
@@ -408,6 +409,11 @@ async function showTab() {
     if (!themeApi) { body.append(h('p.empty', 'appearance settings come with the theme package, which is not installed.')); return; }
     const { mountSettings } = await import('../theme/settings.js');
     await mountSettings(body, { onLayoutChange: (l) => { if (l && l.panels) { layout.config = l; layout.render(); } } });
+    return;
+  }
+  if (settingsTab === 'devices') {
+    const { mountDevices } = await import('./panels/devices.js');
+    await mountDevices(body, ctx);
     return;
   }
   const m = await import('./panels/connections.js');
