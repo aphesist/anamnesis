@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="lab-fog-on">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -31,34 +31,40 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="site.webmanifest">
 
-<link rel="preload" href="vendor/aphesis/fonts/AphesisScript-VF.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="vendor/aphesis/fonts/SpecialElite-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="vendor/aphesis/fonts.css">
+<link rel="preload" href="vendor/lab-kit-v1/fonts/AphesisScript-VF.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="vendor/lab-kit-v1/fonts/SpecialElite-latin.woff2" as="font" type="font/woff2" crossorigin>
+<!-- the aphes.ist tokens and runtime (vendor/aphesis), and the lab kit 1.1 (vendor/lab-kit-v1) for the faces and the
+     receding header; style.css last -->
 <link rel="stylesheet" href="vendor/aphesis/tokens.css">
+<link rel="stylesheet" href="vendor/lab-kit-v1/lab.css">
 <link rel="stylesheet" href="vendor/aphesis/bundle.css">
 <link rel="stylesheet" href="style.css">
 <script src="vendor/aphesis/bundle.js" defer></script>
 <script src="vendor/aphesis/favicon.js" defer></script>
+<script src="vendor/lab-kit-v1/lab.js" defer></script>
 <script src="main.js" defer></script>
 </head>
 <body>
 <canvas id="fog" aria-hidden="true"></canvas>
 <a class="skip" href="#main">skip to the content</a>
 
-<!-- the header: the φ, the page's parts, github and the eye. Fixed; what scrolls under it recedes behind a veil of the
-     ground, as under the bottom band -->
-<header class="top">
-  <a class="brand" href="#top" aria-label="anamnesis, to the top" data-tip="anamnesis · part of aφesis" data-cursor=".9"><span class="brand-phi aph-red" aria-hidden="true"></span></a>
-  <nav class="top-nav" aria-label="on this page">
-    <a class="wide" href="#does"><span class="nm">what it does</span></a>
-    <a class="wide" href="#pictures"><span class="nm">the app</span></a>
-    <a href="#install"><span class="nm">install</span></a>
-    <a class="wide" href="#privacy"><span class="nm">privacy</span></a>
-    <a href="https://github.com/aphesist/anamnesis"><span class="nm">github</span></a>
+<div class="lab-page">
+<!-- the lab kit's receding header: sticky, the first child of the page, so its veil spans the column and the gutters.
+     What scrolls under it fades into a veil of the ground -->
+<header class="lab-header lab-header--sticky lab-header--blur">
+  <a class="lab-mark" href="https://aphes.ist/" aria-label="aphes.ist" data-tip="aφesis" data-cursor=".9"></a>
+  <a class="lab-project aph-icon" href="#top" aria-label="anamnesis, to the top"><span class="project-icon aph-red" aria-hidden="true"></span><span class="nm">anamnesis</span></a>
+  <nav class="lab-nav" aria-label="on this page">
+    <a href="#does">what it does</a>
+    <a href="#pictures">the app</a>
+    <a href="#install">install</a>
+    <a href="#privacy">privacy</a>
+    <a href="https://github.com/aphesist/anamnesis">github</a>
   </nav>
-  <button id="eye" class="aph-mark aph-red" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="iopen"/><path id="iclosed"/><path id="iris"/></svg></button>
+  <div class="lab-controls">
+    <button id="eye" class="aph-mark aph-red" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="iopen"/><path id="iclosed"/><path id="iris"/></svg></button>
+  </div>
 </header>
-<div class="veil-bottom" aria-hidden="true"></div>
 
 <main id="main">
 
@@ -228,9 +234,12 @@ cargo run --release -p anamnesis-desktop</code></pre>
       </ul>
     </nav>
   </div>
-  <p class="made aph-ink">made by aphesist · part of <a href="https://aphes.ist">aφesis</a></p>
-  <p class="notices aph-meta">anamnesis is open source under the apache license 2.0. this page is drawn with the aphes.ist design system, which is its owner's and is not covered by that licence (<a href="vendor/aphesis/NOTICE.md">notice</a>): aphesis script, © 2026 aphesist, sil open font license 1.1 (<a href="vendor/aphesis/fonts/AphesisScript-OFL.txt">licence</a>); special elite, © 2010 astigmatic, apache-2.0 (<a href="vendor/aphesis/fonts/SpecialElite-LICENSE.txt">licence</a>). the φ and the wordmark are trademarks of aphesist.</p>
+  <p class="made aph-ink">made by aphesist · part of <a href="https://aphes.ist/">aφesis</a></p>
+  <p class="notices aph-meta">anamnesis is open source under the apache license 2.0. this page is drawn with the aphes.ist design system, which is its owner's and is not covered by that licence (<a href="vendor/aphesis/NOTICE.md">notice</a>): aphesis script, © 2026 aphesist, sil open font license 1.1 (<a href="vendor/lab-kit-v1/fonts/AphesisScript-OFL.txt">licence</a>); special elite, © 2010 astigmatic, apache-2.0 (<a href="vendor/lab-kit-v1/fonts/SpecialElite-LICENSE.txt">licence</a>). the φ and the wordmark are trademarks of aphesist.</p>
 </footer>
+<!-- the bottom band: an empty sticky footer, so what scrolls also recedes at the bottom of the screen -->
+<div class="lab-footer--sticky" aria-hidden="true"></div>
+</div>
 
 </body>
 </html>

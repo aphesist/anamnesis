@@ -1662,6 +1662,75 @@
     ICONS.music = sectionIcon(strokes, [[strings, 297, 3600, 0.44]], [12, 12.6], 0.9);
   })();
 
+  /* ================= PROJECT ICONS ================= */
+  /* the owner's projects, each a repository of its own, drawn as the sections are (one to a few brush strokes and a
+     little stipple on the 24-unit grid, at rest 0 and gathered 1) so they can stand among them, as they do on the
+     profile's ring. They are not sections of the site: Aphesis.PROJECTS lists them apart. Seeds 401 to 499 belong to
+     them. speck(x, y) is grain(x, y) above under a name of its own: the masked-text grain(i) further down shares that
+     name, and as a later declaration in this scope it is the one every call to grain reaches. */
+  function speck(x, y) { var s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
+  var PROJECTS = ['contraprova', 'heuresis', 'anamnesis', 'autopoiesis'];
+
+  /* contraprova (probatio contraria): a balance, its beam level: two marks weighed against each other and found
+     equal. The post and its foot, the beam, two pans on their cords, and in each pan a heap of stipple, alike */
+  (function () {
+    var strokes = brush(line(12, 4.6, 12, 19.6, 20), 1.6, 401, 0.12) +
+      brush(line(8.4, 20.2, 15.6, 20.1, 12), 1.5, 403, 0.3, 0.05) +
+      brush(line(3.6, 7.2, 20.4, 7.0, 28), 1.6, 405, 0.18) +
+      brush(arc(12, 4, 0.95, -90, 270, 14), 1.0, 406, 0, 0.04) +
+      brush(chain(line(2.9, 14.4, 5.2, 7.9, 10), line(5.2, 7.9, 7.5, 14.4, 10)), 1.0, 407, 0.3, 0.05) +
+      brush(chain(line(16.5, 14.4, 18.8, 7.7, 10), line(18.8, 7.7, 21.1, 14.4, 10)), 1.0, 408, 0.3, 0.05) +
+      brush(arc(5.2, 14.4, 3.3, 0, 180, 16, 1.9), 1.5, 409, 0.25) +
+      brush(arc(18.8, 14.4, 3.3, 0, 180, 16, 1.9), 1.5, 410, 0.25);
+    function heap(cx) { return function (x, y) { var u = (x - cx) / 2.3, v = (y - 14.1) / 1.7; return y < 14.1 && u * u + v * v < 1; }; }
+    ICONS.contraprova = sectionIcon(strokes, [[heap(5.2), 411, 1200, 0.6], [heap(18.8), 412, 1200, 0.6]], [12, 12.8], 0.8);
+  })();
+
+  /* heuresis (εὕρεσις): an oil lamp, the kind carried into a dark room to find what is there: the bowl, the spout
+     reaching out, the handle ring behind, the filling hole, the foot, and the flame in stipple at the spout's mouth */
+  (function () {
+    var body = chain(bez([4.6, 14.2], [4.4, 19.6], [13.6, 19.8], [15.8, 16.6], 20), line(15.8, 16.6, 19.6, 14.4, 8), bez([19.6, 14.4], [20.6, 13.8], [20, 12.6], [18.8, 13.1], 8),
+      bez([18.8, 13.1], [16.2, 14.2], [13.6, 13.4], [11, 13.2], 12), bez([11, 13.2], [7.6, 13], [4.8, 12.8], [4.6, 14.2], 12));
+    var strokes = brush(body, 1.6, 421, 0.04) +
+      brush(arc(3.6, 13.6, 1.9, 95, 285, 18), 1.2, 423, 0.3, 0.05) +
+      brush(line(9, 11.6, 12, 11.5, 8), 1.1, 425, 0.3, 0.04) +
+      brush(line(8.8, 21, 14.2, 20.9, 10), 1.15, 426, 0.35, 0.04);
+    /* the flame: a drop standing on the spout's mouth, leaning a little with the air; a faint light round its tip */
+    function flame(x, y) { var dy = y - 9.2, dx = x - 19.3 + (dy < 0 ? dy * 0.18 : 0); if (dy > 2.8 || dy < -5) return false; var half = dy > 0 ? 1.45 * Math.sqrt(1 - dy / 2.8) : 1.45 * Math.pow(1 + dy / 5, 0.8); return Math.abs(dx) < half; }
+    function glow(x, y) { var d = Math.hypot(x - 19.4, y - 8.6); return d > 2.4 && d < 4.4 && y < 11.6 && speck(x, y) < 0.32 - (d - 2.4) * 0.12; }
+    ICONS.heuresis = sectionIcon(strokes, [[flame, 427, 3600, 0.62], [glow, 429, 900, 0.44]], [19.3, 9.4], 0.7);
+  })();
+
+  /* anamnesis (ἀνάμνησις): a few remembered things linked to each other: small rings joined by fine strokes, and
+     stipple gathering in the ones being recalled */
+  (function () {
+    var N = [[6, 6.6], [15.2, 4.6], [19.4, 12], [11.6, 12.4], [5, 17.2], [16, 19.4]], RR = [1.7, 1.5, 1.6, 2.2, 1.6, 1.6];
+    var E = [[0, 1], [1, 2], [0, 3], [1, 3], [3, 2], [3, 4], [3, 5], [2, 5]];
+    var strokes = '';
+    N.forEach(function (p, i) { strokes += brush(arc(p[0], p[1], RR[i], i * 37, i * 37 + 360, 20), i === 3 ? 1.35 : 1.15, 441 + i, 0, 0.05); });
+    E.forEach(function (e, j) {
+      var a = N[e[0]], b = N[e[1]], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l,
+        x0 = a[0] + ux * (RR[e[0]] + 0.55), y0 = a[1] + uy * (RR[e[0]] + 0.55), x1 = b[0] - ux * (RR[e[1]] + 0.55), y1 = b[1] - uy * (RR[e[1]] + 0.55);
+      strokes += brush(line(x0, y0, x1, y1, 10), 0.85, 451 + j, 0.25, 0.04);
+    });
+    function held(i, r) { return function (x, y) { return Math.hypot(x - N[i][0], y - N[i][1]) < r; }; }
+    ICONS.anamnesis = sectionIcon(strokes, [[held(3, 1.45), 461, 1600, 0.56], [held(1, 0.9), 463, 1400, 0.5], [held(4, 0.9), 465, 1400, 0.5]], [11.6, 12.4], 0.75);
+  })();
+
+  /* autopoiesis (αὐτοποίησις): the ouroboros, the serpent that makes itself by eating its own tail: the body swept
+     round the ring and thinning to the tail, the head at the top, two jaws parting round the tail's tip, and matter
+     in stipple turning inside the ring */
+  (function () {
+    var C = [12, 12.6], r = 7.4;
+    var strokes = brush(arc(C[0], C[1], r, -70, 170, 40), 2.0, 481, 0.04) +
+      brush(arc(C[0], C[1], r, 160, 254, 22), 1.75, 483, 0.5) +
+      brush(chain(arc(C[0], C[1], r + 0.2, -72, -88, 6), arc(C[0], C[1], r + 1.5, -88, -122, 10)), 1.6, 485, 0.3, 0.05) +
+      brush(chain(arc(C[0], C[1], r - 0.1, -72, -88, 6), arc(C[0], C[1], r - 1.4, -88, -118, 10)), 1.3, 486, 0.32, 0.05) +
+      brush(arc(C[0], C[1], r, -86, -66, 8), 3.4, 488, 0.3, 0.05);
+    function matter(x, y) { var d = Math.hypot(x - C[0], y - C[1]); return d < 4.4 && speck(x, y) < 0.78 - d * 0.14; }
+    ICONS.autopoiesis = sectionIcon(strokes, [[matter, 489, 2400, 0.56]], C, 0.7);
+  })();
+
   function mountEar(el) {
     var b = el && el.tagName === 'BUTTON' ? el : document.createElement('button');
     if (b !== el && el) el.appendChild(b);
@@ -2139,7 +2208,7 @@
   window.Aphesis = {
     reducedMotion: REDUCED, MJ: MJ, cellPx: cellPx, canFilter: canFilter, blur2d: blur2d, lerp: lerp, clamp: clamp, tween: tween, rng: rng, cssColor: cssColor,
     brush: brush, arc: arc, line: line, stipple: stipple, inC: inC,
-    icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PHI: PHI, seal: seal, Eye: Eye, grain: grain, grains: grains,
+    icon: icon, ICONS: ICONS, SECTIONS: SECTIONS, PROJECTS: PROJECTS, PHI: PHI, seal: seal, Eye: Eye, grain: grain, grains: grains,
     Fog: Fog, Simulacrum: Simulacrum, Typist: Typist, tooltip: tooltip, cursor: cursor, letters: letters, themeShift: themeShift, themeColor: themeColor, Sound: Sound, Scroll: Scroll
   };
 })();

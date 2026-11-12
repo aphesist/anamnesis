@@ -2,8 +2,8 @@
    window.Aphesis) draws the ground and the marks, set up as the site's shell sets them up, kept quiet:
    1. the fog: one Aphesis.Fog on a fixed canvas, low, calm behind the words on screen and around the brain, and
       drifting out of the column once the hero has gone by
-   2. the header: the φ (the live seal), the names, the eye (the theme switch, a wave from it); the veil under the
-      header appears once the page has scrolled. The tab's icon is the eye too, as on aphes.ist
+   2. the header: the lab kit's receding header (vendor/lab-kit-v1), with anamnesis's icon beside the name and the
+      eye (the theme switch, a wave from it). The tab's icon is the eye too, as on aphes.ist
    3. the cursor, the tooltips, the letter waves, the brushed strokes under the actions
    4. the brain, loaded after the first paint (hero/brain.js); the still image inside #brain stays until its first
       frame is on screen, and for good if WebGL2 is missing
@@ -16,10 +16,6 @@
   const ROOT = document.documentElement;
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const phoneQ = matchMedia('(max-width: 720px)');
-
-  /* the veil under the header, once the page has moved */
-  const scrolled = () => ROOT.classList.toggle('scrolled', scrollY > 8);
-  addEventListener('scroll', scrolled, { passive: true }); scrolled();
 
   if (!A) return; /* without the runtime the page is plain words and pictures, which is enough */
 
@@ -58,8 +54,13 @@
   addEventListener('resize', queueZones);
   zones();
 
-  /* ---------- the header ---------- */
-  A.seal($('.brand-phi'), { boil: !still });
+  /* ---------- the header (the lab kit's: the φ, the name, the parts, the eye) ----------
+     the project's own icon beside its name: six small linked rings, three lit with stipple, as if being recalled.
+     Hovering the name stirs its stipple (.aph-icon); pressing gathers it */
+  const project = $('.lab-project');
+  $('.project-icon').innerHTML = A.icon('anamnesis', 0);
+  project.addEventListener('pointerdown', () => project.classList.add('aph-gather'));
+  project.addEventListener('pointerleave', () => project.classList.remove('aph-gather'));
 
   /* the eye: open in light, closed in dark; the switch is a blink, and the theme spreads as a wave from it (drawn as
      aphes.ist's shell draws it) */
@@ -104,7 +105,7 @@
   /* ---------- the hand: cursor, tooltips, letters, the strokes under the actions ---------- */
   A.cursor();
   A.tooltip();
-  $$('.act-w, .top-nav .nm').forEach((el) => A.letters(el));
+  $$('.act-w, .lab-nav a').forEach((el) => A.letters(el)); /* the actions and the header's parts */
   let seed = 70;
   const acts = $$('.act').map((a) => ({ a, seed: seed += 3, w: 0 }));
   function strokes() {
