@@ -1,0 +1,29 @@
+:root {
+  --bg: oklch(0.11 0.004 25);
+  --ink: oklch(0.95 0.004 25);
+  --ink-quiet: oklch(0.7 0.004 25);
+  color-scheme: dark;
+}
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #050404;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.6 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+main {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 0 1rem;
+}
+.mark { opacity: 0.9; animation: breathe 2.4s ease-in-out infinite; }
+.word { margin: 0.75rem 0 0; letter-spacing: 0.2em; }
+.state { margin: 0; color: var(--ink-quiet); max-width: 40em; white-space: pre-wrap; }
+.state.error { color: var(--ink); }
+@keyframes breathe { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .mark { animation: none; } }
