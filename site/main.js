@@ -62,7 +62,7 @@ async function initBrain() {
   if (reduced || !hasWebGL2()) return;
   try {
     const mod = await import('./hero/brain.js');
-    await mod.mount(el, { reducedMotion: false });
+    await mod.mount(el, { reducedMotion: false, labels: matchMedia('(min-width: 561px)').matches });
   } catch (e) {
     /* the static image stays */
     console.warn('anamnesis: brain not mounted', e);
