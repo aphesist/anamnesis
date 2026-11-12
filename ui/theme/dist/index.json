@@ -10,7 +10,6 @@
       "values": "aphesis.json",
       "manifest": "../themes/aphesis/theme.json",
       "behaviours": {
-        "cursor": "custom",
         "scrollbars": "hidden",
         "motion": "full"
       },
@@ -38,7 +37,6 @@
       "values": "mono.json",
       "manifest": "../themes/mono/theme.json",
       "behaviours": {
-        "cursor": "system",
         "scrollbars": "system",
         "motion": "full"
       },
@@ -66,7 +64,6 @@
       "values": "paper.json",
       "manifest": "../themes/paper/theme.json",
       "behaviours": {
-        "cursor": "system",
         "scrollbars": "system",
         "motion": "full"
       },

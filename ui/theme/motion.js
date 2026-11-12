@@ -101,7 +101,7 @@ export function showMotionDialog({ mount } = {}) {
 }
 
 function choiceHtml(value, label, note) {
-  return `<div class="anm-motion-choice" role="radio" tabindex="-1" aria-checked="false" data-value="${value}" data-cursor=".55">
+  return `<div class="anm-motion-choice" role="radio" tabindex="-1" aria-checked="false" data-value="${value}">
       <svg class="anm-motion-swatch" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="currentColor" d="${swatch(value)}"/></svg>
       <span class="anm-motion-text"><span class="anm-label">${label}</span><span class="anm-meta">${note}</span></span>
       <svg class="anm-underline" viewBox="0 -2 120 8" preserveAspectRatio="none" aria-hidden="true"><path fill="currentColor" d="${brushUnder(120, value === 'full' ? 4 : 8)}"/></svg>

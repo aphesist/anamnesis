@@ -163,7 +163,7 @@ export async function mountConnections(el, ctx) {
       } else {
         const btn = h('button.cx-signin.brand-label', { type: 'button', onclick: () => signIn(btn) }, info.button_label || 'Continue with ChatGPT');
         wrap.append(btn);
-        if (info.sign_in?.in_progress) wrap.append(meta('waiting for the browser…'));
+        if (info.sign_in?.in_progress) wrap.append(meta('waiting for the sign-in in your browser…'));
         if (info.sign_in?.last_error) wrap.append(h('p.notice', info.sign_in.last_error));
         if (st.message) wrap.append(meta(st.message));
       }
@@ -174,7 +174,7 @@ export async function mountConnections(el, ctx) {
       let r;
       try { r = await api.post('/api/backends/chatgpt/sign-in'); } catch (e) { btn.disabled = false; ctx.toast(errText(e)); return; }
       if (r.authorize_url) window.open(r.authorize_url, '_blank', 'noopener');
-      wrap.append(meta('a browser tab opened for the sign-in. this page will notice when it is done.'));
+      wrap.append(meta('the sign-in opened in your browser. anamnesis will notice when it is done.'));
       const started = Date.now();
       const poll = async () => {
         let info;

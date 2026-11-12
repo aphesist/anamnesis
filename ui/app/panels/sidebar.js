@@ -22,7 +22,22 @@ export default {
     // ---------- ask or search ----------
     const input = h('input', { type: 'search', placeholder: 'ask or search', 'aria-label': 'ask or search', autocomplete: 'off', role: 'combobox', 'aria-expanded': 'false', 'aria-controls': 'ask-results', 'aria-autocomplete': 'list' });
     const results = h('div.ask-results#ask-results', { role: 'listbox', hidden: true, 'aria-label': 'search results' });
-    const ask = h('div.ask', input, h('span.kbd', { 'aria-hidden': 'true' }, '⌘k'), results);
+    // until the embedding model is ready (a first download, a slow load), search matches words only
+    const mode = h('div.meta.ask-mode', { hidden: true, 'aria-live': 'polite' });
+    const ask = h('div.ask', input, h('span.kbd', { 'aria-hidden': 'true' }, '⌘k'), results, mode);
+    let modeTimer = 0;
+    const checkMode = async () => {
+      clearTimeout(modeTimer);
+      let st;
+      try { st = await api.status(); } catch { return; }
+      const e = st?.embedder || {};
+      const ready = e.status === 'ready' && e.id;
+      mode.hidden = !!ready;
+      mode.textContent = e.fallback ? 'search: words only · the local model could not load' : 'search: words only until the model is ready';
+      if (!ready && !e.fallback && el.isConnected !== false) modeTimer = setTimeout(checkMode, 4000);
+    };
+    checkMode();
+    on('brain-switched', checkMode);
     let timer = 0, hits = [], sel = -1, seq = 0;
     const close = () => { results.hidden = true; input.setAttribute('aria-expanded', 'false'); sel = -1; };
     const renderHits = (q) => {
@@ -109,17 +124,25 @@ export default {
     };
     document.addEventListener('pointerdown', (e) => { if (openMenu && !openMenu.menu.contains(e.target) && !openMenu.btn.contains(e.target)) closeMenu(); });
 
+    // open "+ add" with a kind chosen and the path field focused (the demo banner's "import a folder…")
+    ctx.openAdd = (k = 'folder') => {
+      if (!openMenu || openMenu.btn !== addBtn) addBtn.click();
+      const sel = openMenu?.menu.querySelector('select');
+      if (sel) sel.value = k;
+      openMenu?.menu.querySelector('input')?.focus();
+    };
     addBtn.addEventListener('click', () => showMenu(addBtn, (m) => {
       m.append(h('button', { type: 'button', role: 'menuitem', onclick: () => { closeMenu(); ctx.go('write'); } }, 'a new note'));
       const kind = h('select.quiet', { 'aria-label': 'what to add' },
         ...[['folder', 'a folder or vault'], ['obsidian', 'an obsidian vault'], ['pdf', 'a pdf folder'], ['rss', 'a feed'], ['web', 'a link']].map(([v, l]) => h('option', { value: v }, l)));
-      const where = h('input', { type: 'text', placeholder: 'path or url', 'aria-label': 'path or url', style: { width: '100%', background: 'transparent', border: 0, borderBottom: '1px solid var(--line)', padding: '4px 0', outline: 'none' } });
+      const where = h('input', { type: 'text', placeholder: 'a folder’s path, or a url', 'aria-label': 'path or url', style: { width: '100%', background: 'transparent', border: 0, borderBottom: '1px solid var(--line)', padding: '4px 0', outline: 'none' } });
       const go = h('button.textbtn.strong', { type: 'button', onclick: async () => {
         const v = where.value.trim(); if (!v) { where.focus(); return; }
         const isUrl = /^https?:/.test(v);
         try {
           await api.post('/api/sources', { connector: kind.value, name: v.split(/[\\/]/).filter(Boolean).pop() || v, config: isUrl ? { url: v } : { path: v } });
           ctx.toast('added. it will appear as it is read.');
+          ctx.followGrowth?.();
         } catch (e) { ctx.toast(e.serverMessage ? 'not added: ' + e.serverMessage : 'could not add that source.'); }
         closeMenu();
       } }, 'add');

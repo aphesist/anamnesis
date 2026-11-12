@@ -13,10 +13,9 @@ design tokens, themes, fonts, marks, the theme runtime, the first-launch motion 
 | `dist/<id>.css` | generated css custom properties, light and dark via `data-theme` on `<html>` (committed) |
 | `dist/<id>.json` | the same values resolved, with hex and linear rgb per colour (for the webgl renderer) |
 | `dist/index.json` | the theme list, with preview swatches |
-| `theme.css` | browser defaults and type roles drawn from the tokens (focus, selection, fields, hidden scrollbars, cursor disc, `.anm-*` classes) |
+| `theme.css` | browser defaults and type roles drawn from the tokens (focus, selection, fields, hidden scrollbars, `.anm-*` classes) |
 | `theme.js` | runtime: apply a theme, mode, motion, overrides, fonts, logo, export / import, `anamnesis:themechange` |
 | `motion.js` | the first-launch "keep the motion / calm it" dialog |
-| `cursor.js` | the difference-blend cursor disc (on in the aphes.ist theme, off elsewhere) |
 | `settings.js` | the settings panel the app mounts |
 | `layout.js`, `layouts/*.json` | panel layout config (`default`, `minimal`) and its json schema |
 | `brush.js` | brush strokes and stipple as svg path data, when `window.Aphesis` is not loaded |
@@ -33,11 +32,9 @@ design tokens, themes, fonts, marks, the theme runtime, the first-launch motion 
 <script type="module">
   import * as theme from '/theme/theme.js';
   import { askMotionOnce } from '/theme/motion.js';
-  import { startCursor } from '/theme/cursor.js';
   import { getLayout, onLayoutChange } from '/theme/layout.js';
 
   await theme.init();            // stored choice, else aphesis; syncs with /api/settings when served over http
-  startCursor();                 // shows only while <html data-cursor="custom">
   await askMotionOnce();         // asks once; pre-selects the os reduced-motion setting
   buildPanels(await getLayout());
   onLayoutChange(buildPanels);
@@ -58,7 +55,7 @@ the ui reads only the custom properties in `docs/contracts.md`:
 
 extras every theme also sets: `--veil` (selection), `--area-1…8` (categorical colours for regions), `--dur-theme`, `--dur-shift`, `--type-size-*`, `--type-leading-*`, `--type-tracking-*` (em), `--type-display-slant`, `--type-display-weight`, `--z-*`.
 
-switches on `<html>`, set by `theme.js`: `data-theme="light|dark"`, `data-motion="full|reduced"`, `data-cursor="custom|system"`, `data-scrollbars="hidden|system"`, `data-theme-id`.
+switches on `<html>`, set by `theme.js`: `data-theme="light|dark"`, `data-motion="full|reduced"`, `data-scrollbars="hidden|system"`, `data-theme-id`.
 
 ### theme.js api
 
@@ -68,7 +65,7 @@ switches on `<html>`, set by `theme.js`: `data-theme="light|dark"`, `data-motion
 | `listThemes()` | built-in and imported themes |
 | `applyTheme(id)` / `setMode('theme'\|'system'\|'light'\|'dark')` | switch theme / mode ('theme' is the default: the theme's own `defaultMode`, or the os when its manifest sets `modeFollowsSystem`; aphes.ist opens dark) |
 | `setMotion('full'\|'reduced'\|null)` | `null` follows the os until the person chooses |
-| `setCursor('custom'\|'system'\|null)`, `setScrollbars('hidden'\|'system'\|null)` | `null` follows the theme |
+| `setScrollbars('hidden'\|'system'\|null)` | `null` follows the theme |
 | `setToken(name, value, 'all'\|'light'\|'dark')`, `setOverrides`, `clearOverrides` | override any token |
 | `setTypeScale(n)` | 0.6–2 |
 | `setFont(role, stack)`, `addFont(role, File \| { url })` | `role` is `display`, `text` or `data`; uploads live in IndexedDB |
@@ -88,7 +85,7 @@ import { mountSettings } from '/theme/settings.js';
 const panel = await mountSettings(document.querySelector('#appearance'), { onLayoutChange: buildPanels });
 ```
 
-sections: theme and mode, colour (pickers for the roles and brain tokens, per mode or both), type (font per role, upload, size), motion (motion, cursor, scrollbars, ask again), mark (upload mark and wordmark), layout (show / hide, starts open, region, order, presets), keep (export, import, reset).
+sections: theme and mode, colour (pickers for the roles and brain tokens, per mode or both), type (font per role, upload, size), motion (motion, scrollbars, ask again), mark (upload mark and wordmark), layout (show / hide, starts open, region, order, presets), keep (export, import, reset).
 
 ### layout
 
@@ -120,7 +117,7 @@ regions are `left`, `right`, `bottom`, `overlay` (overlay panels have an `anchor
    the css name is the token path joined with `-`; groups marked `"$extensions": { "ist.anamnesis": { "flatten": true } }` (`role`, `brain`) drop out of the name, so `role.bg` is `--bg`. groups marked `"emit": false` (the `color` primitives) are only for aliases. aliases use curly braces with the full path. colours may be the 2025.10 object form or a css colour string.
 3. fonts: put files in your theme folder and list them in `theme.json` → `fonts` (`{ family, src, weight }`, `src` relative to the folder) for faces that are always there, or `optionalFonts` for faces fetched later.
 4. marks: `theme.json` → `marks.mark` / `marks.wordmark` with `src` (optional asset, used when present in `assets/fetched.json`) and `fallback` (always present).
-5. `behaviours`: `{ "cursor": "custom"|"system", "scrollbars": "hidden"|"system" }` — defaults the person can change.
+5. `behaviours`: `{ "scrollbars": "hidden"|"system" }` — defaults the person can change.
 6. run `node ui/theme/scripts/build-tokens.mjs`, commit `dist/`. `node --test ui/theme/test/*.test.mjs` checks that every contract variable exists in both modes and that ink, ink-soft and accent-text keep 4.5:1 (ink 7:1) on the ground.
 
 a person can also make one without the repo: settings → keep → export gives a json file whose `overrides` can be edited by hand; a file with `"theme": { "id", "name", "defaultMode", "tokens": { "common", "light", "dark" } }` registers a full token theme on import.
@@ -139,7 +136,7 @@ the assets are committed; the fetch script only refreshes them and rewrites `fet
 
 ## the aphes.ist theme and its rules
 
-the default theme reproduces the aphes.ist design system: the eight role tokens on an oklch neutral scale at hue 25, rubedo as the one accent, fibonacci spacing, one settling easing, lowercase, brush and stipple, the cursor disc and hidden scrollbars. where an app differs from a website it is deliberate and switchable: motion asks once (pre-selecting the os setting) and can be calmed later; the cursor disc and hidden scrollbars are on by default and settings restores the system ones; panels sit in calm zones with hairline rules.
+the default theme reproduces the aphes.ist design system: the eight role tokens on an oklch neutral scale at hue 25, rubedo as the one accent, fibonacci spacing, one settling easing, lowercase, brush and stipple and hidden scrollbars. where an app differs from a website it is deliberate: the app always keeps the system cursor; motion asks once (pre-selecting the os setting) and can be calmed later; hidden scrollbars are on by default and settings restores the system ones; panels sit in calm zones with hairline rules.
 
 `brush.js` is an independent implementation inspired by the documented aphes.ist api (`brush`, `arc`, `line`, `stipple`, `MJ`); when the aphes.ist runtime is present the app may use `window.Aphesis` instead.
 

@@ -82,7 +82,6 @@ export async function mountSettings(host, opts = {}) {
         h('span', { class: 'anm-label' }, t.name.toLowerCase()),
         h('span', { class: 'anm-meta' }, t.description ?? ''),
       ]);
-      b.dataset.cursor = '.55';
       list.appendChild(b);
     }
     const modes = radioRow('light or dark', [
@@ -163,10 +162,6 @@ export async function mountSettings(host, opts = {}) {
         ['full', 'keep the motion'],
         ['reduced', 'calm it'],
       ], s.resolvedMotion, (v) => theme.setMotion(v)),
-      radioRow('cursor', [
-        ['custom', 'the disc'],
-        ['system', 'the system’s'],
-      ], s.resolvedCursor, (v) => theme.setCursor(v)),
       radioRow('scrollbars', [
         ['hidden', 'hidden'],
         ['system', 'the system’s'],
@@ -301,7 +296,7 @@ function radioRow(label, options, value, onPick, compact = false) {
   if (!compact) group.appendChild(h('span', { class: 'anm-label anm-s-key' }, label));
   const buttons = options.map(([v, text]) => {
     const on = v === value;
-    const b = h('button', { type: 'button', role: 'radio', 'aria-checked': String(on), tabindex: on ? '0' : '-1', class: 'anm-s-opt anm-label' + (on ? ' is-on' : ''), 'data-cursor': '.55' }, [
+    const b = h('button', { type: 'button', role: 'radio', 'aria-checked': String(on), tabindex: on ? '0' : '-1', class: 'anm-s-opt anm-label' + (on ? ' is-on' : '') }, [
       text,
       underline(),
     ]);
@@ -325,13 +320,13 @@ function radioRow(label, options, value, onPick, compact = false) {
 }
 
 function button(text, onClick) {
-  const b = h('button', { type: 'button', class: 'anm-s-btn anm-label', 'data-cursor': '.55' }, [text, underline()]);
+  const b = h('button', { type: 'button', class: 'anm-s-btn anm-label' }, [text, underline()]);
   b.addEventListener('click', onClick);
   return b;
 }
 
 function iconButton(text, label, onClick) {
-  const b = h('button', { type: 'button', class: 'anm-s-icon', 'aria-label': label, 'data-cursor': '.55' }, text);
+  const b = h('button', { type: 'button', class: 'anm-s-icon', 'aria-label': label }, text);
   b.addEventListener('click', onClick);
   return b;
 }
@@ -343,7 +338,7 @@ function fileButton(text, accept, onFile) {
     if (f) onFile(f);
     input.value = '';
   });
-  return h('label', { class: 'anm-s-btn anm-label', 'data-cursor': '.55' }, [input, text, underline()]);
+  return h('label', { class: 'anm-s-btn anm-label' }, [input, text, underline()]);
 }
 
 let underSeed = 40;
