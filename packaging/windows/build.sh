@@ -21,7 +21,8 @@
 #   --version     version in the file names (default: the workspace version)
 #   --out         where the packages go (default: dist/windows)
 #   --skip-build  package the two .exe files built earlier
-#   --icon        regenerate anamnesis.ico and wizard.bmp from the phi mark (needs
+#   --icon        regenerate anamnesis.ico from the anamnesis icon (assets/icon) and
+#                 wizard.bmp from the phi mark (needs
 #                 rsvg-convert, convert)
 # environment: CARGO_TARGET_DIR (default: target), CARGO_BUILD_JOBS, WORK (download and
 # staging folder, default: $CARGO_TARGET_DIR/winpkg).
@@ -84,13 +85,8 @@ if [[ "$ICON" == 1 ]]; then
   need convert "apt-get install imagemagick"
   log "icon"
   tmp="$(mktemp -d)"
-  pngs=()
-  for s in 16 24 32 48 64 128 256; do
-    rsvg-convert -h $((s * 94 / 100)) "$ROOT/ui/theme/themes/aphesis/assets/phi.svg" -o "$tmp/raw$s.png"
-    convert "$tmp/raw$s.png" -background none -gravity center -extent "${s}x${s}" "$tmp/p$s.png"
-    pngs+=("$tmp/p$s.png")
-  done
-  convert "${pngs[@]}" "$HERE/anamnesis.ico"
+  # the app icon (six linked rings), the same as the desktop app's: see assets/icon
+  python3 "$ROOT/packaging/icons/make-icons.py"
   # the installer's welcome / finish panel: the phi on the dark theme's ground
   # (--bg oklch(0.11 0.004 25) ≈ #050404)
   rsvg-convert -h 120 "$ROOT/ui/theme/themes/aphesis/assets/phi.svg" -o "$tmp/phi120.png"

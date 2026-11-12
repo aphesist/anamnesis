@@ -55,6 +55,7 @@ its identity assets ship in `ui/theme/themes/aphesis/assets/` under their own te
 |---|---|
 | Aphesis Script (the display face) | SIL Open Font License 1.1, reserved font name "Aphesis Script" ([OFL.txt](../ui/theme/themes/aphesis/assets/OFL.txt)): use, embed and modify freely; a modified version must be renamed. |
 | the φ mark and the wordmark | trademarks of the owner of aphes.ist ([TRADEMARKS.md](https://github.com/aphesist/aphesis/blob/design-system/TRADEMARKS.md)). the apache licence and the ofl grant no trademark rights. |
+| the anamnesis icon (six linked rings, in `assets/icon/`) | the same: a mark of the owner of aphes.ist. it is the app's icon (window, taskbar, dock, installers, the ui's favicon), rendered by `packaging/icons/make-icons.py`; inside the ui the theme's mark stays the φ. a fork draws its own. |
 
 `node ui/theme/scripts/fetch-aphesis-assets.mjs --force` refreshes them from the owner's repository and records their sha256 in `fetched.json`. if you remove them, the theme still works: the display face falls back to **Special Elite** (apache-2.0, © 2010 Astigmatic, bundled in `ui/theme/fonts/`) and then the system serif, and the mark falls back to a stipple φ placeholder drawn for anamnesis.
 

@@ -161,6 +161,7 @@ pub fn about_text() -> String {
          apache license 2.0. {REPO_URL}\n\n\
          bundled: tauri and wry (mit / apache-2.0); onnx runtime (mit, microsoft); \
          the aphesis script font (sil open font licence 1.1); special elite (apache-2.0). \
+         the anamnesis icon (six linked rings, from the aphes.ist design system), \
          the φ mark and the wordmark are trademarks of the owner of aphes.ist. \
          the full notices are in NOTICE and in the licenses folder next to the program.",
         version = env!("CARGO_PKG_VERSION")
@@ -297,5 +298,6 @@ mod tests {
         assert!(t.contains(env!("CARGO_PKG_VERSION")));
         assert!(t.contains("apache license 2.0"));
         assert!(t.contains("onnx runtime"));
+        assert!(t.contains("anamnesis icon"));
     }
 }
