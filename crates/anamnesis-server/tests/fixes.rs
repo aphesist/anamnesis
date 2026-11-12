@@ -334,7 +334,14 @@ async fn mcp_snippets_name_the_data_dir_and_the_demo() {
     e.app.set_demo(true).unwrap();
     let v = ok(&e.router, "GET", "/api/mcp/snippets", None).await;
     let args: Vec<String> = serde_json::from_value(v["stdio_args"].clone()).unwrap();
-    let demo = e.dir.path().join("anamnesis/demo").display().to_string();
+    // joined per component: on windows "anamnesis/demo" would keep its forward slash
+    let demo = e
+        .dir
+        .path()
+        .join("anamnesis")
+        .join("demo")
+        .display()
+        .to_string();
     assert_eq!(&args[1..3], &["--brain-dir".to_string(), demo]);
 }
 
