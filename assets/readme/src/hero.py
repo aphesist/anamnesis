@@ -1,6 +1,6 @@
 import math, random
 from common import *
-W,H=1200,620; CX,CY=600,262; SC=470
+W,H=1200,560; CX,CY=600,262; SC=470
 T=60  # seconds per turn
 K=300 # angular sectors
 N=2300
@@ -55,7 +55,7 @@ def build(mode):
         css.append('.l%d{animation:l%d %ds linear infinite;opacity:0}'%(j,j,T))
         a=a0; dp=math.sin(a); so=1 if dp>.55 else 0
         labs.append('<text class="aph l%d" style="--x:%.1fpx;--o:%d" x="%d" y="%.1f" text-anchor="middle" font-size="23" fill="%s">%s</text>'%(j,r*SC*math.cos(a),so,CX,CY-y*SC*1.05,c['region-label'],lab(i)))
-    word='anamnesis'
+    word=''
     caption='9,233 dated entries · 34 regions · the transcendentalist demo brain, turning'
     ftext=word+''.join(lab(i) for i in LABELS)
     style=face('Aphesis Script',aph(ftext))+face('Special Elite',elite(caption))
@@ -64,14 +64,9 @@ def build(mode):
     style+='.l0,.l1,.l2,.l3,.l4,.l5,.l6{paint-order:stroke;stroke:%s;stroke-width:5px;stroke-linejoin:round;stroke-opacity:.85}'%halo
     style+=''.join(css)
     style+='@media (prefers-reduced-motion: reduce){.s,.aph{animation:none!important}.s{transform:scaleX(var(--c));opacity:var(--o)}.aph[style]{transform:translateX(var(--x));opacity:var(--o)}}'
-    out=['<rect width="%d" height="%d" fill="%s"/>'%(W,H,c['bg'])]
-    out.append(fog(W,H,11,2600,c['fog'],.10 if dark else .09,avoid=lambda x,y:(x-CX)**2/330**2+(y-CY)**2/250**2<1 or (abs(x-CX)<260 and y>470)))
+    out=[]
+    out.append(fog(W,H,11,2600,c['fog'],.10 if dark else .09,avoid=lambda x,y:(x-CX)**2/330**2+(y-CY)**2/250**2<1 or (abs(x-CX)<380 and y>505)))
     out+=body+labs
-    # wordmark: the φ and anamnesis, centred
-    fs=72; ww=len(word)*fs*0.43; ph_h=60
-    gx=CX-(ww+ph_h*0.72+14)/2
-    out.append(phi(gx,503,ph_h,c['seal']))
-    out.append('<text class="aph" x="%.1f" y="551" font-size="%d" fill="%s">%s</text>'%(gx+ph_h*0.72+14,fs,c['ink'],word))
-    out.append('<text class="elite" x="%d" y="594" text-anchor="middle" font-size="13" letter-spacing="2.2" fill="%s">%s</text>'%(CX,c['ink-soft'],caption))
+    out.append('<text class="elite" x="%d" y="534" text-anchor="middle" font-size="13" letter-spacing="2.2" fill="%s">%s</text>'%(CX,c['ink-soft'],caption))
     return svg(W,H,'anamnesis: the demo brain turning, made of its own 9,233 entries',''.join(out),style)
 for m in ('dark','light'): write('hero',m,build(m))
