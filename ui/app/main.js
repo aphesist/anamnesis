@@ -247,6 +247,16 @@ async function loadCloud(source) {
   emit('cloud-ready', cloud);
 }
 ctx.loadCloud = loadCloud;
+// a brand-new install (an empty brain of one's own, no choice made yet): open the demo brain,
+// seeded at once from the prebuilt snapshot, and say so in the banner (see renderDemo)
+let demoInfo = null;
+if (!window.__anamnesisMock) {
+  try {
+    demoInfo = await api.demo();
+    if (demoInfo.first_launch && !demoInfo.active && demoInfo.available !== false) demoInfo = await api.setDemo(true);
+    store.demo = !!demoInfo.active;
+  } catch (e) { console.warn('demo', e); }
+}
 try {
   await loadCloud();
 } catch (e) {
@@ -258,12 +268,23 @@ renderAlt();
 
 // ---------- the demo brain (GET/POST /api/demo) ----------
 const demoProgress = h('span.soft.demo-progress', { hidden: true });
-const demoBanner = h('div.demo-banner.no-orbit', { role: 'status', hidden: true },
-  h('span', 'this is the demo brain'), demoProgress, h('span.soft', ' · '),
-  h('button.textbtn.strong', { type: 'button', onclick: () => ctx.setDemo(false) }, 'return to yours'));
+const demoBanner = h('div.demo-banner.no-orbit', { role: 'status', hidden: true });
 document.getElementById('main').append(demoBanner);
-let demoInfo = null;
+const sep = () => h('span.soft', ' · ');
+function drawDemoBanner() {
+  clear(demoBanner);
+  if (demoInfo && demoInfo.user_empty) {
+    // nothing of one's own yet: invite one's own notes, or an empty brain to start from
+    demoBanner.append(h('span', 'this is a demo brain'), sep(), h('span', 'bring your own notes'), demoProgress, sep(),
+      h('button.textbtn.strong', { type: 'button', onclick: async () => { await ctx.setDemo(false); ctx.openAdd?.('folder'); } }, 'import a folder…'), sep(),
+      h('button.textbtn', { type: 'button', onclick: () => ctx.setDemo(false) }, 'start empty'));
+  } else {
+    demoBanner.append(h('span', 'this is the demo brain'), demoProgress, sep(),
+      h('button.textbtn.strong', { type: 'button', onclick: () => ctx.setDemo(false) }, 'return to yours'));
+  }
+}
 function renderDemo() {
+  drawDemoBanner();
   demoBanner.hidden = !store.demo;
   app.classList.toggle('in-demo', store.demo);
   emit('demo', demoInfo);
@@ -328,7 +349,24 @@ ctx.setDemo = async (on) => {
   renderDemo();
   ctx.toast(store.demo ? 'the demo brain. your own is untouched.' : 'back to your brain.');
 };
-api.demo().then((d) => { demoInfo = d; store.demo = !!d.active; renderDemo(); }).catch(() => { renderDemo(); });
+if (demoInfo) renderDemo();
+else api.demo().then((d) => { demoInfo = d; store.demo = !!d.active; renderDemo(); }).catch(() => { renderDemo(); });
+
+// after a source is added: redraw the cloud as its items arrive and are arranged
+let growthTimer = null;
+ctx.followGrowth = () => {
+  if (growthTimer) return;
+  const t0 = Date.now();
+  let last = null, quiet = 0;
+  growthTimer = setInterval(async () => {
+    let st;
+    try { st = await api.status(); } catch { return; }
+    const key = `${st.items}/${st.events}/${st.jobs?.running ? 1 : 0}`;
+    if (last !== null && key !== last) { quiet = 0; loadCloud().catch(() => {}); } else quiet++;
+    last = key;
+    if ((quiet > 10 && !st.jobs?.running) || Date.now() - t0 > 10 * 60e3) { clearInterval(growthTimer); growthTimer = null; }
+  }, 3000);
+};
 
 // settings: a sheet over the stage. connections, sources and privacy talk to the server
 // (panels/connections.js); appearance is ui/theme's settings panel.
