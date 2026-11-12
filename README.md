@@ -34,7 +34,7 @@ it is one rust binary with a browser ui. it works with no model at all, brings y
 </tr>
 </table>
 
-<sub>the pictures show the transcendentalist demo brain (9,233 dated entries from thoreau's and emerson's public-domain journals, embedded locally), served by a real `anamnesis serve`. the evaluation panel reads "measuring" because nobody has used that brain yet: those numbers only exist once a person does.</sub>
+<sub>the pictures show the transcendentalist demo brain (9,233 dated entries from thoreau's and emerson's public-domain journals, embedded locally), served by a real anamnesis. the evaluation panel reads "measuring" because nobody has used that brain yet: those numbers only exist once a person does.</sub>
 
 ## what it does
 
@@ -58,28 +58,30 @@ the brain keeps its history. every entry carries the date it was written, so the
 
 ## quick start
 
-on windows, no build needed: [download the installer](docs/install.md#download-the-installer-no-build-needed) from a release and start anamnesis from the start menu.
+anamnesis is a desktop app: it opens in its own window, and the whole backend (storage, embeddings, search, the brain) runs inside it, on your machine. nothing goes to a server unless you connect a model and ask it something.
 
-build from source: you need [rust](https://rustup.rs) 1.90+ and a c compiler (on windows, the visual studio build tools with "desktop development with c++"). the first build downloads the onnx runtime for local embeddings.
+**install** (no build needed): download the installer for your system from the [releases page](https://github.com/aphesist/anamnesis/releases).
+
+| system | file | notes |
+|---|---|---|
+| windows 10 / 11 | `anamnesis-<version>-windows-x86_64-setup.exe` (or the `.msi`, or a portable `.zip`) | installs for you only, no admin. unsigned for now: smartscreen says "windows protected your pc" → **more info → run anyway**. uses webview2, which windows 10 and 11 already have. |
+| macos | `anamnesis_<version>_aarch64.dmg` | unsigned for now: right-click the app → **open** the first time. |
+| linux | `.AppImage` or `.deb` | needs webkitgtk 4.1 (present on current gnome/kde desktops). |
+
+open **anamnesis** from the start menu, launchpad or app list. the first launch opens straight onto a **demo brain**, already built and embedded: 1,100 dated entries from the journals of thoreau and emerson (1820–1876, public domain in the us and brazil). turn it, open regions, search ("walden pond", "friendship"), read entries, ask the chat. then **file → import folder…** (or "import a folder…" on the banner) to bring your own notes or obsidian vault, or "start empty". the demo stays apart from your brain; "show a demo brain" in the view panel brings it back.
+
+in the background, the first launch downloads the local embedding model (~465 MB, once). until it is ready, search matches words only; everything else works at once.
+
+**build from source:** [rust](https://rustup.rs) 1.90+ and a c compiler (on windows, the visual studio build tools with "desktop development with c++"; on linux, `libwebkit2gtk-4.1-dev`).
 
 ```sh
 git clone https://github.com/aphesist/anamnesis
 cd anamnesis
-cargo build --release -p anamnesis-server
+cargo run --release -p anamnesis-desktop     # the app
+cargo build --release -p anamnesis-server    # the headless `anamnesis` cli: serve, import, mcp, verify, eval
 ```
 
-then, on windows use `target\release\anamnesis.exe`, on macos and linux `./target/release/anamnesis`:
-
-```sh
-anamnesis demo                      # build the demo brain (a few minutes, once)
-anamnesis serve --demo --open       # look around it at http://127.0.0.1:7368/
-anamnesis import ~/notes            # your own: a folder or an obsidian vault
-anamnesis serve --open              # your brain
-```
-
-the first run downloads the local embedding model (~465 MB); add `--hash-embedder` to try anything instantly and offline. "show a demo brain" in the view panel works too, and keeps the demo apart from your own brain. details per os, gpu builds and troubleshooting: [docs/install.md](docs/install.md#quick-start); a tour: [docs/using.md](docs/using.md).
-
-**the demo brain** is 1,100 dated entries from the journals of thoreau and emerson (1820–1876, public domain in the us and brazil), shipped in `demo/` and inside the binary. the optional python lab builds the full 9,233-entry version. see [docs/demo.md](docs/demo.md).
+the headless cli is also installed next to the app, for the mcp server (`anamnesis mcp`) and scripting. details per os, gpu builds, data locations and troubleshooting: [docs/install.md](docs/install.md); a tour: [docs/using.md](docs/using.md); the demo brain: [docs/demo.md](docs/demo.md).
 
 ## bring your own model
 
@@ -188,6 +190,8 @@ flowchart LR
   H -->|only if you chose one| X[model provider]
   H --> L
   S --> U[ui/app + ui/theme<br/>webgl2 brain · panels]
+  D[anamnesis-desktop<br/>native window · menus] --> S
+  D --> U
 ```
 
 every change is an event; items, links, threads, regions and suggestions are projections that replay from the log; embeddings and the layout are caches. more in [docs/architecture.md](docs/architecture.md).
@@ -203,9 +207,12 @@ every change is an event; items, links, threads, regions and suggestions are pro
 | `crates/anamnesis-eval` | the built-in evaluation ([README](crates/anamnesis-eval/README.md)) |
 | `crates/anamnesis-harness` | model backends, routing, limits, usage, egress gate |
 | `crates/anamnesis-mcp` | the mcp server |
-| `crates/anamnesis-server` | the `anamnesis` binary |
-| `ui/app` | the browser ui (plain es modules, webgl2, no build step) |
+| `crates/anamnesis-server` | the backend as a library, and the headless `anamnesis` cli |
+| `crates/anamnesis-desktop` | the desktop app (tauri 2): a native window with the backend in-process |
+| `ui/app` | the interface (plain es modules, webgl2, no build step), shown in the app's window |
 | `ui/theme` | tokens, themes, fonts, settings, layout config ([README](ui/theme/README.md)) |
+| `demo/` | the demo brain: 1,100 curated public-domain entries and a prebuilt, embedded snapshot shipped inside the app |
+| `packaging/` | installers (windows nsis / msi / zip cross-build) |
 | `lab/` | optional python lab: demo-brain builders and benchmarks ([README](lab/README.md)) |
 | `docs/` | [install](docs/install.md) · [using](docs/using.md) · [models](docs/models.md) · [mcp](docs/mcp.md) · [evaluation](docs/evaluation.md) · [privacy](docs/privacy.md) · [connectors](docs/connectors.md) · [theming](docs/theming.md) · [architecture](docs/architecture.md) · [demo](docs/demo.md) · [faq](docs/faq.md) · [http api](docs/contracts.md) |
 | `assets/readme/` | the animated pictures in this readme, drawn from the demo brain's real layout and dates |

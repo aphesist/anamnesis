@@ -1,6 +1,6 @@
 # using anamnesis
 
-start it with `anamnesis serve --open` ([install.md](install.md)). everything below happens in the browser at `http://127.0.0.1:7368/`; where the ui does not cover something yet, the http call is given ([contracts.md](contracts.md)).
+open the anamnesis app ([install.md](install.md)); everything below happens in its window. (headless, `anamnesis serve --open` shows the same interface in a browser at `http://127.0.0.1:7368/`.) where the interface does not cover something yet, the http call is given ([contracts.md](contracts.md)).
 
 ## sources and connectors
 
