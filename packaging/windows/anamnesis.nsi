@@ -111,6 +111,7 @@ Section "anamnesis (required)" SecMain
   SetOutPath "$INSTDIR"
   File "${STAGE}\anamnesis-desktop.exe"
   File "${STAGE}\anamnesis.exe"
+  File "${STAGE}\WebView2Loader.dll"
   File "${STAGE}\onnxruntime.dll"
   File "${STAGE}\onnxruntime_providers_shared.dll"
   File "${STAGE}\anamnesis.ico"
@@ -254,6 +255,7 @@ Section "un.anamnesis" UnSecMain
 
   Delete /REBOOTOK "$INSTDIR\anamnesis-desktop.exe"
   Delete /REBOOTOK "$INSTDIR\anamnesis.exe"
+  Delete /REBOOTOK "$INSTDIR\WebView2Loader.dll"
   Delete /REBOOTOK "$INSTDIR\onnxruntime.dll"
   Delete /REBOOTOK "$INSTDIR\onnxruntime_providers_shared.dll"
   Delete "$INSTDIR\anamnesis.ico"

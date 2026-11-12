@@ -114,6 +114,10 @@ if [[ "$SKIP_BUILD" == 0 ]]; then
 fi
 [[ -f "$EXE" ]] || { echo "no $EXE; build first" >&2; exit 1; }
 [[ -f "$DESKTOP_EXE" ]] || { echo "no $DESKTOP_EXE; build first" >&2; exit 1; }
+# with mingw, wry links microsoft's webview2 loader dynamically: the webview2-com-sys
+# build script puts WebView2Loader.dll (webview2 sdk, redistributable) next to the exe
+WV2_LOADER="$(dirname "$DESKTOP_EXE")/WebView2Loader.dll"
+[[ -f "$WV2_LOADER" ]] || { echo "no $WV2_LOADER (it comes with the anamnesis-desktop build)" >&2; exit 1; }
 
 # ---------------------------------------------------------------- onnx runtime
 log "onnx runtime $ORT_VERSION"
@@ -140,6 +144,7 @@ mkdir -p "$STAGE/licenses"
 crlf() { sed 's/\r$//; s/$/\r/' "$1" > "$2"; }
 cp "$EXE" "$STAGE/anamnesis.exe"
 cp "$DESKTOP_EXE" "$STAGE/anamnesis-desktop.exe"
+cp "$WV2_LOADER" "$STAGE/WebView2Loader.dll"
 x86_64-w64-mingw32-strip "$STAGE/anamnesis.exe" "$STAGE/anamnesis-desktop.exe" 2> /dev/null || true
 cp "$ORT_DIR/lib/onnxruntime.dll" "$ORT_DIR/lib/onnxruntime_providers_shared.dll" "$STAGE/"
 cp "$HERE/anamnesis.ico" "$STAGE/"
@@ -158,6 +163,7 @@ crlf "$ROOT/ui/theme/fonts/NOTICE.md" "$STAGE/licenses/fonts-NOTICE.md"
 MINGW_COPYRIGHT=/usr/share/doc/mingw-w64-common/copyright
 [[ -f "$MINGW_COPYRIGHT" ]] || { echo "missing $MINGW_COPYRIGHT (mingw-w64-common)" >&2; exit 1; }
 crlf "$MINGW_COPYRIGHT" "$STAGE/licenses/mingw-w64-runtime-copyright.txt"
+crlf "$HERE/WebView2Loader-NOTICE.txt" "$STAGE/licenses/WebView2Loader-NOTICE.txt"
 
 # the licence page of both installers: LICENSE, then NOTICE (not installed itself)
 PAGE="$WORK/license-page.txt"

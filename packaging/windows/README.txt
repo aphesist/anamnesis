@@ -33,6 +33,7 @@ files
 
   anamnesis-desktop.exe              the app (the ui and the demo are inside it)
   anamnesis.exe                      the command line (mcp, headless serve, import, ...)
+  WebView2Loader.dll                 microsoft's webview2 loader, for the app window
   onnxruntime.dll                    microsoft onnx runtime @ORT_VERSION@ (mit), for the
   onnxruntime_providers_shared.dll   on-device embedder; keep them next to the two .exe
   LICENSE.txt, NOTICE.txt            apache license 2.0 and the notices
