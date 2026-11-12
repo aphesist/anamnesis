@@ -146,7 +146,17 @@ pub async fn run_mind(
         return Ok(None);
     };
     let model = emb.id().to_string();
-    let model_changed = brain.job_state().mind_model.as_deref() != Some(model.as_str());
+    let mind_model = brain.job_state().mind_model;
+    // the demo brain ships arranged with a real model; while only the hash embedder is at hand
+    // (`--hash-embedder`, or the model could not load) keep that arrangement rather than
+    // redraw the whole brain from hashes
+    if brain.is_demo
+        && model.starts_with("hash@")
+        && mind_model.as_deref().is_some_and(|m| m != model)
+    {
+        return Ok(None);
+    }
+    let model_changed = mind_model.as_deref() != Some(model.as_str());
     let force_full = force_full || model_changed;
     let m = model.clone();
     let input = brain
