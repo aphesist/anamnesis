@@ -5,6 +5,10 @@
 ; the brain (%APPDATA%\anamnesis) or the model cache (%LOCALAPPDATA%\anamnesis) unless the
 ; owner ticks that option in the uninstaller.
 ;
+; two programs: anamnesis-desktop.exe, the desktop app (a native window on microsoft edge
+; webview2, no console), which the shortcuts start; and anamnesis.exe, the command line
+; for mcp clients and headless use.
+;
 ; makensis -DVERSION=0.1.0 -DSTAGE=<staged files> -DINSTALLED_KB=<size> [-DDISPLAY_VERSION=0.1.0-rc.1]
 ;          [-DLICENSE_PAGE=<text>] [-DOUTFILE=<setup.exe>] anamnesis.nsi
 ; build.sh passes all of them.
@@ -37,6 +41,14 @@ RequestExecutionLevel user
 !define APP "anamnesis"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\anamnesis"
 !define ENV_KEY "Environment"
+; webview2 evergreen runtime: its client key, per machine (64-bit view) or per user
+!define WEBVIEW2_KEY "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+!define WEBVIEW2_USER_KEY "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+; microsoft's evergreen bootstrapper (a small download that installs the runtime)
+!define WEBVIEW2_BOOTSTRAPPER "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+; the desktop app's own folders (tauri names them after the app identifier): window
+; position and webview2's cache
+!define APP_ID "ist.aphes.anamnesis"
 ; nsis strings hold at most NSIS_MAX_STRLEN characters (1024 in the stock build); a longer
 ; user PATH would be truncated when read, so it is never rewritten
 !define /math NSIS_MAX_STRLEN_GUARD ${NSIS_MAX_STRLEN} - 8
@@ -82,9 +94,9 @@ ${UnStrRep}
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_RUN "$INSTDIR\anamnesis.exe"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\anamnesis-desktop.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "open anamnesis now"
-!define MUI_FINISHPAGE_TEXT "anamnesis is installed. start it from the start menu: it serves on http://127.0.0.1:7368/ and opens your browser. the console window shows its log; closing it stops anamnesis."
+!define MUI_FINISHPAGE_TEXT "anamnesis is installed. start it from the start menu; it opens in its own window. the command line anamnesis.exe (for mcp clients) is in the same folder."
 !insertmacro MUI_PAGE_FINISH
 
 !insertmacro MUI_UNPAGE_CONFIRM
@@ -97,6 +109,7 @@ Section "anamnesis (required)" SecMain
   SectionIn RO
   SetShellVarContext current
   SetOutPath "$INSTDIR"
+  File "${STAGE}\anamnesis-desktop.exe"
   File "${STAGE}\anamnesis.exe"
   File "${STAGE}\onnxruntime.dll"
   File "${STAGE}\onnxruntime_providers_shared.dll"
@@ -108,7 +121,7 @@ Section "anamnesis (required)" SecMain
   File /r "${STAGE}\licenses\*.*"
   SetOutPath "$INSTDIR"
 
-  CreateShortCut "$SMPROGRAMS\anamnesis.lnk" "$INSTDIR\anamnesis.exe" "" "$INSTDIR\anamnesis.ico" 0 SW_SHOWNORMAL "" "anamnesis: serve the brain on 127.0.0.1:7368 and open the browser"
+  CreateShortCut "$SMPROGRAMS\anamnesis.lnk" "$INSTDIR\anamnesis-desktop.exe" "" "$INSTDIR\anamnesis-desktop.exe" 0 SW_SHOWNORMAL "" "anamnesis: a local-first second brain"
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "anamnesis"
@@ -124,11 +137,12 @@ Section "anamnesis (required)" SecMain
   WriteRegDWORD HKCU "${UNINST_KEY}" "EstimatedSize" ${INSTALLED_KB}
 
   Call CheckVcRuntime
+  Call CheckWebView2
 SectionEnd
 
 Section /o "desktop shortcut" SecDesktop
   SetShellVarContext current
-  CreateShortCut "$DESKTOP\anamnesis.lnk" "$INSTDIR\anamnesis.exe" "" "$INSTDIR\anamnesis.ico" 0 SW_SHOWNORMAL "" "anamnesis"
+  CreateShortCut "$DESKTOP\anamnesis.lnk" "$INSTDIR\anamnesis-desktop.exe" "" "$INSTDIR\anamnesis-desktop.exe" 0 SW_SHOWNORMAL "" "anamnesis"
   WriteRegDWORD HKCU "${UNINST_KEY}" "DesktopShortcut" 1
 SectionEnd
 
@@ -197,6 +211,27 @@ Function CheckVcRuntime
   ${EndIf}
 FunctionEnd
 
+; the desktop app draws its window with microsoft edge webview2, part of windows 11 and of
+; up-to-date windows 10. if it is missing, offer microsoft's evergreen bootstrapper.
+Function CheckWebView2
+  SetRegView 64
+  ReadRegStr $0 HKLM "${WEBVIEW2_KEY}" "pv"
+  SetRegView lastused
+  ${If} $0 == ""
+  ${OrIf} $0 == "0.0.0.0"
+    ReadRegStr $0 HKCU "${WEBVIEW2_USER_KEY}" "pv"
+  ${EndIf}
+  ${If} $0 == ""
+  ${OrIf} $0 == "0.0.0.0"
+    DetailPrint "microsoft edge webview2 runtime not found: the anamnesis window needs it"
+    MessageBox MB_ICONEXCLAMATION|MB_YESNO "the anamnesis window needs the microsoft edge webview2 runtime, which this pc does not have yet (windows 11 and updated windows 10 include it).$\r$\n$\r$\ndownload microsoft's installer for it now? run it, then start anamnesis." /SD IDNO IDNO wv_done
+    ExecShell "open" "${WEBVIEW2_BOOTSTRAPPER}"
+    wv_done:
+  ${Else}
+    DetailPrint "microsoft edge webview2 runtime $0 found"
+  ${EndIf}
+FunctionEnd
+
 ; ---------------------------------------------------------------- uninstaller
 
 Function un.onInit
@@ -217,6 +252,7 @@ Section "un.anamnesis" UnSecMain
     Call un.RemoveFromPath
   ${EndIf}
 
+  Delete /REBOOTOK "$INSTDIR\anamnesis-desktop.exe"
   Delete /REBOOTOK "$INSTDIR\anamnesis.exe"
   Delete /REBOOTOK "$INSTDIR\onnxruntime.dll"
   Delete /REBOOTOK "$INSTDIR\onnxruntime_providers_shared.dll"
@@ -235,6 +271,8 @@ Section /o "un.also delete my brain and downloaded models" UnSecData
   SetShellVarContext current
   RMDir /r "$APPDATA\anamnesis"
   RMDir /r "$LOCALAPPDATA\anamnesis"
+  RMDir /r "$APPDATA\${APP_ID}"
+  RMDir /r "$LOCALAPPDATA\${APP_ID}"
   DetailPrint "deleted $APPDATA\anamnesis and $LOCALAPPDATA\anamnesis"
 SectionEnd
 

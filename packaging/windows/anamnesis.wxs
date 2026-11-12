@@ -4,6 +4,11 @@
   (packaging/windows/build.sh). wixl implements a subset of wix 3: no bootstrapper, no
   custom actions, a fixed minimal ui (WixUI_Minimal: one licence page).
 
+  the start-menu shortcut starts the desktop app (anamnesis-desktop.exe, a native window on
+  microsoft edge webview2, which windows 10 and 11 include; wixl has no custom actions to
+  check for it, so the app itself says so if it is missing); anamnesis.exe, the command
+  line for mcp clients, is installed beside it.
+
   per-user: InstallScope="perUser" installs without administrator rights into
   %LOCALAPPDATA%\Programs\anamnesis, with a start-menu shortcut, the user PATH entry and
   the add/remove programs entry under HKCU. uninstall removes the program and leaves the
@@ -54,6 +59,7 @@
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="Program" Guid="3F0C9C6E-6B8B-4C4E-8D8F-2A51A6E4B701" Win64="yes">
         <RegistryValue Root="HKCU" Key="Software\anamnesis" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        <File Id="anamnesis_desktop.exe" Name="anamnesis-desktop.exe" Source="$(var.Stage)/anamnesis-desktop.exe" />
         <File Id="anamnesis.exe" Name="anamnesis.exe" Source="$(var.Stage)/anamnesis.exe" />
         <File Id="onnxruntime.dll" Name="onnxruntime.dll" Source="$(var.Stage)/onnxruntime.dll" />
         <File Id="onnxruntime_providers_shared.dll" Name="onnxruntime_providers_shared.dll" Source="$(var.Stage)/onnxruntime_providers_shared.dll" />
@@ -84,8 +90,8 @@
       <Component Id="StartMenuShortcut" Guid="C1A7E5D3-2B4F-4E6A-8C9D-0A1B2C3D4E84" Win64="yes">
         <Shortcut Id="StartMenuAnamnesis"
                   Name="anamnesis"
-                  Description="anamnesis: serve the brain on 127.0.0.1:7368 and open the browser"
-                  Target="[INSTALLDIR]anamnesis.exe"
+                  Description="anamnesis: a local-first second brain"
+                  Target="[INSTALLDIR]anamnesis-desktop.exe"
                   WorkingDirectory="INSTALLDIR"
                   Icon="anamnesis.ico" />
         <RegistryValue Root="HKCU" Key="Software\anamnesis" Name="shortcut" Type="integer" Value="1" KeyPath="yes" />
