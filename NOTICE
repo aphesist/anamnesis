@@ -48,3 +48,17 @@ use into the user's cache directory, under their own licences.
 The demo brain is not included. The lab builds it on the user's machine from
 texts that are in the public domain in the United States and Brazil
 (lab/README.md).
+
+-------------------------------------------------------------------------------
+Windows packages
+-------------------------------------------------------------------------------
+
+The windows installers and the portable zip (packaging/windows/) also ship:
+
+  ONNX Runtime    onnxruntime.dll and onnxruntime_providers_shared.dll, the
+                  official build from github.com/microsoft/onnxruntime.
+                  Copyright (c) Microsoft Corporation. MIT License
+                  (licenses/onnxruntime-LICENSE.txt, with its
+                  ThirdPartyNotices.txt).
+  mingw-w64       the runtime startup code and winpthreads, linked into
+                  anamnesis.exe (licenses/mingw-w64-runtime-copyright.txt).
