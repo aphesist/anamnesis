@@ -89,7 +89,7 @@ impl Default for EmbedderSpec {
     /// The local default model when built with the `local` feature,
     /// otherwise the hashing embedder.
     fn default() -> Self {
-        if cfg!(feature = "local") {
+        if cfg!(feature = "onnx") {
             Self::local(default_local_model())
         } else {
             Self::hash()
@@ -248,7 +248,7 @@ pub fn build_with_secret(
     })
 }
 
-#[cfg(feature = "local")]
+#[cfg(feature = "onnx")]
 fn build_local(
     model: &str,
     batch_size: usize,
@@ -267,7 +267,7 @@ fn build_local(
     Ok(Box::new(crate::LocalEmbedder::new(model, cache_dir, opts)?))
 }
 
-#[cfg(not(feature = "local"))]
+#[cfg(not(feature = "onnx"))]
 fn build_local(
     model: &str,
     _batch_size: usize,
@@ -394,7 +394,7 @@ mod tests {
         assert_eq!(e.id(), "ollama:qwen3-embedding:0.6b@256");
     }
 
-    #[cfg(not(feature = "local"))]
+    #[cfg(not(feature = "onnx"))]
     #[test]
     fn local_without_feature_errors() {
         assert!(

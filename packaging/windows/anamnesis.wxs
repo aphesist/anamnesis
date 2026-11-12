@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  anamnesis: windows installer package (msi), built on linux with msitools' wixl
+  (packaging/windows/build.sh). wixl implements a subset of wix 3: no bootstrapper, no
+  custom actions, a fixed minimal ui (WixUI_Minimal: one licence page).
+
+  per-user: InstallScope="perUser" installs without administrator rights into
+  %LOCALAPPDATA%\Programs\anamnesis, with a start-menu shortcut, the user PATH entry and
+  the add/remove programs entry under HKCU. uninstall removes the program and leaves the
+  brain (%APPDATA%\anamnesis) and the model cache (%LOCALAPPDATA%\anamnesis) alone.
+
+  wixl -D Version=0.1.0 -D Stage=<staged files> -o anamnesis.msi anamnesis.wxs
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="anamnesis"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="the anamnesis authors"
+           UpgradeCode="6E6B1F2A-3C8D-4E3B-9A57-5B1A2F7D0C41">
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perUser"
+             Description="anamnesis $(var.Version): a local-first second brain"
+             Comments="apache-2.0. https://github.com/aphesist/anamnesis" />
+    <Media Id="1" Cabinet="anamnesis.cab" EmbedCab="yes" />
+
+    <Property Id="ARPPRODUCTICON" Value="anamnesis.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/aphesist/anamnesis" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <!-- ARPNOMODIFY comes with WixUI_Minimal -->
+    <Icon Id="anamnesis.ico" SourceFile="$(var.Stage)/anamnesis.ico" />
+
+    <!-- a newer msi replaces an older one in place -->
+    <Upgrade Id="6E6B1F2A-3C8D-4E3B-9A57-5B1A2F7D0C41">
+      <UpgradeVersion Minimum="0.0.0" Maximum="$(var.Version)" IncludeMinimum="yes" IncludeMaximum="no" Property="OLDERFOUND" />
+    </Upgrade>
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallValidate" />
+    </InstallExecuteSequence>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="ProgramsDir" Name="Programs">
+          <Directory Id="INSTALLDIR" Name="anamnesis">
+            <Directory Id="LicensesDir" Name="licenses" />
+          </Directory>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder" />
+    </Directory>
+
+    <!-- files in a user profile: each component keeps an HKCU value as its key path -->
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="Program" Guid="3F0C9C6E-6B8B-4C4E-8D8F-2A51A6E4B701" Win64="yes">
+        <RegistryValue Root="HKCU" Key="Software\anamnesis" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        <File Id="anamnesis.exe" Name="anamnesis.exe" Source="$(var.Stage)/anamnesis.exe" />
+        <File Id="onnxruntime.dll" Name="onnxruntime.dll" Source="$(var.Stage)/onnxruntime.dll" />
+        <File Id="onnxruntime_providers_shared.dll" Name="onnxruntime_providers_shared.dll" Source="$(var.Stage)/onnxruntime_providers_shared.dll" />
+        <File Id="anamnesis.ico" Name="anamnesis.ico" Source="$(var.Stage)/anamnesis.ico" />
+        <File Id="LICENSE.txt" Name="LICENSE.txt" Source="$(var.Stage)/LICENSE.txt" />
+        <File Id="NOTICE.txt" Name="NOTICE.txt" Source="$(var.Stage)/NOTICE.txt" />
+        <File Id="README.txt" Name="README.txt" Source="$(var.Stage)/README.txt" />
+        <RemoveFolder Id="RemoveInstallDir" On="uninstall" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="LicensesDir">
+      <Component Id="Licenses" Guid="5D8A4C2B-7E1F-4A3D-9B6C-1E2F3A4B5C63" Win64="yes">
+        <RegistryValue Root="HKCU" Key="Software\anamnesis" Name="licenses" Type="integer" Value="1" KeyPath="yes" />
+        <File Id="lic_0" Name="onnxruntime-LICENSE.txt" Source="$(var.Stage)/licenses/onnxruntime-LICENSE.txt" />
+        <File Id="lic_1" Name="onnxruntime-ThirdPartyNotices.txt" Source="$(var.Stage)/licenses/onnxruntime-ThirdPartyNotices.txt" />
+        <File Id="lic_2" Name="onnxruntime-Privacy.md" Source="$(var.Stage)/licenses/onnxruntime-Privacy.md" />
+        <File Id="lic_3" Name="aphesis-OFL.txt" Source="$(var.Stage)/licenses/aphesis-OFL.txt" />
+        <File Id="lic_4" Name="aphesis-NOTICE.md" Source="$(var.Stage)/licenses/aphesis-NOTICE.md" />
+        <File Id="lic_5" Name="SpecialElite-LICENSE.txt" Source="$(var.Stage)/licenses/SpecialElite-LICENSE.txt" />
+        <File Id="lic_6" Name="fonts-NOTICE.md" Source="$(var.Stage)/licenses/fonts-NOTICE.md" />
+        <File Id="lic_7" Name="mingw-w64-runtime-copyright.txt" Source="$(var.Stage)/licenses/mingw-w64-runtime-copyright.txt" />
+        <RemoveFolder Id="RemoveLicensesDir" On="uninstall" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="C1A7E5D3-2B4F-4E6A-8C9D-0A1B2C3D4E84" Win64="yes">
+        <Shortcut Id="StartMenuAnamnesis"
+                  Name="anamnesis"
+                  Description="anamnesis: serve the brain on 127.0.0.1:7368 and open the browser"
+                  Target="[INSTALLDIR]anamnesis.exe"
+                  WorkingDirectory="INSTALLDIR"
+                  Icon="anamnesis.ico" />
+        <RegistryValue Root="HKCU" Key="Software\anamnesis" Name="shortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="Main" Title="anamnesis" Level="1">
+      <ComponentRef Id="Program" />
+      <ComponentRef Id="Licenses" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <!-- the licence dialog reads License.rtf from wixl's working directory (build.sh runs
+         wixl inside the staged folder) -->
+    <UIRef Id="WixUI_Minimal" />
+  </Product>
+</Wix>

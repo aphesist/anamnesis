@@ -1,7 +1,8 @@
 name: release
 
 # Builds the `anamnesis` binary (ui embedded) for windows, macos and linux when a `v*`
-# tag is pushed, and attaches the archives to a github release for that tag.
+# tag is pushed, plus the windows installers (nsis setup.exe, msi, portable zip; see
+# packaging/windows/), and attaches them to a github release for that tag.
 # `workflow_dispatch` builds the same archives as workflow artifacts without releasing.
 
 on:
@@ -84,9 +85,37 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  windows-installers:
+    # the nsis installer, the msi and the portable zip, cross-built on linux with mingw-w64
+    # by packaging/windows/build.sh (the same script as a local build); onnx runtime is
+    # microsoft's official onnxruntime.dll, loaded at run time from next to the exe.
+    name: windows installers
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-x86_64-pc-windows-gnu
+      - name: install the cross toolchain and packagers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mingw-w64 nsis wixl msitools zip unzip
+      - name: build and package
+        shell: bash
+        run: packaging/windows/build.sh --version "${GITHUB_REF_NAME}" --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anamnesis-windows-installers
+          path: dist/*
+          if-no-files-found: error
+
   release:
     name: github release
-    needs: build
+    needs: [build, windows-installers]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

@@ -23,6 +23,10 @@ embed-ui = ["dep:rust-embed"]
 embed-demo = ["dep:rust-embed"]
 # On-device embeddings (fastembed / onnx runtime) through anamnesis-embed.
 local-embed = ["anamnesis-embed/local"]
+# The same, with onnx runtime loaded at run time from `onnxruntime.dll` next to the binary
+# (or ORT_DYLIB_PATH) instead of linked at build time. For the windows packages, which are
+# cross-built with mingw; see packaging/windows/. Use with --no-default-features.
+local-embed-dynamic = ["anamnesis-embed/local-dynamic"]
 # Local embeddings on the gpu (off by default; see docs/install.md). Cpu is the fallback.
 gpu-directml = ["local-embed", "anamnesis-embed/gpu-directml"]
 gpu-cuda = ["local-embed", "anamnesis-embed/gpu-cuda"]

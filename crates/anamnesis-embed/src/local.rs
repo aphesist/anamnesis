@@ -228,6 +228,67 @@ pub fn gpu_features() -> &'static [&'static str] {
     ]
 }
 
+/// File name of the ONNX Runtime shared library on this platform
+/// (`onnxruntime.dll`, `libonnxruntime.so`, `libonnxruntime.dylib`).
+#[cfg(feature = "local-dynamic")]
+pub fn runtime_library_name() -> String {
+    format!(
+        "{}onnxruntime{}",
+        std::env::consts::DLL_PREFIX,
+        std::env::consts::DLL_SUFFIX
+    )
+}
+
+/// Where `local-dynamic` builds look for ONNX Runtime: `ORT_DYLIB_PATH` when set,
+/// otherwise the library next to the executable (the windows packages ship
+/// `onnxruntime.dll` beside `anamnesis.exe`). An explicit path also keeps windows from
+/// picking up an older `onnxruntime.dll` that some system folders carry.
+#[cfg(feature = "local-dynamic")]
+pub fn runtime_library_path() -> Option<std::path::PathBuf> {
+    if let Some(p) = std::env::var_os("ORT_DYLIB_PATH").filter(|p| !p.is_empty()) {
+        return Some(p.into());
+    }
+    let exe = std::env::current_exe().ok()?;
+    Some(exe.parent()?.join(runtime_library_name()))
+}
+
+/// Load ONNX Runtime once for `local-dynamic` builds, so a missing or incompatible
+/// library is an error the caller can report (and fall back from) instead of a panic
+/// inside `ort` on first use.
+#[cfg(feature = "local-dynamic")]
+pub fn load_runtime() -> Result<std::path::PathBuf> {
+    use std::sync::OnceLock;
+    static LOADED: OnceLock<std::result::Result<std::path::PathBuf, String>> = OnceLock::new();
+    LOADED
+        .get_or_init(|| {
+            let path = runtime_library_path()
+                .ok_or_else(|| "cannot locate the executable's folder".to_string())?;
+            if !path.exists() {
+                return Err(format!(
+                    "onnx runtime library not found at {} (put {} next to the executable or set ORT_DYLIB_PATH)",
+                    path.display(),
+                    runtime_library_name()
+                ));
+            }
+            // the builder is dropped unused: fastembed builds its own environment, and
+            // the loaded library stays registered with ort for the life of the process
+            let _ = ort::init_from(&path).map_err(|e| {
+                // on windows, "module not found" for a file that exists means one of its
+                // own dependencies is missing: microsoft's build needs the msvc runtime
+                let hint = if cfg!(windows) {
+                    "; onnxruntime.dll needs the microsoft visual c++ redistributable (x64): https://aka.ms/vs/17/release/vc_redist.x64.exe"
+                } else {
+                    ""
+                };
+                format!("loading onnx runtime: {e}{hint}")
+            })?;
+            tracing::info!("onnx runtime loaded from {}", path.display());
+            Ok(path)
+        })
+        .clone()
+        .map_err(|e| anyhow!(e))
+}
+
 /// Options for [`LocalEmbedder`].
 #[derive(Debug, Clone)]
 pub struct LocalOptions {
@@ -274,6 +335,8 @@ impl LocalEmbedder {
                 names.join(", ")
             )
         })?;
+        #[cfg(feature = "local-dynamic")]
+        load_runtime()?;
         std::fs::create_dir_all(cache_dir)
             .with_context(|| format!("creating model cache dir {}", cache_dir.display()))?;
         let max_tokens = match opts.max_tokens {
