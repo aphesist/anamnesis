@@ -12,7 +12,7 @@ tagged releases attach installers for every platform (see [prebuilt packages](#p
 |---|---|---|
 | windows 10 / 11 (x86_64) | `anamnesis-<version>-windows-x86_64-setup.exe` | run it; no administrator rights needed. start **anamnesis** from the start menu. |
 | macos 11+ (apple silicon) | `anamnesis-<version>-macos-arm64.dmg` | open it and drag **anamnesis** into applications. intel macs: `-macos-x86_64.dmg`. |
-| linux (debian, ubuntu 22.04+) | `anamnesis-<version>-linux-x86_64.deb` | `sudo apt install ./anamnesis-<version>-linux-x86_64.deb`, then start **anamnesis** from your applications. |
+| linux (debian 13, ubuntu 24.04+) | `anamnesis-<version>-linux-x86_64.deb` | `sudo apt install ./anamnesis-<version>-linux-x86_64.deb`, then start **anamnesis** from your applications. |
 | linux (any distribution) | `anamnesis-<version>-linux-x86_64.AppImage` | `chmod +x` it and run it. |
 
 the first start downloads the local embedding model (about 465 MB) in the background; until it has loaded, search is full-text only. on first launch the app asks whether to keep the full motion or calm it.
@@ -162,7 +162,7 @@ pushing a `v*` tag runs `.github/workflows/release.yml`, which builds everything
 | `anamnesis-<version>-windows-x86_64.msi` | the app, for all users (needs administrator rights) |
 | `anamnesis-<version>-macos-arm64.dmg` | the app for apple silicon (on-device embeddings) |
 | `anamnesis-<version>-macos-x86_64.dmg` | the app for intel macs (no on-device embeddings: use ollama or an api embedder) |
-| `anamnesis-<version>-linux-x86_64.deb`, `.AppImage` | the app (on-device embeddings; glibc 2.35 or newer) |
+| `anamnesis-<version>-linux-x86_64.deb`, `.AppImage` | the app (on-device embeddings; glibc 2.39 or newer: ubuntu 24.04, debian 13, fedora 40 and later) |
 | `anamnesis-<version>-<os>.zip` / `.tar.gz` | the command line `anamnesis` alone (ui embedded), for servers and mcp |
 
 every app package also installs the command line `anamnesis` beside the app. each file has a `.sha256` file next to it. nothing is code-signed yet (see [smartscreen](#windows-webview2-smartscreen) and [gatekeeper](#macos-gatekeeper)); for a downloaded command line binary on macos run `xattr -d com.apple.quarantine anamnesis`. if windows says `VCRUNTIME140.dll` is missing, install the [microsoft visual c++ redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) (x64).

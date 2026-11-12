@@ -1074,9 +1074,9 @@ mod windows_batch_tests {
         assert!(cli.launch(&bin).is_batch());
         let mut req = ChatRequest::new(vec![Message::user("hi & bye | 100%")]);
         req.system = Some("line one\nline \"two\" & more".into());
-        let (text, _events) = collect(cli.chat(req).await.unwrap()).await;
-        assert_eq!(text, "hello there");
-        let logged = std::fs::read_to_string(&args_log).unwrap();
+        let (text, events) = collect(cli.chat(req).await.unwrap()).await;
+        let logged = std::fs::read_to_string(&args_log).unwrap_or_default();
+        assert_eq!(text, "hello there", "events: {events:?}; args: {logged}");
         assert!(logged.contains("--system-prompt-file"), "{logged}");
         assert!(!logged.contains("line one"), "{logged}");
     }

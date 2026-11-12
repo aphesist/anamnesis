@@ -418,6 +418,9 @@ impl Connector for FilesConnector {
         let root = expand_home(&cfg.path);
         let (tx, rx) = mpsc::channel(256);
         let root2 = root.clone();
+        // some systems report events under the resolved path (macos fsevents gives
+        // /private/var/... for a root under /var/...): relate paths to both forms
+        let real_root = std::fs::canonicalize(&root).unwrap_or_else(|_| root.clone());
         let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
             let Ok(ev) = res else { return };
             if ev.kind.is_access() {
@@ -425,7 +428,8 @@ impl Connector for FilesConnector {
             }
             for p in ev.paths {
                 // the same `/`-joined form as a scan's external ids, on every os
-                let rel = crate::scan::rel_string(&root2, &p);
+                let rel = crate::scan::rel_string(&root2, &p)
+                    .or_else(|| crate::scan::rel_string(&real_root, &p));
                 if rel
                     .as_deref()
                     .is_some_and(|r| r.starts_with(".obsidian") || r.starts_with(".trash"))

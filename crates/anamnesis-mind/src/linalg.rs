@@ -54,11 +54,9 @@ impl Rows {
 pub fn dot(a: &[f32], b: &[f32]) -> f32 {
     // chunks of 8 let the compiler vectorise
     let mut acc = [0f32; 8];
-    let ca = a.chunks_exact(8);
-    let cb = b.chunks_exact(8);
-    let ra = ca.remainder();
-    let rb = cb.remainder();
-    for (x, y) in ca.zip(cb) {
+    let (ca, ra) = a.as_chunks::<8>();
+    let (cb, rb) = b.as_chunks::<8>();
+    for (x, y) in ca.iter().zip(cb) {
         for k in 0..8 {
             acc[k] += x[k] * y[k];
         }
