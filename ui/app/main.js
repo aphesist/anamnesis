@@ -181,7 +181,22 @@ onTheme((t) => {
   emit('theme', t);
 });
 
+// ---------- links ----------
+// External links always open outside the ui: in a desktop window the shell hands target=_blank to the
+// system browser; in a plain browser they open in a new tab. Same-origin links (the api, the ui) stay.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest?.('a[href]');
+  if (!a || a.hasAttribute('download')) return;
+  let u;
+  try { u = new URL(a.href, location.href); } catch { return; }
+  if (!/^https?:$/.test(u.protocol) || u.origin === location.origin) return;
+  a.target = '_blank';
+  if (!/\bnoopener\b/.test(a.rel)) a.rel = (a.rel + ' noopener').trim();
+}, true);
+
 // ---------- keyboard ----------
+// Only ⌘/ctrl+k (search), F6 and escape are global; ctrl/cmd+r, +w, +q, zoom and the rest belong to the
+// window that hosts the ui (a desktop shell or a browser).
 document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); document.querySelector('.ask input')?.focus(); return; }
   if (e.key === 'F6') {

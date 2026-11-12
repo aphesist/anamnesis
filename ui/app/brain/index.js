@@ -56,7 +56,7 @@ export class Brain {
 
   fail(e) {
     this.canvas.replaceWith(h('div.brain-fallback', { role: 'note' },
-      h('p', 'the brain needs webgl2, which this browser did not offer.'),
+      h('p', 'the brain needs webgl2, which this window did not offer.'),
       h('p.soft', 'the list view, notes, charts and chat all still work.'),
       h('small.soft', String(e && e.message || e).slice(0, 120))));
   }
@@ -453,6 +453,8 @@ export class Brain {
     target.addEventListener('pointerleave', () => { if (!down) this.setHover(-1); });
     target.addEventListener('wheel', (e) => { if (e.target.closest('.no-orbit')) return; e.preventDefault(); this.cam.zoom(e.deltaY * (e.deltaMode ? 30 : 1)); this.dirty = true; }, { passive: false });
     this.canvas.addEventListener('keydown', (e) => {
+      // leave ctrl/cmd/alt chords (zoom, reload, quit…) to the window that hosts the ui
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key, c = this.cam;
       const step = e.shiftKey ? 0.4 : 0.15;
       if (k === 'ArrowLeft') c.yaw -= step; else if (k === 'ArrowRight') c.yaw += step;
