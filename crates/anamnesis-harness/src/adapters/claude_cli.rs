@@ -1058,7 +1058,9 @@ mod windows_batch_tests {
         std::fs::write(dir.path().join("fixture.jsonl"), fixture).unwrap();
         let args_log = dir.path().join("args.txt");
         let script = format!(
-            "@echo off\r\nif \"%~1\"==\"--version\" (\r\n  echo 9.9.9 (Claude Code)\r\n  exit /b 0\r\n)\r\necho %* > \"{}\"\r\ntype \"%~dp0fixture.jsonl\"\r\n",
+            // inside the if block the parentheses of the version string must be escaped,
+            // or the first `)` closes the block and `exit /b 0` runs on every call
+            "@echo off\r\nif \"%~1\"==\"--version\" (\r\n  echo 9.9.9 ^(Claude Code^)\r\n  exit /b 0\r\n)\r\necho %* > \"{}\"\r\ntype \"%~dp0fixture.jsonl\"\r\n",
             args_log.display()
         );
         std::fs::write(dir.path().join("claude.cmd"), script).unwrap();
