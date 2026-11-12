@@ -1,0 +1,190 @@
+{
+  "benchmark": "layout",
+  "bundle": "transcendentalist",
+  "date": "2026-11-11",
+  "model": "hash",
+  "items": 2000,
+  "snapshots": [
+    1000,
+    1333,
+    1667,
+    2000
+  ],
+  "rows": [
+    {
+      "method": "umap",
+      "snapshot": 1000,
+      "trustworthiness": 0.6547767394616557,
+      "continuity": 0.7401081767394617
+    },
+    {
+      "method": "umap",
+      "snapshot": 1333,
+      "trustworthiness": 0.6640238807329917,
+      "continuity": 0.7732230021452232
+    },
+    {
+      "method": "umap",
+      "snapshot": 1667,
+      "trustworthiness": 0.6672641493499665,
+      "continuity": 0.7834244958456084
+    },
+    {
+      "method": "umap",
+      "snapshot": 2000,
+      "trustworthiness": 0.6663347190728143,
+      "continuity": 0.7893122952884858
+    },
+    {
+      "method": "umap",
+      "snapshot": 1333,
+      "drift_from_previous": {
+        "shared": 1000,
+        "disparity": 0.3086192584223867,
+        "rms": 0.8032635332467285,
+        "rms_relative": 0.555535109981706
+      }
+    },
+    {
+      "method": "umap",
+      "snapshot": 1667,
+      "drift_from_previous": {
+        "shared": 1333,
+        "disparity": 0.20272075833017988,
+        "rms": 0.7120114682055843,
+        "rms_relative": 0.450245220219138
+      }
+    },
+    {
+      "method": "umap",
+      "snapshot": 2000,
+      "drift_from_previous": {
+        "shared": 1667,
+        "disparity": 0.2919813455252014,
+        "rms": 0.8877440899817008,
+        "rms_relative": 0.5403529823413595
+      }
+    },
+    {
+      "method": "umap",
+      "seconds": 23.5
+    },
+    {
+      "method": "umap-warm",
+      "snapshot": 1000,
+      "trustworthiness": 0.6547767394616557,
+      "continuity": 0.7401081767394617
+    },
+    {
+      "method": "umap-warm",
+      "snapshot": 1333,
+      "trustworthiness": 0.6642292072069251,
+      "continuity": 0.7736562603649015
+    },
+    {
+      "method": "umap-warm",
+      "snapshot": 1667,
+      "trustworthiness": 0.6670997135722719,
+      "continuity": 0.7856037511843681
+    },
+    {
+      "method": "umap-warm",
+      "snapshot": 2000,
+      "trustworthiness": 0.6717652557319224,
+      "continuity": 0.7892076089695137
+    },
+    {
+      "method": "umap-warm",
+      "snapshot": 1333,
+      "drift_from_previous": {
+        "shared": 1000,
+        "disparity": 0.31645348507353466,
+        "rms": 0.8133949672744502,
+        "rms_relative": 0.5625419851651383
+      }
+    },
+    {
+      "method": "umap-warm",
+      "snapshot": 1667,
+      "drift_from_previous": {
+        "shared": 1333,
+        "disparity": 0.18022956230879839,
+        "rms": 0.673117120528647,
+        "rms_relative": 0.4245345242837128
+      }
+    },
+    {
+      "method": "umap-warm",
+      "snapshot": 2000,
+      "drift_from_previous": {
+        "shared": 1667,
+        "disparity": 0.15408389623572138,
+        "rms": 0.640967942342106,
+        "rms_relative": 0.39253521655479573
+      }
+    },
+    {
+      "method": "umap-warm",
+      "seconds": 13.4
+    },
+    {
+      "method": "pacmap",
+      "snapshot": 1000,
+      "trustworthiness": 0.6643730827831387,
+      "continuity": 0.6892006094464196
+    },
+    {
+      "method": "pacmap",
+      "snapshot": 1333,
+      "trustworthiness": 0.6723128979588351,
+      "continuity": 0.7085787575926239
+    },
+    {
+      "method": "pacmap",
+      "snapshot": 1667,
+      "trustworthiness": 0.6808546737518981,
+      "continuity": 0.729277432433586
+    },
+    {
+      "method": "pacmap",
+      "snapshot": 2000,
+      "trustworthiness": 0.6771863945578231,
+      "continuity": 0.7303621315192743
+    },
+    {
+      "method": "pacmap",
+      "snapshot": 1333,
+      "drift_from_previous": {
+        "shared": 1000,
+        "disparity": 0.382881454395106,
+        "rms": 1.6728771886177993,
+        "rms_relative": 0.6187741545952823
+      }
+    },
+    {
+      "method": "pacmap",
+      "snapshot": 1667,
+      "drift_from_previous": {
+        "shared": 1333,
+        "disparity": 0.24286287872821943,
+        "rms": 1.4593306277085345,
+        "rms_relative": 0.4928111998810697
+      }
+    },
+    {
+      "method": "pacmap",
+      "snapshot": 2000,
+      "drift_from_previous": {
+        "shared": 1667,
+        "disparity": 0.17609667817407637,
+        "rms": 1.2922434131611367,
+        "rms_relative": 0.4196387472267968
+      }
+    },
+    {
+      "method": "pacmap",
+      "seconds": 65.1
+    }
+  ],
+  "note": "trustworthiness/continuity at k=10 on up to 2000 sampled notes; drift = Procrustes on shared notes"
+}

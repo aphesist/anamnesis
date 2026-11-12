@@ -1,0 +1,23 @@
+name: lab
+
+on:
+  push:
+    branches: [lab]
+    paths: ["lab/**", ".github/workflows/lab.yml"]
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    name: lab (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lab
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: lab/uv.lock
+      - name: test (offline, no extras)
+        run: uv run --locked pytest
