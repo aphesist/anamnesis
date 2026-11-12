@@ -191,13 +191,25 @@ pub async fn sync_source(
     Ok(report)
 }
 
+/// A frozen source keeps its items but is never synced again (e.g. the sources of the
+/// prebuilt demo brain, whose folders only existed on the machine that built it).
+pub fn is_frozen(src: &Source) -> bool {
+    src.config
+        .get("frozen")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
 /// Sync every connector-backed source of the active brain once.
 pub async fn sync_all(app: &Arc<App>) -> Result<Vec<(Source, Result<SyncReport>)>> {
     let brain = app.brain();
     let sources = brain.db(|s| Ok(s.list_sources()?)).await?;
     let mut out = Vec::new();
     for src in sources {
-        if RESERVED_CONNECTOR_IDS.contains(&src.connector.as_str()) || src.connector == "editor" {
+        if RESERVED_CONNECTOR_IDS.contains(&src.connector.as_str())
+            || src.connector == "editor"
+            || is_frozen(&src)
+        {
             continue;
         }
         let r = sync_source(&brain, &app.plugins, &src.id).await;
@@ -255,7 +267,7 @@ pub async fn reconcile(app: &Arc<App>) -> Result<()> {
         keep
     });
     for src in sources {
-        if tasks.contains_key(&src.id.0) {
+        if tasks.contains_key(&src.id.0) || is_frozen(&src) {
             continue;
         }
         let Ok(Some(conn)) = connector_for(&app.plugins, &src) else {

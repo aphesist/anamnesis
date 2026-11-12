@@ -852,6 +852,17 @@ fn unpack_snapshot(man: &SnapshotManifest, dir: &Path, fetch: Fetch<'_>) -> Resu
         man.events,
         man.head
     );
+    // the demo's sources point at folders on the machine that built the snapshot: keep
+    // their items, never sync them here
+    for mut src in store.list_sources()? {
+        if crate::sync::is_frozen(&src) {
+            continue;
+        }
+        if let Some(obj) = src.config.as_object_mut() {
+            obj.insert("frozen".into(), serde_json::Value::Bool(true));
+            store.update_source(src, anamnesis_core::Actor::System("demo:seed".into()))?;
+        }
+    }
     Ok(store.count_items()?)
 }
 
@@ -1051,7 +1062,10 @@ mod tests {
         assert!(!demo.join(SEEDING_DIR).exists());
         let brain = Brain::open(&demo, true).unwrap();
         let chain = brain.with_store(|s| Ok(s.verify_chain()?)).unwrap();
-        assert_eq!(chain.head.as_deref(), Some(man.head.as_str()));
+        // the snapshot's chain, plus one SourceUpdated per source frozen on seeding
+        let sources = brain.with_store(|s| Ok(s.list_sources()?)).unwrap();
+        assert!(sources.iter().all(crate::sync::is_frozen));
+        assert_eq!(chain.events, man.events + sources.len() as u64);
         assert!(brain.views().is_some());
         assert!(brain.job_state().mind_model.is_some());
         drop(brain);
@@ -1110,12 +1124,21 @@ mod tests {
         assert!(!st.jobs.running, "a seeded demo needs no rebuild: {st:?}");
         assert!(st.user_empty && st.first_launch);
         assert!(t0.elapsed().as_secs() < 30);
-        let head = app
+        let (events, frozen) = app
             .brain()
-            .db(|s| Ok(s.verify_chain()?.head))
+            .db(|s| {
+                let sources = s.list_sources()?;
+                Ok((
+                    s.verify_chain()?.events,
+                    sources.iter().all(crate::sync::is_frozen) && !sources.is_empty(),
+                ))
+            })
             .await
             .unwrap();
-        assert_eq!(head.as_deref(), Some(man.head.as_str()));
+        assert!(
+            events > man.events && frozen,
+            "the demo's sources are frozen"
+        );
         // words-only search works with no embedder loaded
         let hits = crate::chat::hybrid_search(&app, &app.brain(), "walden pond", 5)
             .await
