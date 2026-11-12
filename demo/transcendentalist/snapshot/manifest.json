@@ -1,0 +1,32 @@
+{
+  "anamnesis_version": "anamnesis 0.1.0",
+  "chunks": 2480,
+  "embedding_model": "local:multilingual-e5-small@384",
+  "events": 7312,
+  "files": {
+    "brain.sqlite": {
+      "bytes": 30928896,
+      "gz_bytes": 11533093,
+      "sha256": "3d5300a709e20fc98bfdb5c6b80242e98a31f0269b363d86e928b1b1550c41f9"
+    },
+    "jobs.json": {
+      "bytes": 138004,
+      "gz_bytes": 74921,
+      "sha256": "d426af8aaff13e208844c43e568ec75139dddaddafda0b97eac7453a261568e2"
+    },
+    "mind_state.json": {
+      "bytes": 181726,
+      "gz_bytes": 80589,
+      "sha256": "4602bcc20c318b5ee9077f4219437d0aed208454c5f2b27e49bfd5a8fe011cbc"
+    },
+    "views.json": {
+      "bytes": 150784,
+      "gz_bytes": 64206,
+      "sha256": "9ff67042432ae1b8ae5a3088e4c2565e6bc003c4d6e007f4ed2f7f8c15554c48"
+    }
+  },
+  "format": 1,
+  "head": "6737f8f869800416d4518506d0586b130bd35e81fcf27ab5ed852c7e1dcfd555",
+  "items": 1100,
+  "note": "generated data: the curated transcendentalist demo (public-domain texts, see ../SOURCES.md) built by `anamnesis demo` with local:multilingual-e5-small@384. regenerate with: python3 lab/scripts/demo_snapshot.py"
+}

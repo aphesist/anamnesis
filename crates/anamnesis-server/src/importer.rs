@@ -1,13 +1,21 @@
 //! Importing folders and bundles, exporting bundles, and the demo brain.
+//!
+//! The demo brain is seeded from a prebuilt snapshot (`demo/transcendentalist/snapshot/`,
+//! embedded in release builds) so it opens at once, with its embeddings, regions, layout and
+//! suggestions, and without a model download. It is rebuilt from the demo notes only when an
+//! explicit demo bundle is given or no snapshot ships.
 
-use std::io::BufReader;
+use std::borrow::Cow;
+use std::collections::BTreeMap;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anamnesis_core::{Id, Origin, Privacy, Source, now};
 use anyhow::{Context, Result, bail};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 
 use crate::app::App;
 use crate::brain::Brain;
@@ -334,6 +342,13 @@ pub struct DemoStatus {
     pub bundle: Option<String>,
     /// A copy of the curated demo is embedded in this binary.
     pub embedded: bool,
+    /// A prebuilt demo brain (snapshot) ships with this binary: the demo opens at once.
+    pub snapshot: bool,
+    /// The person's own brain holds no items yet.
+    pub user_empty: bool,
+    /// A brand-new install: the person's brain is empty and they have not yet chosen
+    /// between the demo and their own notes. The ui then opens the demo brain with a banner.
+    pub first_launch: bool,
     pub items: u64,
     /// The demo brain has a layout (the background jobs ran at least once).
     pub ready: bool,
@@ -380,13 +395,24 @@ pub async fn demo_status(app: &Arc<App>) -> Result<DemoStatus> {
     let model = app.embedder().map(|e| e.id().to_string());
     let (chunks, chunks_embedded) = embed_progress(&brain, model).await?;
     let embedded = has_embedded_demo();
+    let snapshot = snapshot_manifest().is_some();
+    let user_empty = if brain.is_demo {
+        let dir = app.cfg.user_brain_dir();
+        tokio::task::spawn_blocking(move || user_brain_is_empty(&dir)).await??
+    } else {
+        items == 0
+    };
     Ok(DemoStatus {
         active: brain.is_demo,
         available: bundle.is_some()
             || embedded
+            || snapshot
             || app.cfg.demo_brain_dir().join("brain.sqlite").is_file(),
         bundle: bundle.map(|b| b.display().to_string()),
         embedded,
+        snapshot,
+        user_empty,
+        first_launch: user_empty && !first_launch_done(&app.cfg),
         items,
         ready: brain.views().is_some(),
         jobs: app.jobs_progress.read().unwrap().clone(),
@@ -407,8 +433,29 @@ async fn import_demo(app: &Arc<App>, brain: &Arc<Brain>) -> Result<(PathBuf, Imp
     Ok((p, r))
 }
 
-/// Switch to (or away from) the demo brain, importing the demo on first use.
+/// Switch to (or away from) the demo brain. On first use the demo brain is seeded from the
+/// prebuilt snapshot (instant, no model needed), else imported from the demo notes and
+/// arranged in the background. Leaving the demo records that the first-launch choice was made.
 pub async fn set_demo(app: &Arc<App>, on: bool) -> Result<DemoStatus> {
+    if on && !app.is_demo() && !explicit_demo_bundle(&app.cfg) {
+        let cfg = app.cfg.clone();
+        let seeded = tokio::task::spawn_blocking(move || seed_demo_if_empty(&cfg)).await?;
+        match seeded {
+            Ok(Some(r)) => tracing::info!(
+                "demo brain seeded from the snapshot: {} items, {} events, chain verified ({} ms)",
+                r.items,
+                r.events,
+                r.millis
+            ),
+            Ok(None) => {}
+            Err(e) => {
+                tracing::warn!("could not seed the demo brain, building it from the notes: {e:#}")
+            }
+        }
+    }
+    if !on {
+        mark_first_launch_done(&app.cfg);
+    }
     let brain = app.set_demo(on)?;
     if on {
         let empty = brain.db(|s| Ok(s.event_count()? == 0)).await?;
@@ -445,6 +492,7 @@ pub fn remove_demo_brain(cfg: &crate::app::ServerConfig) -> Result<bool> {
             let n = e.file_name().to_string_lossy().into_owned();
             n.starts_with("brain.sqlite")
                 || n.ends_with(".json")
+                || n == SEEDING_DIR
                 || n == "mcp_token"
                 || n == DEMO_THEME
         });
@@ -542,6 +590,269 @@ pub async fn build_demo(app: &Arc<App>) -> Result<()> {
         )?
     );
     Ok(())
+}
+
+// ---------------------------------------------------------------------------------------
+// the prebuilt demo brain
+
+/// Where the prebuilt demo brain lives, relative to the repository root.
+pub const DEMO_SNAPSHOT: &str = "demo/transcendentalist/snapshot";
+
+/// The files of a brain directory a snapshot carries, each gzip-compressed as `<name>.gz`.
+/// `brain.sqlite` is required; the job caches are optional (the jobs recompute them).
+pub const SNAPSHOT_FILES: [&str; 4] =
+    ["brain.sqlite", "mind_state.json", "views.json", "jobs.json"];
+
+/// The snapshot format this binary reads.
+pub const SNAPSHOT_FORMAT: u32 = 1;
+
+/// Scratch folder inside the demo brain directory while a snapshot is unpacked.
+const SEEDING_DIR: &str = ".seeding";
+
+/// Marker in the data root: the person made the first-launch choice (left the demo once).
+const FIRST_LAUNCH_MARKER: &str = "first_launch_done";
+
+/// `manifest.json` of a snapshot, written by `lab/scripts/demo_snapshot.py`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotManifest {
+    pub format: u32,
+    /// Events in the log, and the hash of the last one: seeding checks the chain ends there.
+    pub events: u64,
+    pub head: String,
+    pub items: u64,
+    #[serde(default)]
+    pub chunks: u64,
+    /// The embedding model the vectors, regions and layout were computed with.
+    pub embedding_model: String,
+    /// file name → checksum and sizes of the uncompressed file.
+    pub files: BTreeMap<String, SnapshotFile>,
+    #[serde(default)]
+    pub anamnesis_version: String,
+    #[serde(default)]
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotFile {
+    pub sha256: String,
+    pub bytes: u64,
+    #[serde(default)]
+    pub gz_bytes: u64,
+}
+
+/// What seeding did.
+#[derive(Debug, Clone, Serialize)]
+pub struct SeedReport {
+    pub events: u64,
+    pub items: u64,
+    pub head: String,
+    pub embedding_model: String,
+    pub millis: u64,
+}
+
+/// The snapshot, embedded at build time (feature `embed-demo`; debug builds read the files
+/// from the repository at run time).
+#[cfg(feature = "embed-demo")]
+#[derive(rust_embed::RustEmbed)]
+#[folder = "../../demo/transcendentalist/snapshot/"]
+#[include = "*.gz"]
+#[include = "manifest.json"]
+struct EmbeddedSnapshot;
+
+/// Folders a snapshot is looked for on disk: `demo/transcendentalist/snapshot` next to the
+/// binary, then in the repository this binary was built from.
+fn snapshot_dirs() -> Vec<PathBuf> {
+    let mut v = Vec::new();
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent()
+    {
+        v.push(dir.join("demo").join(DEMO_THEME).join("snapshot"));
+    }
+    v.push(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(DEMO_SNAPSHOT),
+    );
+    v
+}
+
+/// One file of the snapshot: the embedded copy, else the first one found on disk.
+fn snapshot_file(name: &str) -> Option<Cow<'static, [u8]>> {
+    #[cfg(feature = "embed-demo")]
+    if let Some(f) = EmbeddedSnapshot::get(name) {
+        return Some(f.data);
+    }
+    snapshot_dirs()
+        .into_iter()
+        .find_map(|d| std::fs::read(d.join(name)).ok())
+        .map(Cow::Owned)
+}
+
+/// The manifest of the prebuilt demo brain, if one ships with this binary and this binary
+/// can read its format.
+pub fn snapshot_manifest() -> Option<SnapshotManifest> {
+    manifest_from(&snapshot_file)
+}
+
+/// Where the files of a snapshot come from (the shipped one, or a test's).
+type Fetch<'a> = &'a dyn Fn(&str) -> Option<Cow<'static, [u8]>>;
+
+fn manifest_from(fetch: Fetch<'_>) -> Option<SnapshotManifest> {
+    let raw = fetch("manifest.json")?;
+    match serde_json::from_slice::<SnapshotManifest>(&raw) {
+        Ok(m) if m.format == SNAPSHOT_FORMAT => Some(m),
+        Ok(m) => {
+            tracing::warn!("ignoring a demo snapshot of format {}", m.format);
+            None
+        }
+        Err(e) => {
+            tracing::warn!("ignoring an unreadable demo snapshot manifest: {e}");
+            None
+        }
+    }
+}
+
+/// Demo notes were named explicitly (`--demo-bundle`, `ANAMNESIS_DEMO_BUNDLE`): build from
+/// those instead of seeding the snapshot.
+fn explicit_demo_bundle(cfg: &crate::app::ServerConfig) -> bool {
+    cfg.demo_bundle.is_some() || std::env::var("ANAMNESIS_DEMO_BUNDLE").is_ok_and(|v| !v.is_empty())
+}
+
+/// Does a brain directory hold no events (or no database at all)?
+fn brain_dir_is_empty(dir: &Path) -> Result<bool> {
+    let db = dir.join("brain.sqlite");
+    if !db.is_file() {
+        return Ok(true);
+    }
+    let s =
+        anamnesis_core::Store::open(&db).with_context(|| format!("opening {}", db.display()))?;
+    Ok(s.event_count()? == 0)
+}
+
+/// Does the person's brain hold no items? (Read through its own connection: the brain may be
+/// open elsewhere in this process, which sqlite in wal mode allows.)
+fn user_brain_is_empty(dir: &Path) -> Result<bool> {
+    let db = dir.join("brain.sqlite");
+    if !db.is_file() {
+        return Ok(true);
+    }
+    let s =
+        anamnesis_core::Store::open(&db).with_context(|| format!("opening {}", db.display()))?;
+    Ok(s.count_items()? == 0)
+}
+
+fn first_launch_done(cfg: &crate::app::ServerConfig) -> bool {
+    cfg.root.join(FIRST_LAUNCH_MARKER).exists()
+}
+
+fn mark_first_launch_done(cfg: &crate::app::ServerConfig) {
+    let p = cfg.root.join(FIRST_LAUNCH_MARKER);
+    if !p.exists()
+        && let Err(e) = std::fs::write(&p, now().to_rfc3339())
+    {
+        tracing::warn!("could not write {}: {e}", p.display());
+    }
+}
+
+/// Seed the demo brain from the snapshot when it is empty (or missing) and a snapshot ships.
+/// Returns `None` when there was nothing to do. The demo brain must not be open.
+pub fn seed_demo_if_empty(cfg: &crate::app::ServerConfig) -> Result<Option<SeedReport>> {
+    if snapshot_manifest().is_none() || !brain_dir_is_empty(&cfg.demo_brain_dir())? {
+        return Ok(None);
+    }
+    seed_demo_from_snapshot(&cfg.demo_brain_dir())
+}
+
+/// Unpack the snapshot into `dest` (a brain directory): decompress each file, check its
+/// sha256, open the database, verify the whole event chain and that it ends at the
+/// manifest's head, and only then move the files into place (replacing an empty brain).
+/// Returns `None` when no snapshot ships.
+pub fn seed_demo_from_snapshot(dest: &Path) -> Result<Option<SeedReport>> {
+    seed_from(dest, &snapshot_file)
+}
+
+fn seed_from(dest: &Path, fetch: Fetch<'_>) -> Result<Option<SeedReport>> {
+    let t0 = std::time::Instant::now();
+    let Some(man) = manifest_from(fetch) else {
+        return Ok(None);
+    };
+    anyhow::ensure!(
+        man.files.contains_key("brain.sqlite"),
+        "the demo snapshot has no brain.sqlite"
+    );
+    std::fs::create_dir_all(dest).with_context(|| format!("creating {}", dest.display()))?;
+    let tmp = dest.join(SEEDING_DIR);
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).with_context(|| format!("creating {}", tmp.display()))?;
+    let unpacked = unpack_snapshot(&man, &tmp, fetch);
+    let report = match unpacked {
+        Ok(items) => SeedReport {
+            events: man.events,
+            items,
+            head: man.head.clone(),
+            embedding_model: man.embedding_model.clone(),
+            millis: 0,
+        },
+        Err(e) => {
+            let _ = std::fs::remove_dir_all(&tmp);
+            return Err(e);
+        }
+    };
+    // install: the empty brain (and its wal) out, the snapshot in
+    for f in ["brain.sqlite", "brain.sqlite-wal", "brain.sqlite-shm"]
+        .into_iter()
+        .chain(SNAPSHOT_FILES.into_iter().skip(1))
+    {
+        let p = dest.join(f);
+        if p.exists() {
+            std::fs::remove_file(&p).with_context(|| format!("removing {}", p.display()))?;
+        }
+    }
+    for e in std::fs::read_dir(&tmp)?.flatten() {
+        let to = dest.join(e.file_name());
+        std::fs::rename(e.path(), &to).with_context(|| format!("moving {}", to.display()))?;
+    }
+    let _ = std::fs::remove_dir_all(&tmp);
+    Ok(Some(SeedReport {
+        millis: t0.elapsed().as_millis() as u64,
+        ..report
+    }))
+}
+
+/// Decompress and check every file of the snapshot into `dir`; returns the item count.
+fn unpack_snapshot(man: &SnapshotManifest, dir: &Path, fetch: Fetch<'_>) -> Result<u64> {
+    for name in SNAPSHOT_FILES {
+        let Some(info) = man.files.get(name) else {
+            continue;
+        };
+        let gz = fetch(&format!("{name}.gz"))
+            .with_context(|| format!("the demo snapshot is missing {name}.gz"))?;
+        let mut out = Vec::with_capacity(info.bytes as usize);
+        flate2::read::GzDecoder::new(gz.as_ref())
+            .read_to_end(&mut out)
+            .with_context(|| format!("decompressing {name}.gz"))?;
+        let sum = hex::encode(Sha256::digest(&out));
+        anyhow::ensure!(
+            sum == info.sha256,
+            "{name} in the demo snapshot does not match its checksum"
+        );
+        std::fs::write(dir.join(name), &out)
+            .with_context(|| format!("writing {}", dir.join(name).display()))?;
+    }
+    let store = anamnesis_core::Store::open(dir.join("brain.sqlite"))
+        .context("opening the demo snapshot")?;
+    let chain = store
+        .verify_chain()
+        .context("the demo snapshot's event chain does not verify")?;
+    anyhow::ensure!(
+        chain.events == man.events && chain.head.as_deref() == Some(man.head.as_str()),
+        "the demo snapshot's event chain ends at {} events, {}; its manifest says {}, {}",
+        chain.events,
+        chain.head.as_deref().unwrap_or("-"),
+        man.events,
+        man.head
+    );
+    Ok(store.count_items()?)
 }
 
 #[cfg(test)]
@@ -669,6 +980,153 @@ mod tests {
             v["jobs"]["phase"].is_null() && v["jobs"]["total"] == 5,
             "{v}"
         );
+    }
+
+    /// A snapshot of a small brain built here with the hash embedder: name → bytes.
+    async fn tiny_snapshot() -> (std::collections::HashMap<String, Vec<u8>>, SnapshotManifest) {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = crate::app::ServerConfig::for_tests(&dir.path().join("anamnesis"));
+        cfg.demo_bundle = Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/notes"));
+        let app = App::open(cfg, true).unwrap();
+        let brain = app.brain();
+        let notes = cfg_notes();
+        import_path(&brain, &notes).await.unwrap();
+        crate::jobs::run_jobs_once(&app).await.unwrap();
+        let (events, head, items) = brain
+            .db(|s| Ok((s.event_count()?, s.head()?.unwrap().1, s.count_items()?)))
+            .await
+            .unwrap();
+        drop(brain);
+        drop(app);
+        let mut files = std::collections::HashMap::new();
+        let mut infos = BTreeMap::new();
+        for name in SNAPSHOT_FILES {
+            let p = dir.path().join("anamnesis/demo").join(name);
+            let Ok(raw) = std::fs::read(&p) else { continue };
+            let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::best());
+            enc.write_all(&raw).unwrap();
+            let gz = enc.finish().unwrap();
+            infos.insert(
+                name.to_string(),
+                SnapshotFile {
+                    sha256: hex::encode(Sha256::digest(&raw)),
+                    bytes: raw.len() as u64,
+                    gz_bytes: gz.len() as u64,
+                },
+            );
+            files.insert(format!("{name}.gz"), gz);
+        }
+        assert!(infos.contains_key("brain.sqlite") && infos.contains_key("views.json"));
+        let man = SnapshotManifest {
+            format: SNAPSHOT_FORMAT,
+            events,
+            head,
+            items,
+            chunks: 0,
+            embedding_model: "hash@256".into(),
+            files: infos,
+            anamnesis_version: String::new(),
+            note: String::new(),
+        };
+        files.insert("manifest.json".into(), serde_json::to_vec(&man).unwrap());
+        (files, man)
+    }
+
+    fn cfg_notes() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/notes")
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_snapshot_seeds_a_verified_brain_and_refuses_tampering() {
+        let (files, man) = tiny_snapshot().await;
+        // the wal of the source brain must have been folded in: the copy alone is complete
+        let fetch = |n: &str| files.get(n).cloned().map(Cow::Owned);
+        let dest = tempfile::tempdir().unwrap();
+        let demo = dest.path().join("demo");
+        // an empty brain is already there (a failed first try): it is replaced
+        drop(Brain::open(&demo, true).unwrap());
+        let r = seed_from(&demo, &fetch).unwrap().unwrap();
+        assert_eq!((r.events, r.items), (man.events, man.items));
+        assert!(!demo.join(SEEDING_DIR).exists());
+        let brain = Brain::open(&demo, true).unwrap();
+        let chain = brain.with_store(|s| Ok(s.verify_chain()?)).unwrap();
+        assert_eq!(chain.head.as_deref(), Some(man.head.as_str()));
+        assert!(brain.views().is_some());
+        assert!(brain.job_state().mind_model.is_some());
+        drop(brain);
+
+        // a file that does not match its checksum
+        let mut bad = files.clone();
+        let mut man2 = man.clone();
+        man2.files.get_mut("views.json").unwrap().sha256 = "00".repeat(32);
+        bad.insert("manifest.json".into(), serde_json::to_vec(&man2).unwrap());
+        let fetch = |n: &str| bad.get(n).cloned().map(Cow::Owned);
+        let other = dest.path().join("other");
+        let e = seed_from(&other, &fetch).unwrap_err();
+        assert!(format!("{e:#}").contains("checksum"), "{e:#}");
+        assert!(!other.join("brain.sqlite").exists() && !other.join(SEEDING_DIR).exists());
+
+        // a manifest whose head is not where the chain ends
+        let mut bad = files.clone();
+        let mut man3 = man.clone();
+        man3.head = "f".repeat(64);
+        bad.insert("manifest.json".into(), serde_json::to_vec(&man3).unwrap());
+        let fetch = |n: &str| bad.get(n).cloned().map(Cow::Owned);
+        let e = seed_from(&other, &fetch).unwrap_err();
+        assert!(format!("{e:#}").contains("event chain"), "{e:#}");
+
+        // another format is ignored, not misread
+        let mut bad = files.clone();
+        let mut man4 = man.clone();
+        man4.format = SNAPSHOT_FORMAT + 1;
+        bad.insert("manifest.json".into(), serde_json::to_vec(&man4).unwrap());
+        let fetch = |n: &str| bad.get(n).cloned().map(Cow::Owned);
+        assert!(seed_from(&other, &fetch).unwrap().is_none());
+    }
+
+    /// The prebuilt demo brain that ships in the repository opens at once on a fresh data
+    /// dir, verified, with its layout; the first-launch choice is remembered.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn the_shipped_snapshot_seeds_the_demo_on_first_launch() {
+        let Some(man) = snapshot_manifest() else {
+            panic!("no demo snapshot in {DEMO_SNAPSHOT}");
+        };
+        assert!(!man.embedding_model.starts_with("hash@"), "{man:?}");
+        if std::env::var("ANAMNESIS_DEMO_BUNDLE").is_ok_and(|v| !v.is_empty()) {
+            return; // an explicit bundle builds from notes instead
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = crate::app::ServerConfig::for_tests(&dir.path().join("anamnesis"));
+        let app = App::open(cfg, false).unwrap();
+        let st = demo_status(&app).await.unwrap();
+        assert!(
+            st.snapshot && st.available && st.user_empty && st.first_launch,
+            "{st:?}"
+        );
+        let t0 = std::time::Instant::now();
+        let st = set_demo(&app, true).await.unwrap();
+        assert!(st.active && st.ready && st.items == man.items, "{st:?}");
+        assert!(!st.jobs.running, "a seeded demo needs no rebuild: {st:?}");
+        assert!(st.user_empty && st.first_launch);
+        assert!(t0.elapsed().as_secs() < 30);
+        let head = app
+            .brain()
+            .db(|s| Ok(s.verify_chain()?.head))
+            .await
+            .unwrap();
+        assert_eq!(head.as_deref(), Some(man.head.as_str()));
+        // words-only search works with no embedder loaded
+        let hits = crate::chat::hybrid_search(&app, &app.brain(), "walden pond", 5)
+            .await
+            .unwrap();
+        assert!(!hits.is_empty());
+        // leaving the demo is the first-launch choice; it is not offered again
+        let st = set_demo(&app, false).await.unwrap();
+        assert!(!st.active && st.user_empty && !st.first_launch, "{st:?}");
+        // a second visit reuses the seeded brain as it is
+        let st = set_demo(&app, true).await.unwrap();
+        assert!(st.active && st.items == man.items);
     }
 
     #[test]

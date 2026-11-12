@@ -97,14 +97,12 @@
   import * as theme from './theme.js';
   import { askMotionOnce, showMotionDialog } from './motion.js';
   import { mountSettings } from './settings.js';
-  import { startCursor } from './cursor.js';
   import { brush, arc, line, curve, stipple, stippleDensity, frame, ring, underline, rng } from './brush.js';
 
   const q = new URLSearchParams(location.search);
   await theme.init({ server: false });
   if (q.get('theme')) await theme.applyTheme(q.get('theme'));
   if (q.get('mode')) theme.setMode(q.get('mode'));
-  startCursor();
 
   // ---- header switches
   const syncButtons = () => {

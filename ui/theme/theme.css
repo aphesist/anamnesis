@@ -93,20 +93,6 @@
 :root[data-scrollbars="hidden"] ::-webkit-scrollbar { display: none !important; }
 :root[data-scrollbars="system"] { scrollbar-color: var(--line) transparent; }
 
-/* custom cursor (cursor.js): a disc in difference blend. The system cursor hides only for fine pointers. */
-@media (hover: hover) and (pointer: fine) {
-  :root[data-cursor="custom"].anm-has-cursor,
-  :root[data-cursor="custom"].anm-has-cursor * { cursor: none !important; }
-}
-.anm-cursor {
-  position: fixed; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px;
-  border-radius: 50%; background: #fff; mix-blend-mode: difference; pointer-events: none;
-  z-index: var(--z-cursor, 20); opacity: 0; transform: translate(-100px, -100px) scale(0.2);
-  transition: opacity var(--dur-short) ease;
-}
-.anm-cursor.on { opacity: 1; }
-:root:not([data-cursor="custom"]) .anm-cursor { display: none; }
-
 /* dialogs: no box; the backdrop is a veil of ground */
 :where(dialog) { background: transparent; color: var(--ink); border: 0; padding: 0; }
 :where(dialog)::backdrop { background: color-mix(in oklab, var(--bg) 78%, transparent); backdrop-filter: blur(3px); }

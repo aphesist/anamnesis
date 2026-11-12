@@ -2,16 +2,27 @@
 
 a second brain is only interesting once it holds years of writing, and nobody should have to show their private notes to see what anamnesis does. the demo brain is a real, dated corpus instead: the journals of henry david thoreau and ralph waldo emerson, 1820–1876, with their essays as the outside voice. two people who knew each other, wrote every day, and named each other in their journals.
 
-a curated set of 1,100 notes ships with anamnesis: in this repository as `demo/transcendentalist/`, and inside release binaries, so "show a demo brain" works right after a clone and a build, or from a lone downloaded binary, with no python and no download. the full corpus (about 9,200 notes) is built on your machine by the optional python lab. either way the demo brain is kept apart from your own (in `<data dir>/anamnesis/demo/`).
+a curated set of 1,100 notes ships with anamnesis: in this repository as `demo/transcendentalist/`, and inside release binaries. it also ships **already built**: `demo/transcendentalist/snapshot/` holds the demo brain as `anamnesis demo` leaves it (embedded with the local model, clustered into regions, laid out, with link suggestions), so the demo opens at once, with no model download and no waiting. the full corpus (about 9,200 notes) is built on your machine by the optional python lab. either way the demo brain is kept apart from your own (in `<data dir>/anamnesis/demo/`).
 
 ## show it
 
+on a brand-new install (your own brain is empty) the app opens on the demo brain, with a banner: "this is a demo brain · bring your own notes", and two ways out: **import a folder…** (opens + add with a folder chosen) and **start empty**. either choice is remembered (a `first_launch_done` file in the data root), so the demo is not pushed on you again; **more → show a demo brain** brings it back any time.
+
 ```sh
-anamnesis demo            # builds the demo brain once, with progress (a few minutes on a laptop cpu)
-anamnesis serve --demo    # opens it
+anamnesis serve --demo    # opens the demo brain directly
 ```
 
-or, in the ui, **more → show a demo brain**. the first switch imports the notes in a few seconds; the banner then says how far the embeddings, regions and layout are, and the cloud redraws when they land. `anamnesis demo --rebuild` removes the demo brain and builds it afresh (after changing the embedder, for instance). `--hash-embedder` gives a quick, meaningless layout in seconds.
+the first time the demo is opened, `<data dir>/anamnesis/demo/` is seeded from the snapshot: each file is decompressed and checked against its sha256, the whole event chain is verified and must end at the head the snapshot's manifest names, and only then are the files moved into place (well under a second on a laptop). if anything does not check out, the demo is built from the notes instead, as below.
+
+the local embedding model is then needed only for new text: your queries and anything you add. until it has downloaded (~465 MB, once) or loaded, search matches words only (full-text, bm25), and the ui says so under the search field: "search: words only until the model is ready". once the model is ready, search is hybrid again; the demo's vectors were made with the same model (`multilingual-e5-small`), so nothing is recomputed. with `--hash-embedder`, or if the model cannot load, the demo keeps its prebuilt layout rather than redraw itself from hashes.
+
+### building it from the notes instead
+
+```sh
+anamnesis demo            # builds the demo brain from the notes, with progress (a few minutes on a laptop cpu)
+```
+
+an explicit `--demo-bundle <folder>` (or `ANAMNESIS_DEMO_BUNDLE`) always builds from those notes instead of seeding the snapshot; so does a binary that ships no snapshot. the first switch then imports the notes in a few seconds; the banner says how far the embeddings, regions and layout are, and the cloud redraws when they land. `anamnesis demo --rebuild` removes the demo brain and builds it afresh (after changing the embedder, for instance). `--hash-embedder` gives a quick, meaningless layout in seconds.
 
 where the demo notes come from, first match wins:
 
@@ -20,6 +31,19 @@ where the demo notes come from, first match wins:
 3. a full lab build in the repository (`lab/out/transcendentalist/notes`, then any other theme);
 4. the curated `demo/transcendentalist/notes` in the repository;
 5. the copy embedded in the binary (cargo feature `embed-demo`, on by default), extracted to `<data dir>/anamnesis/demo/transcendentalist/` on first use.
+
+## the prebuilt demo brain
+
+`demo/transcendentalist/snapshot/` is **generated data**: the curated notes below (public-domain texts, see `SOURCES.md`) run through a real `anamnesis demo` with the default local embedder. it holds `brain.sqlite.gz` (the event log and its projections, embeddings included), `mind_state.json.gz`, `views.json.gz` and `jobs.json.gz` (the layout and job caches the server keeps next to a brain), and `manifest.json` (the sha256 and size of each file, the event count and head hash, item and chunk counts, the embedding model). release builds embed it (cargo feature `embed-demo`); a debug build reads it from the repository.
+
+to regenerate it (after changing the curated notes, the store schema or the pipeline):
+
+```sh
+cargo build --release -p anamnesis-server
+python3 lab/scripts/demo_snapshot.py          # python standard library only
+```
+
+the script runs `anamnesis demo --rebuild --demo-bundle demo/transcendentalist` in a temporary data dir (the local model is downloaded once if it is not cached), runs `anamnesis verify` on it, then packs it: `VACUUM INTO` a fresh rollback-journal database (no wal, no free pages), gzip -9 with a fixed header, and the manifest. the mcp token and anything else in the brain directory stay out. `--from-brain <dir>` packs a demo brain you already built. the procedure is reproducible; the bytes are not, because every event records when it was written and each brain draws its own hold-out seed.
 
 ## the curated set
 

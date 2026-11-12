@@ -33,7 +33,6 @@
     }
   },
   "behaviours": {
-    "cursor": "custom",
     "scrollbars": "hidden",
     "motion": "full"
   },

@@ -397,7 +397,7 @@
       "--dur-short": {
         "type": "duration",
         "path": "dur.short",
-        "description": "Tooltips, cursor fade, small state changes."
+        "description": "Tooltips, small state changes."
       },
       "--dur-mid": {
         "type": "duration",
@@ -459,10 +459,6 @@
       "--z-tip": {
         "type": "number",
         "path": "z.tip"
-      },
-      "--z-cursor": {
-        "type": "number",
-        "path": "z.cursor"
       }
     },
     "dark": {
@@ -859,7 +855,7 @@
       "--dur-short": {
         "type": "duration",
         "path": "dur.short",
-        "description": "Tooltips, cursor fade, small state changes."
+        "description": "Tooltips, small state changes."
       },
       "--dur-mid": {
         "type": "duration",
@@ -921,10 +917,6 @@
       "--z-tip": {
         "type": "number",
         "path": "z.tip"
-      },
-      "--z-cursor": {
-        "type": "number",
-        "path": "z.cursor"
       }
     }
   },
@@ -998,8 +990,7 @@
       "--z-seal": "4",
       "--z-nav": "5",
       "--z-dialog": "10",
-      "--z-tip": "15",
-      "--z-cursor": "20"
+      "--z-tip": "15"
     },
     "dark": {
       "--bg": "oklch(0 0 0)",
@@ -1070,13 +1061,11 @@
       "--z-seal": "4",
       "--z-nav": "5",
       "--z-dialog": "10",
-      "--z-tip": "15",
-      "--z-cursor": "20"
+      "--z-tip": "15"
     }
   },
   "description": "neutral and high contrast: black and white, one signal colour, system sans.",
   "behaviours": {
-    "cursor": "system",
     "scrollbars": "system",
     "motion": "full"
   }

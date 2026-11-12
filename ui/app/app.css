@@ -529,3 +529,4 @@ table.tbl tr:hover td { color: var(--dot-hot); }
   background: color-mix(in oklch, var(--bg) 88%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--seal); }
 .demo-banner .textbtn.strong { color: var(--accent-text); }
 .app.in-demo .stage-views { top: calc(var(--space-4) + 30px); }
+.app.in-demo .lit-bar { top: calc(var(--space-4) + 56px); }

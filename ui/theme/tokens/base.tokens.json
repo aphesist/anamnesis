@@ -606,7 +606,7 @@
         "value": 350,
         "unit": "ms"
       },
-      "$description": "Tooltips, cursor fade, small state changes."
+      "$description": "Tooltips, small state changes."
     },
     "mid": {
       "$value": {
@@ -676,9 +676,6 @@
     },
     "tip": {
       "$value": 15
-    },
-    "cursor": {
-      "$value": 20
     }
   }
 }

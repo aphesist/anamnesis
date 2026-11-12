@@ -20,7 +20,6 @@
     }
   },
   "behaviours": {
-    "cursor": "system",
     "scrollbars": "system",
     "motion": "full"
   },
