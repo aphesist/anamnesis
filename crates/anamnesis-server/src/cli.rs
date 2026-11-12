@@ -357,8 +357,7 @@ pub async fn run(cli: Cli) -> Result<()> {
 
 async fn serve(app: Arc<App>, open_browser: bool) -> Result<()> {
     let port = app.cfg.port;
-    let listener = match tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await
-    {
+    let listener = match crate::server::bind(port, false).await {
         Ok(l) => l,
         Err(e) => {
             // with --open (and a bare `anamnesis`), a second launch while one already
@@ -375,32 +374,15 @@ async fn serve(app: Arc<App>, open_browser: bool) -> Result<()> {
             return Err(e).with_context(|| format!("binding 127.0.0.1:{port}"));
         }
     };
-    let url = format!("http://127.0.0.1:{}/", listener.local_addr()?.port());
-    match &app.cfg.ui_dir {
-        Some(d) => tracing::info!("ui from {}", d.display()),
-        None => tracing::info!("ui: embedded copy (or placeholder)"),
-    }
-    tracing::info!(
-        "anamnesis listening on {url} (brain: {})",
-        app.brain().dir.display()
-    );
-    crate::start_background(&app);
+    let mut handle = crate::server::start(app, listener)?;
     if open_browser {
-        open_url(&url);
+        open_url(&handle.url());
     }
-    let router = crate::api::router(app.clone());
-    let cancel = app.cancel.clone();
-    tokio::spawn({
-        let cancel = cancel.clone();
-        async move {
-            let _ = tokio::signal::ctrl_c().await;
-            tracing::info!("shutting down");
-            cancel.cancel();
-        }
-    });
-    axum::serve(listener, router)
-        .with_graceful_shutdown(async move { cancel.cancelled_owned().await })
-        .await?;
+    tokio::select! {
+        r = handle.wait() => return r,
+        _ = tokio::signal::ctrl_c() => {}
+    }
+    handle.shutdown(std::time::Duration::from_secs(10)).await;
     Ok(())
 }
 
