@@ -11,7 +11,15 @@ default = ["local"]
 # On-device ONNX inference through fastembed. ONNX Runtime binaries are fetched
 # by `ort` at build time; model weights are downloaded on first use into the
 # configured cache directory.
-local = ["dep:fastembed"]
+local = ["onnx", "fastembed/ort-download-binaries-native-tls"]
+# The same on-device embeddings, but ONNX Runtime is loaded at run time from a shared
+# library instead of being linked at build time (ort's `load-dynamic`). Used for the
+# windows packages cross-built with mingw: they ship Microsoft's `onnxruntime.dll` next
+# to the binary. The library is looked up in `ORT_DYLIB_PATH`, then next to the
+# executable. Build with `--no-default-features` so `local` is not enabled as well.
+local-dynamic = ["onnx", "fastembed/ort-load-dynamic", "dep:ort", "ort/load-dynamic"]
+# Internal: the fastembed code shared by `local` and `local-dynamic`.
+onnx = ["dep:fastembed", "fastembed/hf-hub-native-tls"]
 # Optional gpu execution providers for `local` (off by default; cpu is always the
 # fallback when the provider cannot start). DirectML: any DirectX 12 gpu on windows, no
 # extra install (the onnx runtime build ort downloads for windows already contains it).
@@ -27,8 +35,8 @@ serde_json.workspace = true
 tracing.workspace = true
 dirs = "6"
 ureq = { version = "3.5", default-features = false, features = ["rustls", "platform-verifier", "json", "gzip"] }
-fastembed = { version = "7.7", default-features = false, features = ["ort-download-binaries-native-tls", "hf-hub-native-tls"], optional = true }
-# Only for the gpu features: must be the exact ort version fastembed pins.
+fastembed = { version = "7.7", default-features = false, optional = true }
+# Only for the gpu features and `local-dynamic`: must be the exact ort version fastembed pins.
 ort = { version = "=2.0.0-rc.15", default-features = false, optional = true }
 
 [dev-dependencies]

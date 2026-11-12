@@ -1,7 +1,7 @@
 //! anamnesis-embed: embedding backends behind one small, synchronous trait.
 //!
 //! Backends:
-//! - [`local`] (cargo feature `local`, on by default): on-device ONNX
+//! - [`local`] (cargo feature `local`, on by default, or `local-dynamic`): on-device ONNX
 //!   inference through `fastembed`. Weights download on first use into a
 //!   cache directory (see [`default_cache_dir`]).
 //! - [`ollama`]: a local Ollama server's `/api/embed`.
@@ -17,7 +17,7 @@
 
 pub mod hash;
 mod http;
-#[cfg(feature = "local")]
+#[cfg(feature = "onnx")]
 pub mod local;
 pub mod ollama;
 pub mod openai;
@@ -31,7 +31,7 @@ pub use openai::OpenAiCompatibleEmbedder;
 pub use spec::{EmbedderSpec, build, build_with_secret, default_cache_dir};
 pub use text::{Prompts, approx_tokens, truncate_to_tokens};
 
-#[cfg(feature = "local")]
+#[cfg(feature = "onnx")]
 pub use local::LocalEmbedder;
 
 use anyhow::Result;
