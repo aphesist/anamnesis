@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Cross-build anamnesis for windows x86_64 on linux and package it three ways:
+# Cross-build anamnesis for windows x86_64 on linux (the desktop app
+# anamnesis-desktop.exe, a native window on webview2, and the command line anamnesis.exe
+# for mcp and headless use) and package it three ways:
 #
 #   anamnesis-<version>-windows-x86_64-setup.exe   nsis installer (per-user, no admin)
 #   anamnesis-<version>-windows-x86_64.msi         msi (wixl, per-user)
@@ -11,13 +13,14 @@
 # pinned by version and sha256 below.
 #
 # needs: rustup (or a toolchain with the x86_64-pc-windows-gnu target), mingw-w64, nsis,
-# wixl (msitools), zip, unzip, curl, sha256sum. on debian / ubuntu:
+# wixl (msitools), zip, unzip, curl, sha256sum. no windows sdk, msvc or xwin. on debian /
+# ubuntu:
 #   sudo apt-get install -y mingw-w64 nsis wixl msitools zip unzip curl
 #
 # usage: packaging/windows/build.sh [--version X.Y.Z] [--out DIR] [--skip-build] [--icon]
 #   --version     version in the file names (default: the workspace version)
 #   --out         where the packages go (default: dist/windows)
-#   --skip-build  package an anamnesis.exe built earlier
+#   --skip-build  package the two .exe files built earlier
 #   --icon        regenerate anamnesis.ico and wizard.bmp from the phi mark (needs
 #                 rsvg-convert, convert)
 # environment: CARGO_TARGET_DIR (default: target), CARGO_BUILD_JOBS, WORK (download and
@@ -28,6 +31,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 TARGET=x86_64-pc-windows-gnu
 FEATURES=embed-ui,embed-demo,local-embed-dynamic
+DESKTOP_FEATURES=local-embed-dynamic
 
 # onnx runtime: the version ort 2.0.0-rc.15 is built against (any 1.24+ loads)
 ORT_VERSION=1.31.0
@@ -97,14 +101,23 @@ fi
 
 # ---------------------------------------------------------------- build
 EXE="$CARGO_TARGET_DIR/$TARGET/release/anamnesis.exe"
+DESKTOP_EXE="$CARGO_TARGET_DIR/$TARGET/release/anamnesis-desktop.exe"
 if [[ "$SKIP_BUILD" == 0 ]]; then
   log "cargo build ($TARGET, $FEATURES)"
   if command -v rustup > /dev/null; then rustup target add "$TARGET" > /dev/null; fi
   export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER="${CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER:-x86_64-w64-mingw32-gcc}"
   (cd "$ROOT" && cargo build --release --locked -p anamnesis-server --target "$TARGET" \
     --no-default-features --features "$FEATURES")
+  log "cargo build anamnesis-desktop ($TARGET, $DESKTOP_FEATURES)"
+  (cd "$ROOT" && cargo build --release --locked -p anamnesis-desktop --target "$TARGET" \
+    --no-default-features --features "$DESKTOP_FEATURES")
 fi
 [[ -f "$EXE" ]] || { echo "no $EXE; build first" >&2; exit 1; }
+[[ -f "$DESKTOP_EXE" ]] || { echo "no $DESKTOP_EXE; build first" >&2; exit 1; }
+# with mingw, wry links microsoft's webview2 loader dynamically: the webview2-com-sys
+# build script puts WebView2Loader.dll (webview2 sdk, redistributable) next to the exe
+WV2_LOADER="$(dirname "$DESKTOP_EXE")/WebView2Loader.dll"
+[[ -f "$WV2_LOADER" ]] || { echo "no $WV2_LOADER (it comes with the anamnesis-desktop build)" >&2; exit 1; }
 
 # ---------------------------------------------------------------- onnx runtime
 log "onnx runtime $ORT_VERSION"
@@ -130,7 +143,9 @@ rm -rf "$WORK/stage"
 mkdir -p "$STAGE/licenses"
 crlf() { sed 's/\r$//; s/$/\r/' "$1" > "$2"; }
 cp "$EXE" "$STAGE/anamnesis.exe"
-x86_64-w64-mingw32-strip "$STAGE/anamnesis.exe" 2> /dev/null || true
+cp "$DESKTOP_EXE" "$STAGE/anamnesis-desktop.exe"
+cp "$WV2_LOADER" "$STAGE/WebView2Loader.dll"
+x86_64-w64-mingw32-strip "$STAGE/anamnesis.exe" "$STAGE/anamnesis-desktop.exe" 2> /dev/null || true
 cp "$ORT_DIR/lib/onnxruntime.dll" "$ORT_DIR/lib/onnxruntime_providers_shared.dll" "$STAGE/"
 cp "$HERE/anamnesis.ico" "$STAGE/"
 crlf "$ROOT/LICENSE" "$STAGE/LICENSE.txt"
@@ -148,6 +163,7 @@ crlf "$ROOT/ui/theme/fonts/NOTICE.md" "$STAGE/licenses/fonts-NOTICE.md"
 MINGW_COPYRIGHT=/usr/share/doc/mingw-w64-common/copyright
 [[ -f "$MINGW_COPYRIGHT" ]] || { echo "missing $MINGW_COPYRIGHT (mingw-w64-common)" >&2; exit 1; }
 crlf "$MINGW_COPYRIGHT" "$STAGE/licenses/mingw-w64-runtime-copyright.txt"
+crlf "$HERE/WebView2Loader-NOTICE.txt" "$STAGE/licenses/WebView2Loader-NOTICE.txt"
 
 # the licence page of both installers: LICENSE, then NOTICE (not installed itself)
 PAGE="$WORK/license-page.txt"

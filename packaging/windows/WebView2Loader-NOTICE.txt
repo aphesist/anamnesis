@@ -1,0 +1,12 @@
+WebView2Loader.dll
+==================
+
+WebView2Loader.dll (version 1.0.3800.47) is part of the Microsoft Edge WebView2 SDK
+(the Microsoft.Web.WebView2 package), copyright Microsoft Corporation. The SDK licence
+allows it to be redistributed with applications that use WebView2; it is installed next
+to anamnesis-desktop.exe, which loads it to find the WebView2 runtime that draws the
+window. The licence terms: https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3800.47/License
+
+anamnesis takes the file from the webview2-com-sys crate (MIT), which ships it unchanged.
+The WebView2 runtime itself is not bundled: it is part of Windows 11 and up-to-date
+Windows 10, or comes from https://go.microsoft.com/fwlink/p/?LinkId=2124703

@@ -29,6 +29,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: lint
+      - name: linux libraries for the desktop app (webkitgtk)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev
       - name: fmt
         run: cargo fmt --all --check
       - name: clippy
@@ -53,6 +59,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: test
+      - name: linux libraries for the desktop app (webkitgtk)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev
       - name: build
         run: cargo build --workspace --all-targets --locked
       - name: test
@@ -64,6 +76,32 @@ jobs:
       - name: gpu feature compiles (directml)
         if: runner.os == 'Windows'
         run: cargo check -p anamnesis-server --features gpu-directml --locked
+
+  desktop:
+    name: desktop app check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop
+      - name: linux libraries for the desktop app (webkitgtk)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev
+      - name: cargo check (the tauri shell)
+        run: cargo check -p anamnesis-desktop --all-targets --locked
+      - name: test
+        env:
+          ANAMNESIS_KEY_STORAGE: file
+        run: cargo test -p anamnesis-desktop --locked
 
   ui:
     name: ui (node --test)

@@ -1,0 +1,48 @@
+[package]
+name = "anamnesis-desktop"
+description = "anamnesis: the desktop application (a native window around the in-process server)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+default-run = "anamnesis-desktop"
+
+[[bin]]
+name = "anamnesis-desktop"
+path = "src/main.rs"
+
+[features]
+default = ["local-embed"]
+# On-device embeddings, as in the `anamnesis` binary (see crates/anamnesis-server).
+local-embed = ["anamnesis-server/local-embed"]
+# Onnx runtime loaded at run time from `onnxruntime.dll` next to the exe (the windows
+# packages cross-built with mingw; see packaging/windows/). Use with --no-default-features.
+local-embed-dynamic = ["anamnesis-server/local-embed-dynamic"]
+# `cargo tauri dev` / `cargo tauri build` turn this on for release bundles.
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+anamnesis-server = { path = "../anamnesis-server", default-features = false, features = ["embed-ui", "embed-demo"] }
+anamnesis-embed = { path = "../anamnesis-embed", default-features = false }
+anyhow.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+url = "2"
+
+# custom-protocol always: the splash page is served from the embedded assets, there is
+# no dev server (`cargo run` and `cargo tauri build` behave the same)
+tauri = { version = "2.12", features = ["custom-protocol"] }
+tauri-plugin-single-instance = "2.5"
+tauri-plugin-dialog = "2.8"
+tauri-plugin-opener = "2.7"
+tauri-plugin-window-state = "2.5"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+# the same wry tauri uses, for its webview2 runtime probe
+wry = { version = "0.57", default-features = false }

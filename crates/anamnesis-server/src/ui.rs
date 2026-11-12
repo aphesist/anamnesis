@@ -70,6 +70,17 @@ fn safe(rel: &str) -> bool {
         .all(|c| matches!(c, Component::Normal(_)))
 }
 
+/// The content security policy of the ui pages, in the browser and in the desktop
+/// window alike: scripts, styles, fonts and requests only from this server (no remote
+/// script, no eval); inline styles are allowed because the theme writes token overrides
+/// into a `<style>` element and style attributes; `data:` and `blob:` images for the
+/// favicon and logos the owner uploads. External links are plain navigations, which the
+/// policy does not restrict (the desktop shell hands them to the system browser).
+pub const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; script-src 'self'; \
+style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; \
+connect-src 'self'; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; \
+base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+
 fn file_response(rel: &str, bytes: Vec<u8>) -> Response {
     let mime = mime_guess::from_path(rel).first_or_octet_stream();
     let mut res = Response::new(Body::from(bytes));
@@ -78,6 +89,16 @@ fn file_response(rel: &str, bytes: Vec<u8>) -> Response {
     }
     res.headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    if rel.ends_with(".html") {
+        res.headers_mut().insert(
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static(CONTENT_SECURITY_POLICY),
+        );
+    }
+    res.headers_mut().insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
     res
 }
 
@@ -109,10 +130,16 @@ pub async fn serve(ui_dir: Option<PathBuf>, uri: Uri) -> Response {
     }
     if wants_index {
         return (
-            [(
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("text/html; charset=utf-8"),
-            )],
+            [
+                (
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static("text/html; charset=utf-8"),
+                ),
+                (
+                    header::CONTENT_SECURITY_POLICY,
+                    HeaderValue::from_static(CONTENT_SECURITY_POLICY),
+                ),
+            ],
             PLACEHOLDER,
         )
             .into_response();
@@ -131,5 +158,19 @@ mod tests {
         assert_eq!(candidates("/main.js"), vec!["app/main.js", "main.js"]);
         assert!(!safe("../etc/passwd"));
         assert!(safe("app/x.js"));
+    }
+
+    #[test]
+    fn html_carries_a_strict_policy() {
+        let r = file_response("app/index.html", b"<!doctype html>".to_vec());
+        let csp = r.headers()[header::CONTENT_SECURITY_POLICY]
+            .to_str()
+            .unwrap();
+        assert!(csp.contains("script-src 'self';"));
+        assert!(!csp.contains("unsafe-eval"));
+        assert!(!csp.contains("http"));
+        let js = file_response("app/main.js", Vec::new());
+        assert!(js.headers().get(header::CONTENT_SECURITY_POLICY).is_none());
+        assert_eq!(js.headers()[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
     }
 }

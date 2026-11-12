@@ -7,22 +7,35 @@ that needs the network.
 start
 -----
 
-double-click anamnesis.exe. it serves on http://127.0.0.1:7368/ and opens your browser.
-the console window shows the log; close it (or press ctrl+c in it) to stop anamnesis.
-starting it again while it runs just opens the browser.
+double-click anamnesis-desktop.exe (the installers put it in the start menu as
+"anamnesis"). it opens in its own window; closing the window stops anamnesis and saves
+the brain. starting it again while it runs brings the window to the front.
 
-try the demo brain: open a terminal in this folder and run
+the window uses microsoft edge webview2, which windows 11 and up-to-date windows 10
+include. if it is missing, anamnesis says so and offers microsoft's installer:
+https://go.microsoft.com/fwlink/p/?LinkId=2124703
 
-    anamnesis.exe serve --demo --open
+while the window is open, mcp clients can also reach the brain over http at
+http://127.0.0.1:7368/mcp (settings in the app show the exact snippet and its token).
 
-every command: anamnesis.exe --help
+the command line
+----------------
+
+anamnesis.exe is the same brain without a window, for mcp clients and headless use:
+
+    anamnesis.exe mcp                  mcp over stdio, for claude code, codex, ...
+    anamnesis.exe serve --open         serve and open the browser (as before)
+    anamnesis.exe serve --demo --open  the demo brain
+    anamnesis.exe --help               every command
 
 files
 -----
 
-  anamnesis.exe                      the program (the ui and the demo are inside it)
+  anamnesis-desktop.exe              the app (the ui and the demo are inside it)
+  anamnesis.exe                      the command line (mcp, headless serve, import, ...)
+  WebView2Loader.dll                 microsoft's webview2 loader, for the app window
   onnxruntime.dll                    microsoft onnx runtime @ORT_VERSION@ (mit), for the
-  onnxruntime_providers_shared.dll   on-device embedder; keep them next to anamnesis.exe
+  onnxruntime_providers_shared.dll   on-device embedder; keep them next to the two .exe
   LICENSE.txt, NOTICE.txt            apache license 2.0 and the notices
   licenses\                          licences of the bundled third-party parts
 
@@ -36,6 +49,8 @@ where your data goes
   your brain         %APPDATA%\anamnesis\
   embedding models   %LOCALAPPDATA%\anamnesis\models\  (about 465 mb, downloaded on first run)
   api keys           windows credential manager, entries named "anamnesis"
+  window and cache   %APPDATA%\ist.aphes.anamnesis\, %LOCALAPPDATA%\ist.aphes.anamnesis\
+  the app's log      %APPDATA%\anamnesis\logs\anamnesis-desktop.log
 
 this folder holds only the program: delete it to remove anamnesis. your brain stays in
 %APPDATA%\anamnesis until you delete that too.

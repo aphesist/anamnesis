@@ -1,54 +1,92 @@
 # install
 
-anamnesis is one rust binary, `anamnesis`, that serves the ui, the http api and an mcp server on your own machine. it runs on windows, macos and linux. tagged releases attach prebuilt archives (see [prebuilt binaries](#prebuilt-binaries)); otherwise build it from source, which takes a few minutes.
+anamnesis is a desktop application: it opens in its own window on windows, macos and linux, with the brain running inside it. nothing goes through a web browser, and nothing leaves your machine unless a model you choose needs the network. the same brain also comes as a command line program, `anamnesis`, for mcp clients and headless use (a server, a terminal); the app installs it beside itself.
 
-## quick start
+tagged releases attach installers for every platform (see [prebuilt packages](#prebuilt-packages)); otherwise build from source, which takes a few minutes.
+
+<a id="download-the-installer-no-build-needed"></a>
+
+## install the app
+
+| os | file | then |
+|---|---|---|
+| windows 10 / 11 (x86_64) | `anamnesis-<version>-windows-x86_64-setup.exe` | run it; no administrator rights needed. start **anamnesis** from the start menu. |
+| macos 11+ (apple silicon) | `anamnesis-<version>-macos-arm64.dmg` | open it and drag **anamnesis** into applications. intel macs: `-macos-x86_64.dmg`. |
+| linux (debian, ubuntu 22.04+) | `anamnesis-<version>-linux-x86_64.deb` | `sudo apt install ./anamnesis-<version>-linux-x86_64.deb`, then start **anamnesis** from your applications. |
+| linux (any distribution) | `anamnesis-<version>-linux-x86_64.AppImage` | `chmod +x` it and run it. |
+
+the first start downloads the local embedding model (about 465 MB) in the background; until it has loaded, search is full-text only. on first launch the app asks whether to keep the full motion or calm it.
+
+the window has a menu: **file** (import a folder or an obsidian vault with a folder picker, open the data folder, quit), **view** (reload, full screen, zoom) and **help** (about, the docs). links to other sites open in your browser, never in the app. starting the app again while it runs brings its window to the front. closing the window stops the background jobs and saves the brain.
+
+### windows: webview2, smartscreen
+
+- **webview2.** the window is drawn by microsoft edge webview2, which windows 11 and up-to-date windows 10 already have. if it is missing, the installer offers microsoft's evergreen installer (or download it from [microsoft](https://go.microsoft.com/fwlink/p/?LinkId=2124703)); the app says the same if started without it. the command line `anamnesis.exe` does not need it.
+- **smartscreen.** the installers are not code-signed yet, so smartscreen says "windows protected your pc": choose **more info → run anyway**. a browser may also ask whether to keep the download.
+- **the msi** (`anamnesis-<version>-windows-x86_64.msi`) installs for all users of the pc and needs administrator rights; the setup.exe installs for your account only.
+- **where it goes.** the release setup.exe installs the app (`anamnesis-desktop.exe`, with `anamnesis.exe` beside it) into `%LOCALAPPDATA%\anamnesis\`, next to the `models\` folder of the embedder; the msi into `C:\Program Files\anamnesis\`. uninstalling (settings → apps) removes only the program; your brain stays in `%APPDATA%\anamnesis\`.
+
+### macos: gatekeeper
+
+the app is not signed or notarised yet. the first time, macos says it "cannot be opened because the developer cannot be verified": open **system settings → privacy & security** and choose **open anyway** (or run `xattr -dr com.apple.quarantine /Applications/anamnesis.app`). api keys go to the login keychain; the first time, macos may ask whether anamnesis may use it: choose "always allow".
+
+### linux
+
+the .deb pulls in webkitgtk (`libwebkit2gtk-4.1-0`) and gtk 3. the AppImage carries its own libraries. both install the command line `anamnesis` too (the .deb in `/usr/bin`).
+
+## where your data lives
+
+the app and the command line share one brain:
+
+| what | windows | macos | linux |
+|---|---|---|---|
+| your brain | `%APPDATA%\anamnesis\` | `~/Library/Application Support/anamnesis/` | `~/.local/share/anamnesis/` |
+| embedding models | `%LOCALAPPDATA%\anamnesis\models\` | `~/Library/Application Support/anamnesis/models/` | `~/.local/share/anamnesis/models/` |
+| the app's log | `<brain>\logs\anamnesis-desktop.log` | `<brain>/logs/anamnesis-desktop.log` | `<brain>/logs/anamnesis-desktop.log` |
+| window position, webview cache | `%APPDATA%\ist.aphes.anamnesis\`, `%LOCALAPPDATA%\ist.aphes.anamnesis\` | `~/Library/Application Support/ist.aphes.anamnesis/`, `~/Library/WebKit/` | `~/.local/share/ist.aphes.anamnesis/` |
+| api keys | windows credential manager | login keychain | secret service, else a 0600 file in the brain |
+
+**file → open data folder** opens the brain's folder. `ANAMNESIS_DATA_DIR` moves it, for the app as for the command line (the brain then lives in `<dir>/anamnesis/`).
+
+## mcp and the command line next to the app
+
+while the app is open, its server listens on `127.0.0.1:7368` (loopback only), so mcp clients can use the brain over http at `http://127.0.0.1:7368/mcp`; settings → connections in the app show the exact snippet with its token. if port 7368 is taken, the app picks a free port, and the snippets show that one.
+
+the command line is installed beside the app: `anamnesis.exe` in the app's folder on windows, `/Applications/anamnesis.app/Contents/MacOS/anamnesis` on macos, `/usr/bin/anamnesis` from the .deb. give mcp clients that full path (the cross-built windows setup.exe can also add its folder to your `PATH`). `anamnesis mcp` serves mcp over stdio for harnesses that start it themselves; `anamnesis serve --open` (or `anamnesis` with no command) is the old way, serving the ui to your browser, for headless machines. see [the command line](#the-command-line).
+
+## quick start from source
 
 ```sh
 # needs rust (https://rustup.rs) and a c compiler: on windows the visual studio build tools "desktop development with c++"
+# on linux also: sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
 git clone https://github.com/aphesist/anamnesis
 cd anamnesis
-cargo build --release -p anamnesis-server
-# windows:        target\release\anamnesis.exe serve --open
-# macos / linux:  ./target/release/anamnesis serve --open
+cargo run --release -p anamnesis-desktop      # the app
+cargo build --release -p anamnesis-server     # the command line: target/release/anamnesis
 ```
 
-the ui opens at `http://127.0.0.1:7368/`. the first run downloads the local embedding model (about 465 MB) in the background.
+installers are built with the tauri bundler: `cargo install tauri-cli --version "^2"`, then `cargo tauri build` in `crates/anamnesis-desktop` (see `.github/workflows/release.yml` for the exact steps, including the command line as a sidecar).
 
 ## windows
 
 tested targets: windows 10 (1903 or newer) and windows 11, x86_64.
 
-### download the installer (no build needed)
+### the cross-built packages
 
-tagged releases carry three windows packages; pick one:
-
-| file | what |
-|---|---|
-| `anamnesis-<version>-windows-x86_64-setup.exe` | the installer (recommended). no administrator rights needed. |
-| `anamnesis-<version>-windows-x86_64.msi` | the same as an msi, for those who prefer one (no options, no `PATH` entry). |
-| `anamnesis-<version>-windows-x86_64-portable.zip` | no install: unzip anywhere and double-click `anamnesis.exe`. |
-
-1. **run the installer.** it is not code-signed yet, so smartscreen says "windows protected your pc": choose **more info → run anyway**. (the msi may show the same warning; a browser may also ask whether to keep the download.)
-2. the installer shows the licence, then lets you add a **desktop shortcut** and **add anamnesis to your `PATH`** (both off by default; the `PATH` entry lets you run `anamnesis` in a terminal and point mcp clients at it).
-3. **start it** from the start menu: **anamnesis**. a console window opens with the log and the browser opens `http://127.0.0.1:7368/`. closing the console window stops anamnesis; starting it again while it runs just opens the browser.
-
-`anamnesis.exe` with no command behaves like `anamnesis serve --open`; every command in [the command line](#the-command-line) still works.
+`packaging/windows/build.sh` builds the windows packages on linux with mingw-w64, nsis and wixl, without any microsoft sdk: `anamnesis-<version>-windows-x86_64-setup.exe` (per user, no administrator rights, optional desktop shortcut and `PATH` entry), a per-user `.msi` and a `-portable.zip`. each holds the app (`anamnesis-desktop.exe`, started by the start-menu shortcut), the command line `anamnesis.exe`, microsoft's `onnxruntime.dll` and the licences. see [packaging/windows/](../packaging/windows/).
 
 where things go:
 
 | what | location |
 |---|---|
-| the program | `%LOCALAPPDATA%\Programs\anamnesis\` (`anamnesis.exe`, `onnxruntime.dll`, licences) |
+| the program | `%LOCALAPPDATA%\Programs\anamnesis\` (`anamnesis-desktop.exe`, `anamnesis.exe`, licences) |
 | start-menu entry | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\anamnesis.lnk` |
 | your brain | `%APPDATA%\anamnesis\` |
 | embedding models | `%LOCALAPPDATA%\anamnesis\models\` (about 465 mb, downloaded on first run) |
 
-**on-device embeddings** use microsoft's `onnxruntime.dll`, installed next to `anamnesis.exe`. it needs the [microsoft visual c++ redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) (x64), which most pcs already have; the installer checks and offers the download page if it is missing. without it anamnesis still runs, with the offline hash embedder, and settings say why. gpu embeddings (directml, cuda) are not in these packages: build from source with the features below for those.
+**on-device embeddings** in the cross-built packages use microsoft's `onnxruntime.dll`, installed next to the programs. it needs the [microsoft visual c++ redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) (x64), which most pcs already have; the installer checks and offers the download page if it is missing. without it anamnesis still runs, with the offline hash embedder, and settings say why. gpu embeddings (directml, cuda) are not in the packages: build from source with the features below for those.
 
 **uninstall** from settings → apps → installed apps → anamnesis (or control panel → programs and features). this removes the program, the shortcuts and the `PATH` entry. your brain (`%APPDATA%\anamnesis\`) and the downloaded models (`%LOCALAPPDATA%\anamnesis\`) stay, unless you tick "also delete my brain and downloaded models" in the setup.exe uninstaller (the msi never deletes them). api keys stay in the credential manager (see [uninstalling](#uninstalling)).
-
-the packages are cross-built on linux (`packaging/windows/build.sh`, mingw-w64, nsis and wixl); see [packaging/windows/](../packaging/windows/).
 
 ### build from source
 
@@ -114,21 +152,24 @@ api keys go to the login keychain (keychain access → `anamnesis`). the first t
 
 api keys go to the secret service (gnome keyring, kwallet, keepassxc) over the session d-bus when one answers. on a machine without one (a server, a container, a minimal desktop) they go to `~/.local/share/anamnesis/secrets.json`, mode 0600. the linux kernel keyring is never used: it is cleared on reboot.
 
-## prebuilt binaries
+## prebuilt packages
 
-pushing a `v*` tag runs `.github/workflows/release.yml`, which attaches these to the github release:
+pushing a `v*` tag runs `.github/workflows/release.yml`, which builds everything natively on github's windows, macos and linux runners and attaches it to the github release:
 
-| archive | contents |
+| file | contents |
 |---|---|
-| `anamnesis-<version>-windows-x86_64.zip` | `anamnesis.exe` (ui embedded, on-device embeddings; msvc build) |
-| `anamnesis-<version>-windows-x86_64-setup.exe`, `.msi`, `-portable.zip` | the windows installers and the portable folder (see [download the installer](#download-the-installer-no-build-needed)) |
-| `anamnesis-<version>-macos-arm64.tar.gz` | `anamnesis` (ui embedded, on-device embeddings) |
-| `anamnesis-<version>-macos-x86_64.tar.gz` | `anamnesis` (ui embedded, no on-device embeddings: use ollama or an api embedder) |
-| `anamnesis-<version>-linux-x86_64.tar.gz` | `anamnesis` (ui embedded, on-device embeddings; glibc 2.35 or newer) |
+| `anamnesis-<version>-windows-x86_64-setup.exe` | the app, per-user installer (nsis; no administrator rights; checks for webview2) |
+| `anamnesis-<version>-windows-x86_64.msi` | the app, for all users (needs administrator rights) |
+| `anamnesis-<version>-macos-arm64.dmg` | the app for apple silicon (on-device embeddings) |
+| `anamnesis-<version>-macos-x86_64.dmg` | the app for intel macs (no on-device embeddings: use ollama or an api embedder) |
+| `anamnesis-<version>-linux-x86_64.deb`, `.AppImage` | the app (on-device embeddings; glibc 2.35 or newer) |
+| `anamnesis-<version>-<os>.zip` / `.tar.gz` | the command line `anamnesis` alone (ui embedded), for servers and mcp |
 
-each archive has a `.sha256` file next to it. the binaries are not code-signed: windows smartscreen will say "windows protected your pc" (choose more info → run anyway), and macos gatekeeper blocks a downloaded binary until you run `xattr -d com.apple.quarantine anamnesis` or allow it in system settings → privacy & security. if windows says `VCRUNTIME140.dll` is missing, install the [microsoft visual c++ redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) (x64).
+every app package also installs the command line `anamnesis` beside the app. each file has a `.sha256` file next to it. nothing is code-signed yet (see [smartscreen](#windows-webview2-smartscreen) and [gatekeeper](#macos-gatekeeper)); for a downloaded command line binary on macos run `xattr -d com.apple.quarantine anamnesis`. if windows says `VCRUNTIME140.dll` is missing, install the [microsoft visual c++ redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) (x64).
 
-## first run
+## first run of the command line
+
+the app needs no command. for the command line on a headless machine:
 
 ```sh
 anamnesis serve --open
@@ -249,7 +290,8 @@ only one process should open a brain at a time: stop `anamnesis serve` before ru
 - **windows defender or another antivirus slows the build or quarantines the binary.** the first build writes thousands of small files under `target\`; excluding the repository folder from real-time scanning speeds it up a lot. a freshly built, unsigned `anamnesis.exe` is occasionally flagged; restore it and add an exclusion.
 - **smartscreen: "windows protected your pc"** for a downloaded release: more info → run anyway. a binary you built yourself is not affected.
 - **the firewall asks about network access.** anamnesis listens on `127.0.0.1` only; you can deny access for public and private networks and it keeps working.
-- **port 7368 is in use** (`address already in use` / `os error 10048`): another `anamnesis serve` is probably running. stop it, or pick another port with `--port 7400` or `ANAMNESIS_PORT=7400`.
+- **the app window stays on "waking the brain"** or shows an error: the reason is in the app's log (`<brain>/logs/anamnesis-desktop.log`, see [where your data lives](#where-your-data-lives)).
+- **port 7368 is in use** (`address already in use` / `os error 10048`) for `anamnesis serve`: another `anamnesis serve`, or the app, is probably running (the app itself moves to a free port). stop it, or pick another port with `--port 7400` or `ANAMNESIS_PORT=7400`.
 - **the build fails in `ort-sys` with a download error.** the onnx runtime library is downloaded from `cdn.pyke.io` during the first build. behind a proxy, set `HTTPS_PROXY` (powershell: `$env:HTTPS_PROXY = "http://proxy:8080"`) before `cargo build`. without network access to it, build without on-device embeddings (`--no-default-features --features embed-ui`) and use ollama for embeddings.
 - **the model download stalls** (first run, behind a proxy or offline): it comes from hugging face. set `HTTPS_PROXY` before `anamnesis serve`, or run with `--hash-embedder` meanwhile.
 - **`link.exe` not found or `cannot open input file 'kernel32.lib'`**: the visual studio build tools are missing the c++ workload or the windows sdk. rerun the installer and tick **desktop development with c++**.

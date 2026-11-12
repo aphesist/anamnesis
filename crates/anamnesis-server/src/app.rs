@@ -36,6 +36,23 @@ pub struct ServerConfig {
 }
 
 impl ServerConfig {
+    /// The config of a normal run: the brain in `root` (`<data dir>/anamnesis`, see
+    /// [`default_root`]), the ui found on disk or embedded, backend detection on, keys in
+    /// the os keychain unless `ANAMNESIS_KEY_STORAGE=file`.
+    pub fn new(root: PathBuf, port: u16) -> Self {
+        ServerConfig {
+            model_cache: anamnesis_embed::default_cache_dir(),
+            root,
+            port,
+            ui_dir: crate::ui::locate_ui_dir(None),
+            demo_bundle: None,
+            embedder_override: None,
+            detect_backends: true,
+            plugin_dirs: Vec::new(),
+            key_store: crate::secrets::KeyStoreMode::from_env(),
+        }
+    }
+
     /// A config rooted at `root` with defaults suitable for tests.
     pub fn for_tests(root: &Path) -> Self {
         ServerConfig {
@@ -187,6 +204,11 @@ impl App {
     /// The brain currently shown (the user's, or the demo brain).
     pub fn brain(&self) -> Arc<Brain> {
         self.brain.read().unwrap().clone()
+    }
+
+    /// The user's brain (also while the demo brain is shown).
+    pub fn user_brain(&self) -> Option<Arc<Brain>> {
+        self.user_brain.read().unwrap().clone()
     }
 
     pub fn is_demo(&self) -> bool {

@@ -3,7 +3,8 @@
 //! review), the mcp server (stdio and streamable http at `/mcp`) and the static ui.
 //!
 //! Entry points for embedding and tests: [`App::open`], [`api::router`],
-//! [`jobs::run_jobs_once`], [`start_background`], [`mcp_brain::StoreBrain`].
+//! [`jobs::run_jobs_once`], [`start_background`], [`mcp_brain::StoreBrain`], and
+//! [`server::run`] to run the whole server from another crate (the desktop shell).
 
 pub mod api;
 pub mod app;
@@ -17,6 +18,7 @@ pub mod mcp_brain;
 pub mod plugins;
 pub mod privacy;
 pub mod secrets;
+pub mod server;
 pub mod sync;
 pub mod ui;
 
