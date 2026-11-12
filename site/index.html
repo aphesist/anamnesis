@@ -3,12 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>anamnesis</title>
+<title>anamnesis · a second brain that measures itself</title>
 <meta name="description" content="anamnesis is a local-first second brain that measures itself: your notes, vaults, pdfs and chats become a growing 3d brain on your own machine, with a built-in evaluation of how much of what you link by hand was already latent in what you wrote. open source, apache-2.0.">
 <link rel="canonical" href="https://anamnesis.aphes.ist/">
-<meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#0c0a0a" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#eeeae9" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="anamnesis">
@@ -19,209 +17,219 @@
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="anamnesis: a stipple point cloud in the shape of a brain, with the φ mark">
+<meta property="og:image:alt" content="the word anamnesis beside the demo brain, drawn as blue stipple">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="anamnesis">
 <meta name="twitter:description" content="a local-first second brain that measures itself. open source, apache-2.0.">
 <meta name="twitter:image" content="https://anamnesis.aphes.ist/og.png">
-<meta name="twitter:image:alt" content="anamnesis: a stipple point cloud in the shape of a brain, with the φ mark">
+<meta name="twitter:image:alt" content="the word anamnesis beside the demo brain, drawn as blue stipple">
 
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<!-- the tab's icon is aphes.ist's: the eye, open while the page is seen and closed while it is left (main.js swaps
+     them); the closed Φ for everything that cannot take an svg -->
+<link rel="icon" id="favicon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" href="favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
 
-<link rel="preload" href="assets/fonts/AphesisScript-VF.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/SpecialElite-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="vendor/lab-kit-v1/lab.css">
+<link rel="preload" href="vendor/aphesis/fonts/AphesisScript-VF.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="vendor/aphesis/fonts/SpecialElite-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="vendor/aphesis/fonts.css">
+<link rel="stylesheet" href="vendor/aphesis/tokens.css">
+<link rel="stylesheet" href="vendor/aphesis/bundle.css">
 <link rel="stylesheet" href="style.css">
-<script src="vendor/lab-kit-v1/lab.js" defer></script>
-<script type="module" src="main.js"></script>
+<script src="vendor/aphesis/bundle.js" defer></script>
+<script src="vendor/aphesis/favicon.js" defer></script>
+<script src="main.js" defer></script>
 </head>
-<body class="lab">
+<body>
+<canvas id="fog" aria-hidden="true"></canvas>
 <a class="skip" href="#main">skip to the content</a>
 
+<!-- the header: the φ, the page's parts, github and the eye. Fixed; what scrolls under it recedes behind a veil of the
+     ground, as under the bottom band -->
 <header class="top">
-  <div class="wrap top-in">
-    <a class="top-mark" href="#top" aria-label="anamnesis, top of the page"><span class="phi" aria-hidden="true"></span><span class="top-name">anamnesis</span></a>
-    <nav class="top-nav" aria-label="on this page">
-      <a href="#does">what it does</a>
-      <a href="#pictures">pictures</a>
-      <a href="#install">install</a>
-      <a href="#privacy">privacy</a>
-      <a href="#status">status</a>
-    </nav>
-    <button class="lab-button eye" type="button" data-lab-toggle="theme">close the eye</button>
-  </div>
+  <a class="brand" href="#top" aria-label="anamnesis, to the top" data-tip="anamnesis · part of aφesis" data-cursor=".9"><span class="brand-phi aph-red" aria-hidden="true"></span></a>
+  <nav class="top-nav" aria-label="on this page">
+    <a class="wide" href="#does"><span class="nm">what it does</span></a>
+    <a class="wide" href="#pictures"><span class="nm">the app</span></a>
+    <a href="#install"><span class="nm">install</span></a>
+    <a class="wide" href="#privacy"><span class="nm">privacy</span></a>
+    <a href="https://github.com/aphesist/anamnesis"><span class="nm">github</span></a>
+  </nav>
+  <button id="eye" class="aph-mark aph-red" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="iopen"/><path id="iclosed"/><path id="iris"/></svg></button>
 </header>
+<div class="veil-bottom" aria-hidden="true"></div>
 
 <main id="main">
 
 <section class="hero" id="top" aria-labelledby="hero-h">
-  <div id="brain" data-src="hero/brain-data.bin">
+  <div id="brain" class="brain" data-src="hero/brain-data.bin">
     <picture>
       <source srcset="hero/fallback-light.webp" media="(prefers-color-scheme: light)">
       <img src="hero/fallback.webp" width="1600" height="900" alt="the demo brain: 1,100 dated journal entries drawn as fine stipple in the shape of a brain" fetchpriority="high">
     </picture>
   </div>
-  <div class="wrap hero-in">
-    <div class="col">
-      <span class="phi phi-hero" aria-hidden="true"></span>
-      <h1 id="hero-h" class="wordmark">anamnesis</h1>
-      <p class="gloss" lang="grc">ἀνάμνησις</p>
-      <p class="lede">a local-first second brain that measures itself. it gathers what you write and read into one brain on your own machine, and asks how much of your thinking was already there.</p>
-      <blockquote class="question">
-        <p>what share of the links i later make by hand was already latent in what i had written?</p>
-      </blockquote>
-      <p class="actions">
-        <a class="act act-main" href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">download v0.1.0</a>
-        <a class="act" href="https://github.com/aphesist/anamnesis">view on github</a>
-      </p>
-      <p class="star"><a href="https://github.com/aphesist/anamnesis">★ star it if it's useful</a></p>
-    </div>
+  <div class="hero-text">
+    <h1 id="hero-h" class="title aph-ink">anamnesis</h1>
+    <p class="lede aph-ink">a local-first second brain that measures itself. it gathers what you write and read into one brain on your own machine, and asks of your own writing:</p>
+    <p class="question aph-ink">what share of the links i later make by hand was already latent in what i had written?</p>
+    <p class="acts">
+      <a class="act act-main" href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0"><span class="act-w">download v0.1.0</span></a>
+      <a class="act" href="https://github.com/aphesist/anamnesis"><span class="act-w">source on github</span></a>
+    </p>
+    <p class="aph-meta hero-meta">pre-release · windows, macos, linux · free and open source</p>
   </div>
 </section>
 
 <section class="sec" id="does" aria-labelledby="does-h">
-  <div class="wrap">
-    <p class="gloss-title" lang="la">opus</p>
-    <h2 id="does-h" class="title">what it does</h2>
-    <ul class="items">
-      <li>
-        <h3>capture from anywhere</h3>
-        <p>folders, obsidian vaults, pdfs, feeds, web clips, an editor, chat, mcp. every item becomes a dot in the brain.</p>
-      </li>
-      <li>
-        <h3>the growing brain</h3>
-        <p>regions that keep their identity, with lineage you can replay. a stable 3d layout that does not reshuffle as it grows. provenance on everything: who wrote it, where from, when.</p>
-      </li>
-      <li>
-        <h3>measured, not assumed</h3>
-        <p>held-out link suggestions, retrieval and resurfacing metrics with intervals, and an honesty table that says what is measured and what is only a hypothesis.</p>
-      </li>
-      <li>
-        <h3>bring your own model</h3>
-        <p>local models, api keys, continue with chatgpt, your installed claude cli (<span class="grey">marked grey</span>), or none at all. the brain is also an mcp server, so claude code, codex and gemini cli can read and write it.</p>
-      </li>
-    </ul>
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="la">opus</p>
+    <h2 id="does-h" class="heading aph-ink">what it does</h2>
   </div>
+  <ul class="does">
+    <li class="aph-ink">
+      <h3 class="aph-label">capture from anywhere</h3>
+      <p>folders and obsidian vaults, pdfs, feeds, web clips, json apis, an editor, chat, mcp, and anything else through a plugin protocol. every item becomes a dot in the brain, and says who wrote it, where it came from and when.</p>
+    </li>
+    <li class="aph-ink">
+      <h3 class="aph-label">the growing brain</h3>
+      <p>similar items gather into regions that keep their identity as the brain grows; you can replay how each was born, split and merged. the 3d layout is warm-started, so it never reshuffles: new items find a place without moving the rest.</p>
+    </li>
+    <li class="aph-ink">
+      <h3 class="aph-label">measured links</h3>
+      <p>about one in five link suggestions is held out and never shown. the links you later make by hand that land on them estimate what was already latent. retrieval and resurfacing carry intervals, and an honesty table says what is measured and what is only a hypothesis.</p>
+    </li>
+    <li class="aph-ink">
+      <h3 class="aph-label">bring your own model</h3>
+      <p>it works with no model at all. when you want one, it routes each task to a backend you chose, local first:</p>
+      <dl class="models">
+        <dt>local</dt><dd>ollama, llama.cpp, lm studio, vllm, found by themselves. the default.</dd>
+        <dt>api keys</dt><dd>anthropic, openai or any compatible host, gemini.</dd>
+        <dt>subscriptions</dt><dd>continue with chatgpt (openai's sign-in, chat only, experimental); your own installed claude cli, opt-in and <span class="grey">marked grey</span>.</dd>
+        <dt>mcp</dt><dd>the brain is an mcp server: claude code, codex, gemini cli and claude desktop read and write it with the plans you already have.</dd>
+      </dl>
+    </li>
+  </ul>
 </section>
 
-<section class="sec" id="pictures" aria-labelledby="pictures-h">
-  <div class="wrap">
-    <p class="gloss-title" lang="la">imagines</p>
-    <h2 id="pictures-h" class="title">the app</h2>
-    <p class="note">screenshots of the real app on its demo brain, built from thoreau's and emerson's public-domain journals. open one for the full size.</p>
-    <div class="shots">
-      <figure class="shot shot-a">
-        <a href="assets/shots/brain.webp"><img src="assets/shots/brain.webp" width="1440" height="900" loading="lazy" decoding="async" alt="the brain: a stipple point cloud in the shape of a brain with region labels, the view panel on the right and the lineage timeline below"></a>
-        <figcaption>the brain, with its regions and lineage</figcaption>
-      </figure>
-      <figure class="shot shot-a">
-        <a href="assets/shots/chat.webp"><img src="assets/shots/chat.webp" width="1440" height="900" loading="lazy" decoding="async" alt="chat answering from the brain, with cited items"></a>
-        <figcaption>chat that answers from the brain and cites it</figcaption>
-      </figure>
-      <figure class="shot">
-        <a href="assets/shots/when-you-wrote.webp"><img src="assets/shots/when-you-wrote.webp" width="1440" height="900" loading="lazy" decoding="async" alt="when you wrote: writing over time, by speaker"></a>
-        <figcaption>when you wrote</figcaption>
-      </figure>
-      <figure class="shot">
-        <a href="assets/shots/notes.webp"><img src="assets/shots/notes.webp" width="1440" height="900" loading="lazy" decoding="async" alt="a journal entry in the reader, with provenance and link suggestions"></a>
-        <figcaption>an entry, with provenance and suggested links</figcaption>
-      </figure>
-      <figure class="shot">
-        <a href="assets/shots/eval.webp"><img src="assets/shots/eval.webp" width="1440" height="900" loading="lazy" decoding="async" alt="the evaluation panel: latent links, retrieval, resurfacing and growth, each with an interval and a status"></a>
-        <figcaption>the evaluation, each metric with its interval</figcaption>
-      </figure>
-    </div>
-    <p class="note small">the evaluation reads "measuring" because nobody has used the demo brain yet: those numbers only exist once a person does.</p>
+<section class="sec sec-wide" id="pictures" aria-labelledby="pictures-h">
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="la">imagines</p>
+    <h2 id="pictures-h" class="heading aph-ink">the app</h2>
+    <p class="note aph-ink">the real app on its demo brain, built from thoreau's and emerson's public-domain journals. open a picture for its full size.</p>
   </div>
+  <div class="gallery">
+  <figure class="shot shot-main">
+    <a href="assets/shots/brain.webp"><img src="assets/shots/brain.webp" width="1440" height="900" loading="lazy" decoding="async" alt="the brain: a stipple point cloud in the shape of a brain with region labels, the view panel on the right and the lineage timeline below"></a>
+    <figcaption class="aph-meta">the brain, its regions and their lineage</figcaption>
+  </figure>
+  <div class="shots" role="list">
+    <figure class="shot" role="listitem">
+      <a href="assets/shots/chat.webp"><img src="assets/shots/chat.webp" width="1440" height="900" loading="lazy" decoding="async" alt="chat answering from the brain, with cited items"></a>
+      <figcaption class="aph-meta">chat that answers from the brain and cites it</figcaption>
+    </figure>
+    <figure class="shot" role="listitem">
+      <a href="assets/shots/eval.webp"><img src="assets/shots/eval.webp" width="1440" height="900" loading="lazy" decoding="async" alt="the evaluation panel: latent links, retrieval, resurfacing and growth, each with an interval and a status"></a>
+      <figcaption class="aph-meta">the evaluation, each metric with its interval</figcaption>
+    </figure>
+  </div>
+  </div>
+  <p class="note small aph-ink">the evaluation reads "measuring" because nobody has used the demo brain yet: those numbers only exist once a person does.</p>
 </section>
 
 <section class="sec" id="install" aria-labelledby="install-h">
-  <div class="wrap">
-    <p class="gloss-title" lang="la">limen</p>
-    <h2 id="install-h" class="title">install</h2>
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="la">limen</p>
+    <h2 id="install-h" class="heading aph-ink">install</h2>
+    <p class="note aph-ink">a desktop app: it opens in its own window, with the whole brain running inside it. the installers are on the <a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">v0.1.0 release</a>. they are not signed yet, so each system warns once.</p>
+  </div>
+  <ul class="os">
+    <li class="aph-ink" data-os="windows">
+      <h3 class="aph-label">windows 10 · 11 <span class="yours aph-meta" hidden>this computer</span></h3>
+      <p><a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">setup.exe</a>, for you only, no admin; or the <a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">.msi</a>.</p>
+      <p class="aph-meta">smartscreen: "windows protected your pc" → more info → run anyway.</p>
+    </li>
+    <li class="aph-ink" data-os="mac">
+      <h3 class="aph-label">macos <span class="yours aph-meta" hidden>this computer</span></h3>
+      <p>the <a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">.dmg</a>: aarch64 for apple silicon, x64 for intel. drag it into applications.</p>
+      <p class="aph-meta">first launch: system settings → privacy &amp; security → open anyway.</p>
+    </li>
+    <li class="aph-ink" data-os="linux">
+      <h3 class="aph-label">linux <span class="yours aph-meta" hidden>this computer</span></h3>
+      <p>the <a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">.deb</a> for debian and ubuntu, or the <a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">.AppImage</a> for any distribution (x86_64).</p>
+      <p class="aph-meta">needs webkitgtk 4.1, present on current gnome and kde desktops.</p>
+    </li>
+  </ul>
+  <p class="note aph-ink">the first launch opens on a demo brain, already built: 1,100 dated entries from thoreau's and emerson's journals. the local embedding model (about 465 mb) downloads once in the background; until it is ready, search matches words only. every detail per system: <a href="https://github.com/aphesist/anamnesis/blob/main/docs/install.md">install</a>.</p>
 
-    <ul class="downloads">
-      <li>
-        <h3>windows 10 / 11</h3>
-        <p><a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">setup.exe</a> (for you only, no admin) or <a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">.msi</a>. unsigned for now: if smartscreen says "windows protected your pc", choose <b>more info → run anyway</b>.</p>
-      </li>
-      <li>
-        <h3>macos</h3>
-        <p><a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">.dmg</a>. unsigned for now: the first time, macos refuses to open it; go to <b>system settings → privacy &amp; security</b> and click <b>open anyway</b>.</p>
-      </li>
-      <li>
-        <h3>linux</h3>
-        <p><a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">.deb</a> or <a href="https://github.com/aphesist/anamnesis/releases/tag/v0.1.0">.AppImage</a>. needs webkitgtk 4.1, present on current gnome and kde desktops.</p>
-      </li>
-    </ul>
-    <p class="note">the first launch opens on a demo brain, already built. the local embedding model (~465 mb) downloads once in the background; until it is ready, search matches words only. details per os: <a href="https://github.com/aphesist/anamnesis/blob/main/docs/install.md">install</a>.</p>
-
-    <h3 class="sub">or build from source</h3>
-    <p class="note small">needs <a href="https://rustup.rs">rust</a> 1.90 or newer and a c compiler. on linux, also <code>libwebkit2gtk-4.1-dev</code>.</p>
-    <div class="code">
-      <pre id="build-src" tabindex="0"><code>git clone https://github.com/aphesist/anamnesis
+  <h3 class="aph-label sub aph-ink">or build it from source</h3>
+  <p class="note small aph-ink">needs <a href="https://rustup.rs">rust</a> 1.90 or newer and a c compiler; on linux also <code>libwebkit2gtk-4.1-dev</code>.</p>
+  <div class="code">
+    <pre id="build-src" tabindex="0" class="aph-ink"><code>git clone https://github.com/aphesist/anamnesis
 cd anamnesis
 cargo run --release -p anamnesis-desktop</code></pre>
-      <button class="lab-button copy" type="button" data-copy="build-src" aria-describedby="copy-status">copy</button>
-      <span id="copy-status" class="sr" role="status" aria-live="polite"></span>
-    </div>
+    <button class="act copy" type="button" data-copy="build-src" aria-describedby="copy-status" data-cursor=".55"><span class="act-w">copy</span></button>
+    <span id="copy-status" class="sr" role="status" aria-live="polite"></span>
   </div>
 </section>
 
+<div class="pair">
 <section class="sec" id="privacy" aria-labelledby="privacy-h">
-  <div class="wrap">
-    <p class="gloss-title" lang="la">secretum</p>
-    <h2 id="privacy-h" class="title">yours, on your machine</h2>
-    <ul class="plain">
-      <li>it runs on your machine. one sqlite file in your data directory.</li>
-      <li>nothing leaves unless you connect a model and ask it something.</li>
-      <li>every remote call is logged as an egress event: which provider, which model, what for, how many characters. counts, never text.</li>
-      <li>no account, no telemetry.</li>
-    </ul>
-    <p class="note"><a href="https://github.com/aphesist/anamnesis/blob/main/docs/privacy.md">privacy</a> says exactly what is and is not covered.</p>
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="la">secretum</p>
+    <h2 id="privacy-h" class="heading aph-ink">yours, on your machine</h2>
   </div>
+  <ul class="plain">
+    <li class="aph-ink">it runs on your machine: one sqlite file in your data folder. no account, no telemetry.</li>
+    <li class="aph-ink">nothing leaves unless you connect a model and ask it something.</li>
+    <li class="aph-ink">every remote call is logged: which provider, which model, what for, how many characters. counts, never the text.</li>
+    <li class="aph-ink">a source can be local only: never sent to a remote model, withheld from mcp clients. keys stay in your system's keychain.</li>
+  </ul>
+  <p class="note aph-ink"><a href="https://github.com/aphesist/anamnesis/blob/main/docs/privacy.md">privacy</a> says exactly what is and is not covered.</p>
 </section>
 
 <section class="sec" id="status" aria-labelledby="status-h">
-  <div class="wrap">
-    <p class="gloss-title" lang="grc">νῦν</p>
-    <h2 id="status-h" class="title">in progress · v0.1.0 pre-release</h2>
-    <p class="note">this is the first public build. the installers are unsigned, so windows and macos will warn you (see above). things will be rough. if something breaks, <a href="https://github.com/aphesist/anamnesis/issues">report an issue</a>.</p>
+  <div class="head">
+    <p class="aph-gloss gloss-title" lang="grc">νῦν</p>
+    <h2 id="status-h" class="heading aph-ink">in progress</h2>
   </div>
+  <p class="lede aph-ink">v0.1.0 is the first public build, a pre-release. things will be rough; if something breaks, <a href="https://github.com/aphesist/anamnesis/issues">tell me in an issue</a>.</p>
+  <p class="note aph-ink">open source under the apache license 2.0. if it is useful to you, a star on github helps others find it.</p>
+  <p class="acts">
+    <a class="act act-main" href="https://github.com/aphesist/anamnesis"><span class="act-w">star it on github</span></a>
+    <a class="act" href="https://github.com/aphesist/anamnesis/blob/main/CONTRIBUTING.md"><span class="act-w">contributing</span></a>
+  </p>
 </section>
+</div>
 
 </main>
 
 <footer class="foot">
-  <div class="wrap">
-    <p class="gloss-title" lang="la">colophon</p>
-    <div class="foot-cols">
-      <nav aria-label="documentation">
-        <h2 class="foot-h">docs</h2>
-        <ul>
-          <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/install.md">install</a></li>
-          <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/using.md">using</a></li>
-          <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/models.md">models</a></li>
-          <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/mcp.md">mcp</a></li>
-          <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/evaluation.md">evaluation</a></li>
-          <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/privacy.md">privacy</a></li>
-        </ul>
-      </nav>
-      <nav aria-label="project">
-        <h2 class="foot-h">project</h2>
-        <ul>
-          <li><a href="https://github.com/aphesist/anamnesis">github</a></li>
-          <li><a href="https://github.com/aphesist/anamnesis/blob/main/CONTRIBUTING.md">contributing</a></li>
-          <li><a href="https://github.com/aphesist/anamnesis/blob/main/LICENSE">apache-2.0 licence</a></li>
-          <li><a href="https://github.com/aphesist/anamnesis/blob/main/NOTICE">notice</a></li>
-        </ul>
-      </nav>
-    </div>
-    <p class="made">made by aphesist · part of <a href="https://aphes.ist">aphes.ist</a></p>
-    <p class="notices">anamnesis is open source under the apache license 2.0. fonts on this page: aphesis script, © 2026 aphesist, sil open font license 1.1 (<a href="assets/fonts/OFL.txt">licence</a>); special elite, © 2010 brian j. bonislawsky dba astigmatic, apache-2.0 (<a href="assets/fonts/LICENSE-SpecialElite.txt">licence</a>). the φ mark and the wordmark are trademarks of aphesist and are not covered by the apache license (<a href="assets/fonts/NOTICE-aphesis-assets.md">notice</a>).</p>
+  <div class="foot-cols">
+    <nav aria-label="documentation">
+      <h2 class="aph-gloss foot-h" lang="la">libri</h2>
+      <ul>
+        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/install.md">install</a></li>
+        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/using.md">using</a></li>
+        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/models.md">models</a></li>
+        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/mcp.md">mcp</a></li>
+        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/evaluation.md">evaluation</a></li>
+        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/privacy.md">privacy</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="project">
+      <h2 class="aph-gloss foot-h" lang="la">opus</h2>
+      <ul>
+        <li><a href="https://github.com/aphesist/anamnesis">github</a></li>
+        <li><a href="https://github.com/aphesist/anamnesis/releases">releases</a></li>
+        <li><a href="https://github.com/aphesist/anamnesis/blob/main/CONTRIBUTING.md">contributing</a></li>
+        <li><a href="https://github.com/aphesist/anamnesis/blob/main/LICENSE">apache-2.0 licence</a></li>
+        <li><a href="https://github.com/aphesist/anamnesis/issues">issues</a></li>
+      </ul>
+    </nav>
   </div>
+  <p class="made aph-ink">made by aphesist · part of <a href="https://aphes.ist">aφesis</a></p>
+  <p class="notices aph-meta">anamnesis is open source under the apache license 2.0. this page is drawn with the aphes.ist design system, which is its owner's and is not covered by that licence (<a href="vendor/aphesis/NOTICE.md">notice</a>): aphesis script, © 2026 aphesist, sil open font license 1.1 (<a href="vendor/aphesis/fonts/AphesisScript-OFL.txt">licence</a>); special elite, © 2010 astigmatic, apache-2.0 (<a href="vendor/aphesis/fonts/SpecialElite-LICENSE.txt">licence</a>). the φ and the wordmark are trademarks of aphesist.</p>
 </footer>
 
 </body>

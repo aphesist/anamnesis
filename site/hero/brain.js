@@ -8,12 +8,14 @@
 //
 // The look follows the app's default theme (ui/app/brain): micro-stipple
 // clusters for the real notes, finer dust around them, a faint ornamental
-// shell on the brain's surface, depth fog, colours from the aphes.ist tokens.
+// shell on the brain's surface, depth fog, in the app's blue (ui/theme/dist/aphesis.json).
+// In the light scheme the dots are drawn larger and more opaque (`ink`, and a
+// darker dim), so the brain reads clearly on the light ground.
 
 const TOKENS = {
-  // brain.dot, brain.dot-dim, brain.dot-hot, region-label, accent (ui/theme/dist/aphesis.json)
-  dark: { dot: '#9ecaef', dim: '#385e83', hot: '#e1faff', label: '#8ea9bb', accent: '#d43031', bg: '#050404' },
-  light: { dot: '#222f3c', dim: '#95a0ab', hot: '#0b4c92', label: '#495766', accent: '#ab0d19', bg: '#f1eded' },
+  // brain.dot, brain.dot-dim, brain.dot-hot, region-label, accent, bg
+  dark: { dot: '#9ecaef', dim: '#385e83', hot: '#e1faff', label: '#8ea9bb', accent: '#d43031', bg: '#050404', ink: 1 },
+  light: { dot: '#1b3550', dim: '#5f7890', hot: '#0b4c92', label: '#495766', accent: '#ab0d19', bg: '#f1eded', ink: 1.7 },
 };
 const FONT = 'var(--font-display, "Aphesis Script", "Special Elite", "Courier New", monospace)';
 const FOV = 0.72, FPS = 60, TURN = 0.075; // radians per second: one turn in about 84 s
@@ -47,7 +49,7 @@ layout(location = 0) in vec4 aP;   // xyz, seed
 layout(location = 1) in vec2 aM;   // kind (0 note, 1 dust, 2 shell), region
 uniform mat3 uRot;
 uniform vec2 uShift;
-uniform float uDist, uF, uAspect, uViewH, uSize, uTime, uMotion, uNear, uFar, uIntro;
+uniform float uDist, uF, uAspect, uViewH, uSize, uTime, uMotion, uNear, uFar, uIntro, uInk;
 uniform vec4 uGR, uGA;
 uniform vec3 cDot, cDim, cHot;
 out vec3 vCol;
@@ -63,6 +65,7 @@ void main() {
   vec3 col = mix(cDot, cDim, fogf * 0.85);
   float alpha = mix(1.0, 0.26, fogf);
   float size = uSize * (0.65 + 0.7 * fract(seed * 7.13));
+  alpha = min(1.0, alpha * uInk);
   if (kind > 1.5) { col = mix(cDot, cDim, 0.5 + 0.4 * fogf); alpha *= 0.8 * (0.55 + 0.45 * fract(seed * 3.7)); size = 0.0052; }
   else if (kind > 0.5) { col = mix(col, cDim, 0.25); alpha *= 0.8; size *= 0.45; }
   col = mix(col, cHot, glow * 0.85);
@@ -181,7 +184,7 @@ export function mount(el, opts = {}) {
   const applyTheme = () => {
     light = isLight();
     const t = TOKENS[light ? 'light' : 'dark'];
-    colors = { dot: lin(t.dot), dim: lin(t.dim), hot: lin(t.hot) };
+    colors = { dot: lin(t.dot), dim: lin(t.dim), hot: lin(t.hot), ink: t.ink };
     for (const l of labels) { l.el.style.color = `var(--region-label, ${t.label})`; l.el.style.textShadow = `0 0 3px var(--bg, ${t.bg}), 0 0 8px var(--bg, ${t.bg}), 0 0 16px var(--bg, ${t.bg})`; l.dot.style.color = `var(--accent, ${t.accent})`; }
     kick();
   };
@@ -222,7 +225,7 @@ export function mount(el, opts = {}) {
       Object.assign(dot.style, { marginRight: '5px', opacity: '0.6' });
       const words = L.t.split(' · ');
       node.append(dot, (words.length > 2 ? words.slice(0, 2) : words).join(' · '));
-      Object.assign(node.style, { position: 'absolute', left: '0', top: '0', whiteSpace: 'nowrap', fontFamily: FONT, fontSize: '15px', lineHeight: '1', textTransform: 'lowercase', opacity: '0', transition: still ? 'none' : 'opacity 1400ms cubic-bezier(0.22, 0.61, 0.36, 1)', willChange: 'transform, opacity' });
+      Object.assign(node.style, { position: 'absolute', left: '0', top: '0', whiteSpace: 'nowrap', fontFamily: FONT, fontVariationSettings: '"wght" 400, "slnt" -12', fontSize: '15px', lineHeight: '1', textTransform: 'lowercase', opacity: '0', transition: still ? 'none' : 'opacity 1400ms cubic-bezier(0.22, 0.61, 0.36, 1)', willChange: 'transform, opacity' });
       overlay.append(node);
       // anchor on the brain's surface in the direction of the region's centroid
       const [cx, cy, cz] = L.c, l = Math.hypot(cx, cy, cz) || 1, R = brainRadius(cx / l, cy / l, cz / l) * 1.04;
@@ -312,7 +315,7 @@ export function mount(el, opts = {}) {
     gl.useProgram(prog);
     gl.uniformMatrix3fv(U.uRot, false, rot);
     gl.uniform2f(U.uShift, sx, sy); gl.uniform1f(U.uDist, dist); gl.uniform1f(U.uF, F); gl.uniform1f(U.uAspect, W / H);
-    gl.uniform1f(U.uViewH, H * dpr); gl.uniform1f(U.uSize, 0.0105);
+    gl.uniform1f(U.uViewH, H * dpr); gl.uniform1f(U.uSize, 0.0105 * (1 + (colors.ink - 1) * 0.5)); gl.uniform1f(U.uInk, colors.ink);
     gl.uniform1f(U.uTime, time); gl.uniform1f(U.uMotion, still ? 0 : 1);
     gl.uniform1f(U.uNear, dist - 0.55); gl.uniform1f(U.uFar, dist + 0.6); gl.uniform1f(U.uIntro, intro);
     gl.uniform4fv(U.uGR, gr); gl.uniform4fv(U.uGA, ga);
