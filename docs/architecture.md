@@ -1,6 +1,6 @@
 # architecture
 
-one rust binary, one sqlite file, one append-only log. everything else is derived.
+one rust program (a desktop app, or the same server headless), one sqlite file, one append-only log. everything else is derived.
 
 ```
                           ┌──────────────────────────── your machine ────────────────────────────┐
@@ -28,7 +28,7 @@ one rust binary, one sqlite file, one append-only log. everything else is derive
                           │   anamnesis-server: http api · chat (sse) · /mcp · ui               │
                           │          │                                     │                     │
                           │          ▼                                     ▼                     │
-                          │   ui/app + ui/theme (browser, webgl2)   anamnesis-mcp (stdio, http) ◀┼── claude code, codex,
+                          │   ui/app + ui/theme (window, webgl2)    anamnesis-mcp (stdio, http) ◀┼── claude code, codex,
                           └───────────────────────────────────────────────────────────────────────┘    gemini cli, desktop…
 ```
 
@@ -122,3 +122,19 @@ five chat adapters behind one `Backend` trait (openai-compatible, anthropic, gem
 ## the ui
 
 `ui/app` is plain es modules and webgl2, no build step: the point cloud with stipple shading and fog, panels built from a layout config, an editor, chat, review, threads, the time panel and the evaluation panel. `ui/theme` provides design tokens, themes and the settings panel ([theming.md](theming.md)). the release binary embeds both; `?mock=1` runs the ui against fixtures with no server.
+
+## the desktop shell
+
+`crates/anamnesis-desktop` is the app people install: a [tauri 2](https://tauri.app) program that draws one native window with the system webview (webview2 on windows, wkwebview on macos, webkitgtk on linux), with no console and no browser. the server runs inside the same process: the shell calls `anamnesis_server::server::run`, which opens the brain, binds `127.0.0.1:7368` (or a free port when that one is taken), starts the background jobs and serves the api, the embedded ui and mcp at `/mcp`. the window opens on a small splash page from the shell's own assets, dark from the first frame, and loads the ui from the server as soon as it listens.
+
+why a loopback server rather than a tauri custom protocol: the ui already speaks http to the same origin (fetch, server-sent events for chat), mcp over http must stay reachable for harnesses while the app is open, and the browser path (`anamnesis serve --open`) keeps working with the very same code. a custom protocol would need a second transport for every endpoint, streaming included, and would still leave the port open for mcp. the server keeps its dns-rebinding guard (loopback host names only) and sends a strict content security policy with every page (scripts, styles, fonts and requests from itself only; no remote scripts, no eval).
+
+the shell is deliberately thin:
+
+- **no ipc.** the page served from `127.0.0.1` gets no tauri api; everything native (menu, folder picker, dialogs) happens in rust. file → import folder… adds the picked folder (or obsidian vault) as a source, as the ui's own "add a source" does.
+- **navigation.** only the splash page and the server's own origin load in the window; `http(s)` and `mailto` links, `target=_blank` and `window.open` go to the system browser (tauri-plugin-opener); other schemes are refused.
+- **one instance.** a second launch focuses the running window (tauri-plugin-single-instance); the window remembers its size and position (tauri-plugin-window-state).
+- **clean exit.** closing the window cancels the jobs, stops the http server, waits briefly for a jobs pass in flight and checkpoints the sqlite write-ahead log.
+- **logs** go to `<brain>/logs/anamnesis-desktop.log`, since there is no console.
+
+the `anamnesis` binary stays the headless entry point: `anamnesis mcp` for stdio harnesses, `anamnesis serve` for servers, and the other commands. every app bundle installs it beside the app.
