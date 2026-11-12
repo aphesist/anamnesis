@@ -15,7 +15,7 @@
 const TOKENS = {
   // brain.dot, brain.dot-dim, brain.dot-hot, region-label, accent, bg
   dark: { dot: '#9ecaef', dim: '#385e83', hot: '#e1faff', label: '#8ea9bb', accent: '#d43031', bg: '#050404', ink: 1 },
-  light: { dot: '#1b3550', dim: '#5f7890', hot: '#0b4c92', label: '#495766', accent: '#ab0d19', bg: '#f1eded', ink: 1.7 },
+  light: { dot: '#1b3550', dim: '#5f7890', hot: '#0b4c92', label: '#495766', accent: '#ab0d19', bg: '#f1eded', ink: 2 },
 };
 const FONT = 'var(--font-display, "Aphesis Script", "Special Elite", "Courier New", monospace)';
 const FOV = 0.72, FPS = 60, TURN = 0.075; // radians per second: one turn in about 84 s

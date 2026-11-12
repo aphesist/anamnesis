@@ -2,8 +2,8 @@
    window.Aphesis) draws the ground and the marks, set up as the site's shell sets them up, kept quiet:
    1. the fog: one Aphesis.Fog on a fixed canvas, low, calm behind the words on screen and around the brain, and
       drifting out of the column once the hero has gone by
-   2. the header: the lab kit's receding header (vendor/lab-kit-v1), with anamnesis's icon beside the name and the
-      eye (the theme switch, a wave from it). The tab's icon is the eye too, as on aphes.ist
+   2. the header: the φ, anamnesis's icon and name, the parts, the eye (the theme switch, a wave from it); a light
+      veil under it once the page has moved. The tab shows anamnesis's own icon (favicon.svg)
    3. the cursor, the tooltips, the letter waves, the brushed strokes under the actions
    4. the brain, loaded after the first paint (hero/brain.js); the still image inside #brain stays until its first
       frame is on screen, and for good if WebGL2 is missing
@@ -17,10 +17,14 @@
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const phoneQ = matchMedia('(max-width: 720px)');
 
+  /* the veil under the header, once the page has moved */
+  const scrolled = () => ROOT.classList.toggle('scrolled', scrollY > 8);
+  addEventListener('scroll', scrolled, { passive: true }); scrolled();
+
   if (!A) return; /* without the runtime the page is plain words and pictures, which is enough */
 
   /* ---------- the fog: low, so the brain and the words lead ---------- */
-  const HERO = $('.hero'), BRAIN = $('#brain');
+  const HERO = $('.hero'), BRAIN = $('#brain'), TOP = $('.top');
   const look = () => (phoneQ.matches ? { density: 0.22, light: 0.1 } : { density: 0.28, light: 0.14 });
   const fog = A.Fog($('#fog'), Object.assign({ clear: 0 }, look()));
   /* a still fog: let it draw once (and again when something changes), then hold */
@@ -31,20 +35,21 @@
   phoneQ.addEventListener('change', () => { fog.set(look()); hold(400); });
 
   /* calm zones: the brain, and the words on screen (twelve at most, the fog's limit) */
-  const ZONED = '.title, .hero-text > .lede, .question, .hero .acts, .hero-meta, .head, .does > li, .os > li, .sec > .note, .sec > .lede, .sec > .acts, .plain li, .code, .sub, #pictures > .small, .shot figcaption, .foot-cols, .made, .notices';
+  const ZONED = '.title, .hero-text > .lede, .question, .hero .acts, .hero-meta, .head, .does > li, .os > li, .sec > .note, .sec > .lede, .sec > .acts, .plain li, .code, .sub, #pictures > .small, .shot figcaption, .foot-links, .made, .notices';
   const zoned = $$(ZONED);
   let zoneKey = '', zq = 0;
   function zones() {
     zq = 0;
     const H = innerHeight, list = [];
     const br = BRAIN.getBoundingClientRect();
+    list.push({ el: TOP, pad: 8 }); /* the header's words stay clear of the fog */
     if (br.bottom > 0 && br.top < H) list.push({ el: BRAIN, pad: 0 });
     for (const el of zoned) {
       const r = el.getBoundingClientRect();
       if (r.bottom > -40 && r.top < H + 40 && r.width) list.push({ el, pad: 16 });
       if (list.length === 12) break;
     }
-    const key = list.map((z) => (z.el === BRAIN ? 'b' : zoned.indexOf(z.el))).join(',');
+    const key = list.map((z) => (z.el === BRAIN ? 'b' : z.el === TOP ? 't' : zoned.indexOf(z.el))).join(',');
     if (key !== zoneKey) { zoneKey = key; fog.zones(list); }
     fog.set({ clear: HERO.getBoundingClientRect().bottom < H * 0.45 ? 1 : 0 });
     hold(250);
@@ -54,10 +59,12 @@
   addEventListener('resize', queueZones);
   zones();
 
-  /* ---------- the header (the lab kit's: the φ, the name, the parts, the eye) ----------
+  /* ---------- the header: the φ (the live seal, to aphes.ist), the name, the parts, the eye ---------- */
+  A.seal($('.brand-phi'), { boil: !still });
+  /*
      the project's own icon beside its name: six small linked rings, three lit with stipple, as if being recalled.
      Hovering the name stirs its stipple (.aph-icon); pressing gathers it */
-  const project = $('.lab-project');
+  const project = $('.project');
   $('.project-icon').innerHTML = A.icon('anamnesis', 0);
   project.addEventListener('pointerdown', () => project.classList.add('aph-gather'));
   project.addEventListener('pointerleave', () => project.classList.remove('aph-gather'));
@@ -91,21 +98,11 @@
     A.themeShift(apply, { origin: [r.left + r.width / 2, r.top + r.height / 2] });
   });
 
-  /* the tab's icon: the eye, open while the page is seen, closed while it is hidden or the window is left */
-  if (typeof favicons === 'function') {
-    const FAV = favicons(A, { light: '#ab0d19', dark: '#d43031' }); /* rubedo, light and dark (tokens.json) */
-    const link = $('#favicon');
-    const fav = (seen) => { const h = seen ? FAV.open : FAV.closed; if (link.getAttribute('href') !== h) link.setAttribute('href', h); };
-    fav(!document.hidden && document.hasFocus());
-    document.addEventListener('visibilitychange', () => fav(!document.hidden));
-    addEventListener('blur', () => fav(false));
-    addEventListener('focus', () => fav(!document.hidden));
-  }
 
   /* ---------- the hand: cursor, tooltips, letters, the strokes under the actions ---------- */
   A.cursor();
   A.tooltip();
-  $$('.act-w, .lab-nav a').forEach((el) => A.letters(el)); /* the actions and the header's parts */
+  $$('.act-w, .top-nav a').forEach((el) => A.letters(el)); /* the actions and the header's parts */
   let seed = 70;
   const acts = $$('.act').map((a) => ({ a, seed: seed += 3, w: 0 }));
   function strokes() {

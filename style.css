@@ -27,23 +27,42 @@ code { font-size: .94em; color: var(--ink); }
 
 #fog { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none; opacity: .62; } /* a quieter ground than the site's: the brain leads */
 
-/* ---------------- the header: the lab kit's (vendor/lab-kit-v1, 1.1) ----------------
-   .lab-header--sticky: what scrolls under it fades into a veil of the ground, opaque over the header and easing out
-   over --lab-band below it; the empty .lab-footer--sticky does the same at the bottom of the screen. The kit's blur
-   (.lab-header--blur) stands down over the stipple ground (.lab-fog-on on the root), as the kit asks.
-   Here only what the kit leaves to the page: the project's icon beside its name, the eye in the controls. */
-.lab-page { z-index: auto; max-width: 1280px; } /* no stacking context: .aph-ink keeps blending with the fog in the eye's wave */
-.lab-header { position: sticky; }
-/* the page is centred, so the veil can reach from screen edge to screen edge: on a wide screen the fog beside the
-   column fades with everything else instead of stopping at the gutter */
-.lab-header--sticky::before, .lab-footer--sticky::before, .lab-header--blur::after, .lab-footer--blur::after { left: calc(50% - 50vw); right: calc(50% - 50vw); }
-.lab-project { display: inline-flex; align-items: center; gap: var(--space-2); }
-.project-icon { display: block; width: 28px; height: 28px; color: var(--accent); }
+/* ---------------- the header and the bottom band ----------------
+   fixed and slim. At rest the header lies on the ground with nothing behind it; once the page moves (.scrolled), a
+   light veil of the ground, softly blurred and fading out at its lower edge, lets what scrolls beneath recede. The
+   bottom band does the same at the foot of the screen. Never a solid bar. */
+.lab-page { z-index: auto; max-width: 1280px; } /* the column; no stacking context, so .aph-ink blends with the fog in the eye's wave */
+.top {
+  position: fixed; z-index: var(--z-nav); left: 0; right: 0; top: 0;
+  display: flex; align-items: center; gap: var(--space-4);
+  /* the same column as the page's (1280px) */
+  padding: calc(var(--space-3) + env(safe-area-inset-top, 0px)) max(var(--space-4), env(safe-area-inset-right, 0px), calc((100% - 1280px) / 2 + var(--space-4))) var(--space-3) max(var(--space-4), env(safe-area-inset-left, 0px), calc((100% - 1280px) / 2 + var(--space-4)));
+}
+.top::before, .veil-bottom {
+  content: ""; position: absolute; inset: 0 0 calc(-1 * var(--space-5)) 0; pointer-events: none; z-index: -1;
+  background: color-mix(in oklab, var(--bg) 80%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent); mask-image: linear-gradient(to bottom, #000 45%, transparent);
+  opacity: 0; transition: opacity var(--duration-slow) var(--easing-settle);
+}
+.scrolled .top::before { opacity: 1; }
+.veil-bottom {
+  position: fixed; z-index: var(--z-nav); top: auto; bottom: 0; height: calc(var(--space-6) + env(safe-area-inset-bottom, 0px)); opacity: 1;
+  -webkit-mask-image: linear-gradient(to top, #000 30%, transparent); mask-image: linear-gradient(to top, #000 30%, transparent);
+}
+.brand { display: block; flex: none; width: calc(32px * 385 / 533); height: 32px; color: var(--seal); text-decoration: none; } /* the φ's own proportions */
+.brand-phi { display: block; width: 100%; height: 100%; }
+.project { display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; color: var(--ink);
+  font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; }
+.project-icon { display: block; width: 24px; height: 24px; color: var(--accent); }
 .project-icon svg { display: block; width: 100%; height: 100%; }
-.lab-nav { margin-left: var(--space-4); }
-.lab-nav a:hover, .lab-nav a:focus-visible { color: var(--accent-text); }
+.top-nav { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); margin-left: auto; }
+.top-nav a { padding: var(--space-2) 0; text-decoration: none; color: var(--ink-soft); font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1; }
+.top-nav a:hover, .top-nav a:focus-visible, .project:hover, .project:focus-visible { color: var(--accent-text); }
+.top-nav .ltr, .act .ltr { display: inline-block; transition: transform var(--duration-slow) var(--easing-settle); transition-delay: calc(var(--i) * 22ms); }
+.top-nav a:hover .ltr, .top-nav a:focus-visible .ltr, .act:hover .ltr, .act:focus-visible .ltr { transform: translateY(-2px); }
 #eye { flex: none; color: var(--accent); background: none; border: 1px solid transparent; padding: 7px; margin: -7px -7px -7px 0; border-radius: var(--radius-none); cursor: pointer; } /* a 44px target */
-#eye svg { width: 28px; height: 28px; display: block; overflow: visible; }
+#eye svg { width: 26px; height: 26px; display: block; overflow: visible; }
 #eye svg path { fill: currentColor; transition: opacity .5s ease, transform var(--duration-slow) var(--easing-settle); transform-origin: 12px 12px; }
 #eye:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 
@@ -53,13 +72,14 @@ main { position: relative; display: block; }
 
 /* ---------------- the hero: the title, the words, the brain ---------------- */
 .hero {
-  position: relative; min-height: calc(100vh - var(--lab-header-h)); min-height: calc(100svh - var(--lab-header-h)); display: grid; align-content: center;
-  padding: var(--space-5) var(--space-4) var(--space-7);
+  position: relative; min-height: 100vh; min-height: 100svh; display: grid; align-content: center;
+  padding: var(--space-7) var(--space-4);
 }
-/* the brain: the stage on the right of the hero, its canvas drawn over the fog with a transparent ground */
-.brain { position: absolute; top: 0; right: 0; bottom: 0; width: 60%; pointer-events: none; }
+/* the brain: large, from behind the title out to the right edge of the screen, its canvas drawn over the fog with a
+   transparent ground; the words lie over it with their halo */
+.brain { position: absolute; top: 0; bottom: 0; left: 26%; right: min(0px, calc(50% - 50vw)); pointer-events: none; }
 .brain picture, .brain img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.brain img { object-fit: contain; object-position: 50% 50%; }
+.brain img { object-fit: cover; object-position: 50% 50%; } /* the brain fits the hero's height: large */
 .hero-text { position: relative; max-width: 540px; }
 /* the title, as a section title on aphes.ist: Aphesis Script leaning at -12 */
 .title { font: var(--type-title-weight) clamp(56px, 8.5vw, 104px)/var(--type-title-line) var(--font-display);
@@ -133,16 +153,19 @@ h3.aph-label { color: var(--ink); line-height: 1.4; margin-bottom: var(--space-2
 .pair > .sec { width: auto; margin: 0; }
 #status .acts { margin-top: var(--space-5); }
 
-/* ---------------- the foot ---------------- */
-.foot { position: relative; width: min(100%, 760px); margin: 0 auto;
-  padding: var(--space-7) 0 0; }
-.foot-cols { display: flex; flex-wrap: wrap; gap: var(--space-5) var(--space-7); }
-.foot-h { font-size: var(--type-gloss-title-size); letter-spacing: var(--type-gloss-title-tracking); line-height: 1.2; font-weight: 400; margin: 0 0 var(--space-3); padding-right: .2em; }
-.foot ul li { font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 2.2; }
-.foot ul a { text-decoration: none; }
-.made { margin-top: var(--space-6); }
-.made a { font: 400 1.35em/1 var(--font-display); font-variation-settings: "wght" 400, "slnt" -12; color: var(--seal); text-decoration: none; padding-right: .2em; }
-.notices { margin-top: var(--space-4); max-width: 80ch; }
+/* ---------------- the foot ----------------
+   small and quiet: a dotted line of cells, two lines of links each led by its gloss, the signature, one line of
+   notice. It ends well above the bottom band, so nothing of it is ever veiled */
+.foot { position: relative; width: min(100%, 1040px); margin: var(--space-7) auto 0; padding: var(--space-5) 0 calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
+  background: repeating-linear-gradient(to right, var(--ink-soft) 0 2px, transparent 2px 6px) left top / 100% 2px no-repeat; } /* the dotted ray, decorative */
+.foot-links p { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-4); }
+.foot-links p + p { margin-top: var(--space-2); }
+.foot-links a { padding: var(--space-1) 0; text-decoration: none; color: var(--ink); font-size: var(--type-label-size); letter-spacing: var(--type-label-tracking); line-height: 1.4; }
+.foot-links a:hover, .foot-links a:focus-visible { color: var(--accent-text); }
+.foot-h { min-width: 5.5em; font-size: var(--type-gloss-title-size); letter-spacing: var(--type-gloss-title-tracking); line-height: 1.4; padding-right: .2em; }
+.made { margin-top: var(--space-5); }
+.made a { font: 400 1.6em/1 var(--font-display); font-variation-settings: "wght" 400, "slnt" -12; letter-spacing: 0; color: var(--seal); text-decoration: none; padding-right: .2em; }
+.notices { margin-top: var(--space-1); max-width: 70ch; }
 
 /* ---------------- narrower screens ---------------- */
 @media (max-width: 960px) {
@@ -154,10 +177,10 @@ h3.aph-label { color: var(--ink); line-height: 1.4; margin-bottom: var(--space-2
 }
 /* a phone: the title, then the brain the whole width, then the words */
 @media (max-width: 720px) {
-  .hero { display: flex; flex-direction: column; min-height: 0; padding: var(--space-4) 0 0; }
+  .hero { display: flex; flex-direction: column; min-height: 0; padding: var(--space-7) 0 0; }
   .hero-text { display: contents; }
   .title { order: 0; font-size: clamp(52px, 16vw, 76px); margin-bottom: 0; }
-  .brain { position: relative; order: 1; width: calc(100% + 2 * var(--space-4)); margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-4)) calc(-1 * var(--space-4)); height: auto; aspect-ratio: 1 / .92; }
+  .brain { position: relative; order: 1; left: auto; right: auto; width: calc(100% + 2 * var(--space-4)); margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-4)) calc(-1 * var(--space-4)); height: auto; aspect-ratio: 1 / .92; }
   .brain img { object-fit: cover; }
   .hero-text > .lede { order: 2; }
   .hero-text > .question { order: 3; }
@@ -174,10 +197,16 @@ h3.aph-label { color: var(--ink); line-height: 1.4; margin-bottom: var(--space-2
   .models dd { margin-bottom: var(--space-2); }
   .code { grid-template-columns: minmax(0, 1fr); }
   .code pre { font-size: 13px; }
+  .foot-h { flex-basis: 100%; }
 }
 
 /* the kit puts the nav on its own sideways line on a phone */
-@media (max-width: 560px) { .lab-nav { margin-left: 0; } }
+@media (max-width: 720px) {
+  .top { gap: var(--space-3); }
+  .top-nav { gap: var(--space-1) var(--space-4); }
+  .top-nav .wide { display: none; }
+}
+@media (max-width: 400px) { .project .nm { display: none; } } /* the icon alone names it on the smallest phones */
 
 /* a reader who asks for less motion gets a still page: the fog and the brain hold still (main.js), nothing here moves */
 @media (prefers-reduced-motion: reduce) {

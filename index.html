@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="lab-fog-on">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -24,24 +24,20 @@
 <meta name="twitter:image" content="https://anamnesis.aphes.ist/og.png">
 <meta name="twitter:image:alt" content="the word anamnesis beside the demo brain, drawn as blue stipple">
 
-<!-- the tab's icon is aphes.ist's: the eye, open while the page is seen and closed while it is left (main.js swaps
-     them); the closed Φ for everything that cannot take an svg -->
-<link rel="icon" id="favicon" type="image/svg+xml" href="favicon.svg">
+<!-- the tab's icon is anamnesis's own: six small linked rings, three lit as if being recalled (site/tools/make_icons.mjs) -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" href="favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="site.webmanifest">
 
 <link rel="preload" href="vendor/lab-kit-v1/fonts/AphesisScript-VF.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="vendor/lab-kit-v1/fonts/SpecialElite-latin.woff2" as="font" type="font/woff2" crossorigin>
-<!-- the aphes.ist tokens and runtime (vendor/aphesis), and the lab kit 1.1 (vendor/lab-kit-v1) for the faces and the
-     receding header; style.css last -->
+<!-- the aphes.ist tokens and runtime (vendor/aphesis), and the lab kit 1.1 (vendor/lab-kit-v1) for the faces; style.css last -->
 <link rel="stylesheet" href="vendor/aphesis/tokens.css">
 <link rel="stylesheet" href="vendor/lab-kit-v1/lab.css">
 <link rel="stylesheet" href="vendor/aphesis/bundle.css">
 <link rel="stylesheet" href="style.css">
 <script src="vendor/aphesis/bundle.js" defer></script>
-<script src="vendor/aphesis/favicon.js" defer></script>
-<script src="vendor/lab-kit-v1/lab.js" defer></script>
 <script src="main.js" defer></script>
 </head>
 <body>
@@ -49,22 +45,21 @@
 <a class="skip" href="#main">skip to the content</a>
 
 <div class="lab-page">
-<!-- the lab kit's receding header: sticky, the first child of the page, so its veil spans the column and the gutters.
-     What scrolls under it fades into a veil of the ground -->
-<header class="lab-header lab-header--sticky lab-header--blur">
-  <a class="lab-mark" href="https://aphes.ist/" aria-label="aphes.ist" data-tip="aφesis" data-cursor=".9"></a>
-  <a class="lab-project aph-icon" href="#top" aria-label="anamnesis, to the top"><span class="project-icon aph-red" aria-hidden="true"></span><span class="nm">anamnesis</span></a>
-  <nav class="lab-nav" aria-label="on this page">
-    <a href="#does">what it does</a>
-    <a href="#pictures">the app</a>
+<!-- the header: the φ (to aphes.ist), anamnesis's icon and name, the page's parts, the eye. Fixed and slim: at rest
+     it lies on the ground; once the page moves, what scrolls under it recedes behind a light veil of the ground -->
+<header class="top">
+  <a class="brand" href="https://aphes.ist/" aria-label="aphes.ist" data-tip="aφesis" data-cursor=".9"><span class="brand-phi aph-red" aria-hidden="true"></span></a>
+  <a class="project aph-icon" href="#top" aria-label="anamnesis, to the top"><span class="project-icon aph-red" aria-hidden="true"></span><span class="nm">anamnesis</span></a>
+  <nav class="top-nav" aria-label="on this page">
+    <a class="wide" href="#does">what it does</a>
+    <a class="wide" href="#pictures">the app</a>
     <a href="#install">install</a>
-    <a href="#privacy">privacy</a>
+    <a class="wide" href="#privacy">privacy</a>
     <a href="https://github.com/aphesist/anamnesis">github</a>
   </nav>
-  <div class="lab-controls">
-    <button id="eye" class="aph-mark aph-red" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="iopen"/><path id="iclosed"/><path id="iris"/></svg></button>
-  </div>
+  <button id="eye" class="aph-mark aph-red" type="button" aria-label="switch between light and dark" data-tip="open · close the eye" data-cursor=".55"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="iopen"/><path id="iclosed"/><path id="iris"/></svg></button>
 </header>
+<div class="veil-bottom" aria-hidden="true"></div>
 
 <main id="main">
 
@@ -211,34 +206,13 @@ cargo run --release -p anamnesis-desktop</code></pre>
 </main>
 
 <footer class="foot">
-  <div class="foot-cols">
-    <nav aria-label="documentation">
-      <h2 class="aph-gloss foot-h" lang="la">libri</h2>
-      <ul>
-        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/install.md">install</a></li>
-        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/using.md">using</a></li>
-        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/models.md">models</a></li>
-        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/mcp.md">mcp</a></li>
-        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/evaluation.md">evaluation</a></li>
-        <li><a href="https://github.com/aphesist/anamnesis/blob/main/docs/privacy.md">privacy</a></li>
-      </ul>
-    </nav>
-    <nav aria-label="project">
-      <h2 class="aph-gloss foot-h" lang="la">opus</h2>
-      <ul>
-        <li><a href="https://github.com/aphesist/anamnesis">github</a></li>
-        <li><a href="https://github.com/aphesist/anamnesis/releases">releases</a></li>
-        <li><a href="https://github.com/aphesist/anamnesis/blob/main/CONTRIBUTING.md">contributing</a></li>
-        <li><a href="https://github.com/aphesist/anamnesis/blob/main/LICENSE">apache-2.0 licence</a></li>
-        <li><a href="https://github.com/aphesist/anamnesis/issues">issues</a></li>
-      </ul>
-    </nav>
-  </div>
-  <p class="made aph-ink">made by aphesist · part of <a href="https://aphes.ist/">aφesis</a></p>
-  <p class="notices aph-meta">anamnesis is open source under the apache license 2.0. this page is drawn with the aphes.ist design system, which is its owner's and is not covered by that licence (<a href="vendor/aphesis/NOTICE.md">notice</a>): aphesis script, © 2026 aphesist, sil open font license 1.1 (<a href="vendor/lab-kit-v1/fonts/AphesisScript-OFL.txt">licence</a>); special elite, © 2010 astigmatic, apache-2.0 (<a href="vendor/lab-kit-v1/fonts/SpecialElite-LICENSE.txt">licence</a>). the φ and the wordmark are trademarks of aphesist.</p>
+  <nav class="foot-links" aria-label="documentation and project">
+    <p><span class="foot-h aph-gloss" lang="la">libri</span><a href="https://github.com/aphesist/anamnesis/blob/main/docs/install.md">install</a><a href="https://github.com/aphesist/anamnesis/blob/main/docs/using.md">using</a><a href="https://github.com/aphesist/anamnesis/blob/main/docs/models.md">models</a><a href="https://github.com/aphesist/anamnesis/blob/main/docs/mcp.md">mcp</a><a href="https://github.com/aphesist/anamnesis/blob/main/docs/evaluation.md">evaluation</a><a href="https://github.com/aphesist/anamnesis/blob/main/docs/privacy.md">privacy</a></p>
+    <p><span class="foot-h aph-gloss" lang="la">opus</span><a href="https://github.com/aphesist/anamnesis">github</a><a href="https://github.com/aphesist/anamnesis/releases">releases</a><a href="https://github.com/aphesist/anamnesis/blob/main/CONTRIBUTING.md">contributing</a><a href="https://github.com/aphesist/anamnesis/issues">issues</a><a href="https://github.com/aphesist/anamnesis/blob/main/LICENSE">apache-2.0</a></p>
+  </nav>
+  <p class="made aph-meta">made by aphesist · part of <a href="https://aphes.ist/">aφesis</a></p>
+  <p class="notices aph-meta">the design system, its fonts, the φ and the icon are aphesist's and are not covered by apache-2.0 (<a href="vendor/aphesis/NOTICE.md">notice</a>).</p>
 </footer>
-<!-- the bottom band: an empty sticky footer, so what scrolls also recedes at the bottom of the screen -->
-<div class="lab-footer--sticky" aria-hidden="true"></div>
 </div>
 
 </body>
