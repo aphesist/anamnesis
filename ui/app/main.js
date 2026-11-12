@@ -10,7 +10,7 @@ if (params.get('mock') === '1') {
   const { installMock } = await import('./mock/mock.js');
   installMock();
 }
-// The theming package's runtime (tokens, fonts, cursor, first-launch, settings).
+// The theming package's runtime (tokens, fonts, first-launch, settings).
 // Optional: without it the app runs on fallback-tokens.css.
 let themeApi = null;
 try {
@@ -19,7 +19,6 @@ try {
   const fb = document.getElementById('fallback-tokens');
   if (fb) fb.disabled = true;
   useThemeApi(themeApi);
-  try { (await import('../theme/cursor.js')).startCursor(); } catch (e) { console.warn('cursor', e); }
 } catch (e) {
   console.warn('ui/theme not loaded, using fallback tokens', e);
   themeApi = null;

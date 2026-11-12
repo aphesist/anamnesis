@@ -1,6 +1,6 @@
 # theming
 
-everything you see is themeable: colours, fonts, the logo, motion, the cursor, and where each panel sits. the ui reads only a small set of css custom properties ("tokens"), so a theme is a set of values, not a fork of the ui.
+everything you see is themeable: colours, fonts, the logo, motion, and where each panel sits. the ui reads only a small set of css custom properties ("tokens"), so a theme is a set of values, not a fork of the ui.
 
 the full reference (the token list, the `theme.js` api, the settings panel, the layout schema, how to build a theme) is **[ui/theme/README.md](../ui/theme/README.md)**. this page is the short version.
 
@@ -13,7 +13,7 @@ the full reference (the token list, the `theme.js` api, the settings panel, the 
 | theme | the theme (`aphesis`, `paper`, `mono`, or one you imported) and the mode: system, light or dark |
 | colour | any colour role or brain colour, for one mode or both |
 | type | a font per role (`display`, `text`, `data`), uploaded files included, and the overall type size |
-| motion | full or reduced motion, the custom cursor disc, hidden or system scrollbars, and "ask again" for the first-launch question |
+| motion | full or reduced motion, hidden or system scrollbars, and "ask again" for the first-launch question |
 | mark | upload your own mark and wordmark (svg or png) |
 | layout | show or hide panels, which start open, which side they sit on, their order, presets (`default`, `minimal`) |
 | keep | export your look as a json file, import one, reset |
@@ -47,7 +47,7 @@ panels are placed by a layout object (`ui/theme/layouts/default.json`, schema in
 
 ## the aphesis theme and its assets
 
-the default theme reproduces the aphes.ist design system: a dark oklch neutral scale, rubedo as the single accent, lowercase, brush strokes and stipple, a difference-blend cursor disc and hidden scrollbars, fibonacci spacing and one settling easing.
+the default theme reproduces the aphes.ist design system: a dark oklch neutral scale, rubedo as the single accent, lowercase, brush strokes and stipple and hidden scrollbars, fibonacci spacing and one settling easing. the cursor is always the system's: anamnesis is an app, so it does not imitate the website's cursor disc.
 
 its identity assets ship in `ui/theme/themes/aphesis/assets/` under their own terms, **not** the apache licence:
 

@@ -10,7 +10,7 @@
 // The ui reads only the css custom properties listed in docs/contracts.md. This module sets them by loading
 // dist/<id>.css (generated from the design tokens), then layering user choices on top in one <style>:
 // token overrides, fonts, type scale and logo. The html element carries the switches:
-//   data-theme="light|dark"   data-motion="full|reduced"   data-cursor="custom|system"   data-scrollbars="hidden|system"
+//   data-theme="light|dark"   data-motion="full|reduced"   data-scrollbars="hidden|system"
 //
 // Choices persist in localStorage (via storage.js) and, when the anamnesis server is there, in
 // PUT /api/settings under the `theme` key. Fonts and logos the user uploads live in IndexedDB.
@@ -31,8 +31,7 @@ const DEFAULT_STATE = {
   mode: 'theme',
   modeV: 2,
   motion: null, // null until the person chooses: then 'full' | 'reduced'
-  cursor: null, // null follows the theme's behaviours
-  scrollbars: null,
+  scrollbars: null, // null follows the theme's behaviours
   typeScale: null,
   overrides: { all: {}, light: {}, dark: {} },
   fonts: {}, // role -> { family, stack?, source: 'builtin' | 'upload' | 'url', key?, url?, name? }
@@ -63,6 +62,7 @@ export async function init(opts = {}) {
   options = { ...options, ...opts };
   const stored = kv.get('theme');
   state = { ...structuredCloneSafe(DEFAULT_STATE), ...(stored ?? {}) };
+  delete state.cursor; // a setting from older versions: the system cursor is always used now
   if (!stored && opts.defaultTheme) state.id = opts.defaultTheme;
   if (!stored && useServer()) {
     const remote = await serverGet();
@@ -80,7 +80,6 @@ export function getState() {
     ...structuredCloneSafe(state),
     resolvedMode: resolvedMode(),
     resolvedMotion: resolvedMotion(),
-    resolvedCursor: resolvedBehaviour('cursor'),
     resolvedScrollbars: resolvedBehaviour('scrollbars'),
     motionChosen: state.motion != null,
   };
@@ -156,13 +155,6 @@ export function setMotion(motion) {
   applySwitches();
   save();
   emit('motion');
-}
-
-export function setCursor(cursor) {
-  state.cursor = cursor === 'custom' || cursor === 'system' ? cursor : null;
-  applySwitches();
-  save();
-  emit('cursor');
 }
 
 export function setScrollbars(v) {
@@ -298,7 +290,6 @@ export async function exportTheme() {
     base: state.id,
     mode: state.mode,
     motion: state.motion,
-    cursor: state.cursor,
     scrollbars: state.scrollbars,
     typeScale: state.typeScale,
     overrides: state.overrides,
@@ -337,7 +328,6 @@ export async function importTheme(data) {
   if (data.theme?.tokens) id = await registerTheme(data.theme);
   state.mode = MODES.includes(data.mode) ? data.mode : state.mode;
   if (data.motion !== undefined) state.motion = data.motion === 'reduced' || data.motion === 'full' ? data.motion : state.motion;
-  if (data.cursor !== undefined) state.cursor = data.cursor ?? null;
   if (data.scrollbars !== undefined) state.scrollbars = data.scrollbars ?? null;
   state.typeScale = data.typeScale ?? null;
   state.overrides = { all: {}, light: {}, dark: {}, ...(data.overrides ?? {}) };
@@ -430,7 +420,7 @@ async function loadIndex() {
   try {
     index = await (await fetch(url('dist/index.json'))).json();
   } catch {
-    index = { themes: [{ id: 'aphesis', name: 'aphes.ist', css: 'aphesis.css', defaultMode: 'dark', behaviours: { cursor: 'custom', scrollbars: 'hidden' } }] };
+    index = { themes: [{ id: 'aphesis', name: 'aphes.ist', css: 'aphesis.css', defaultMode: 'dark', behaviours: { scrollbars: 'hidden' } }] };
   }
   return index;
 }
@@ -627,7 +617,6 @@ function resolvedMotion() {
 function resolvedBehaviour(name) {
   if (state[name]) return state[name];
   const b = current?.behaviours?.[name];
-  if (name === 'cursor') return b === 'custom' ? 'custom' : 'system';
   return b === 'hidden' ? 'hidden' : 'system';
 }
 
@@ -636,7 +625,6 @@ function applySwitches() {
   if (!r) return;
   r.setAttribute('data-theme', resolvedMode());
   r.setAttribute('data-motion', resolvedMotion());
-  r.setAttribute('data-cursor', resolvedBehaviour('cursor'));
   r.setAttribute('data-scrollbars', resolvedBehaviour('scrollbars'));
   r.setAttribute('data-theme-id', state.id);
 }
@@ -729,7 +717,7 @@ const isPlainObject = (v) => v != null && typeof v === 'object' && !Array.isArra
 
 function sanitizeRemote(t) {
   const out = {};
-  for (const k of ['id', 'mode', 'modeV', 'motion', 'cursor', 'scrollbars', 'typeScale', 'overrides', 'fonts', 'logo']) if (k in t) out[k] = t[k];
+  for (const k of ['id', 'mode', 'modeV', 'motion', 'scrollbars', 'typeScale', 'overrides', 'fonts', 'logo']) if (k in t) out[k] = t[k];
   return out;
 }
 
