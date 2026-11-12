@@ -5,7 +5,7 @@
 //! - [`Manifest`]: what a connector is, runs as, accepts and touches — see [`manifest`].
 //! - [`builtin_connectors`] / [`builtin`]: the connectors compiled in;
 //!   [`load_plugin`]: an `exec` plugin (protocol in `PLUGINS.md`).
-//! - [`RESERVED_CONNECTOR_IDS`]: "editor", "chat", "mcp" — the server writes those items itself.
+//! - [`RESERVED_CONNECTOR_IDS`]: "editor", "chat", "mcp", "distil", "inbox" — the server writes those items itself.
 
 pub mod connector;
 pub mod connectors;

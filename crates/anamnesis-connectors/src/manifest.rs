@@ -20,7 +20,7 @@ pub const API_VERSION: u32 = 1;
 
 /// Connector ids the server uses for items it writes itself (no connector behind them).
 /// No built-in connector or plugin may claim these.
-pub const RESERVED_CONNECTOR_IDS: &[&str] = &["editor", "chat", "mcp"];
+pub const RESERVED_CONNECTOR_IDS: &[&str] = &["editor", "chat", "mcp", "distil", "inbox"];
 
 /// File name a plugin's manifest is expected to have.
 pub const PLUGIN_MANIFEST_FILE: &str = "anamnesis-plugin.json";
