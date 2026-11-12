@@ -1,9 +1,15 @@
 name: release
 
-# Builds the `anamnesis` binary (ui embedded) for windows, macos and linux when a `v*`
-# tag is pushed, plus the windows installers (nsis setup.exe, msi, portable zip; see
-# packaging/windows/), and attaches them to a github release for that tag.
-# `workflow_dispatch` builds the same archives as workflow artifacts without releasing.
+# A `v*` tag builds and attaches to a github release:
+#   - the desktop app (crates/anamnesis-desktop, tauri 2), built natively with the tauri
+#     bundler: windows nsis setup.exe (per user) + msi, macos .dmg (arm64 and x86_64),
+#     linux .deb + .AppImage. each bundle also installs the `anamnesis` command line
+#     beside the app (as a tauri sidecar), for mcp clients and headless use;
+#   - the `anamnesis` command line alone, as archives for every platform.
+# `workflow_dispatch` builds the same files as workflow artifacts without releasing.
+#
+# packaging/windows/build.sh (the mingw cross-build with a per-user msi and a portable
+# zip) stays for local and offline builds; the native windows build replaces it here.
 
 on:
   push:
@@ -19,7 +25,7 @@ env:
 
 jobs:
   build:
-    name: build (${{ matrix.name }})
+    name: cli (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -85,37 +91,102 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  windows-installers:
-    # the nsis installer, the msi and the portable zip, cross-built on linux with mingw-w64
-    # by packaging/windows/build.sh (the same script as a local build); onnx runtime is
-    # microsoft's official onnxruntime.dll, loaded at run time from next to the exe.
-    name: windows installers
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-24.04
+  desktop:
+    name: desktop (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis,msi
+            cli_features: ""
+            desktop_features: ""
+          - name: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+            cli_features: ""
+            desktop_features: ""
+          - name: macos-x86_64
+            # cross-built on the arm runner, without on-device embeddings (onnx runtime
+            # ships no prebuilt library for intel macs; see docs/install.md)
+            os: macos-latest
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+            cli_features: --no-default-features --features embed-ui
+            desktop_features: --no-default-features
+          - name: linux-x86_64
+            # the oldest supported runner, for an older glibc baseline
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+            cli_features: ""
+            desktop_features: ""
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-gnu
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: release-x86_64-pc-windows-gnu
-      - name: install the cross toolchain and packagers
+          key: desktop-${{ matrix.target }}
+      - name: linux libraries (webkitgtk, appindicator, rsvg)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends mingw-w64 nsis wixl msitools zip unzip
-      - name: build and package
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf file
+      - name: tauri cli
         shell: bash
-        run: packaging/windows/build.sh --version "${GITHUB_REF_NAME}" --out dist
+        run: cargo install tauri-cli --version "^2.12" --locked
+      - name: the command line, as the bundles' sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --release --locked -p anamnesis-server --target ${{ matrix.target }} ${{ matrix.cli_features }}
+          ext=""; [[ "${{ runner.os }}" == "Windows" ]] && ext=".exe"
+          mkdir -p crates/anamnesis-desktop/binaries
+          cp "target/${{ matrix.target }}/release/anamnesis$ext" \
+            "crates/anamnesis-desktop/binaries/anamnesis-${{ matrix.target }}$ext"
+      - name: build and bundle the app
+        shell: bash
+        working-directory: crates/anamnesis-desktop
+        run: |
+          cargo tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} \
+            --config tauri.release.conf.json -- --locked ${{ matrix.desktop_features }}
+      - name: collect
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME}"
+          [[ "$version" == v* ]] || version="dev-${GITHUB_SHA::7}"
+          b="target/${{ matrix.target }}/release/bundle"
+          base="anamnesis-${version}-${{ matrix.name }}"
+          mkdir -p dist
+          shopt -s nullglob
+          for f in "$b"/nsis/*-setup.exe; do cp "$f" "dist/$base-setup.exe"; done
+          for f in "$b"/msi/*.msi; do cp "$f" "dist/$base.msi"; done
+          for f in "$b"/dmg/*.dmg; do cp "$f" "dist/$base.dmg"; done
+          for f in "$b"/deb/*.deb; do cp "$f" "dist/$base.deb"; done
+          for f in "$b"/appimage/*.AppImage; do cp "$f" "dist/$base.AppImage"; done
+          cd dist
+          [[ -n "$(ls)" ]] || { echo "no bundles in $b" >&2; exit 1; }
+          for f in *; do
+            if command -v sha256sum > /dev/null; then sha256sum "$f" > "$f.sha256"; else shasum -a 256 "$f" > "$f.sha256"; fi
+          done
+          ls -l
       - uses: actions/upload-artifact@v4
         with:
-          name: anamnesis-windows-installers
+          name: anamnesis-desktop-${{ matrix.name }}
           path: dist/*
           if-no-files-found: error
 
   release:
     name: github release
-    needs: [build, windows-installers]
+    needs: [build, desktop]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
