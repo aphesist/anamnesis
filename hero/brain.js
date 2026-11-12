@@ -185,8 +185,21 @@ export function mount(el, opts = {}) {
     light = isLight();
     const t = TOKENS[light ? 'light' : 'dark'];
     colors = { dot: lin(t.dot), dim: lin(t.dim), hot: lin(t.hot), ink: t.ink };
-    for (const l of labels) { l.el.style.color = `var(--region-label, ${t.label})`; l.el.style.textShadow = `0 0 3px var(--bg, ${t.bg}), 0 0 8px var(--bg, ${t.bg}), 0 0 16px var(--bg, ${t.bg})`; l.dot.style.color = `var(--accent, ${t.accent})`; }
+    // the labels carry their theme's own colours, not the page's live ones, so they turn with the brain
+    for (const l of labels) { l.el.style.color = t.label; l.el.style.textShadow = `0 0 3px ${t.bg}, 0 0 8px ${t.bg}, 0 0 16px ${t.bg}`; l.dot.style.color = t.accent; }
     kick();
+  };
+  // The page's theme changed. Under aphes.ist's theme wave (Aphesis.themeShift: the root carries .aph-shifting and
+  // each .aph-red mark gets --aph-red-at, the moment the wave reaches it) the brain turns when the wave reaches it,
+  // not at the click; otherwise at once.
+  let turnT = 0;
+  const themeChanged = () => {
+    clearTimeout(turnT);
+    win.requestAnimationFrame(() => {
+      const at = parseFloat(getComputedStyle(el).getPropertyValue('--aph-red-at'));
+      if (document.documentElement.classList.contains('aph-shifting') && at >= 0) turnT = setTimeout(applyTheme, at + 250);
+      else applyTheme();
+    });
   };
 
   function compile(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
@@ -411,8 +424,9 @@ export function mount(el, opts = {}) {
     cleanups.push(() => io.disconnect());
     listen(document, 'visibilitychange', () => { visible = !document.hidden; kick(); });
     const mq = win.matchMedia('(prefers-color-scheme: light)');
-    listen(mq, 'change', applyTheme);
-    const mo = new MutationObserver(applyTheme);
+    listen(mq, 'change', themeChanged);
+    const mo = new MutationObserver(themeChanged);
+    cleanups.push(() => clearTimeout(turnT));
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     cleanups.push(() => mo.disconnect());
     if (!still && win.matchMedia('(hover: hover) and (pointer: fine)').matches) {

@@ -23,9 +23,12 @@ code, pre { font-family: var(--font-text); }
 code { font-size: .94em; color: var(--ink); }
 
 /* the halo of ground around words that sit on the fog */
-.hero-text, .sec, .foot { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg); }
+/* the halo of ground around words that sit on the fog. Set on each element, not inherited from a container: each one
+   then reads --bg where it stands, which inside .aph-ink is black while the eye's wave runs, so the halo vanishes
+   into the difference blend instead of smearing in the new theme's colour */
+.hero-text *, .sec *, .foot * { text-shadow: 0 0 4px var(--bg), 0 0 10px var(--bg); }
 
-#fog { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none; opacity: .62; } /* a quieter ground than the site's: the brain leads */
+#fog { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: var(--z-fog); pointer-events: none; } /* opaque: it is the ground itself, so the eye's wave turns it cell by cell (main.js keeps it quiet by density) */
 
 /* ---------------- the header and the bottom band ----------------
    fixed and slim. At rest the header lies on the ground with nothing behind it; once the page moves (.scrolled), a
@@ -46,6 +49,9 @@ code { font-size: .94em; color: var(--ink); }
   opacity: 0; transition: opacity var(--duration-slow) var(--easing-settle);
 }
 .scrolled .top::before { opacity: 1; }
+/* the veils are the ground's colour: while the eye's wave turns the fog cell by cell they would stand out as bands of
+   the new theme, so they step aside until it has passed */
+.aph-shifting .top::before, .aph-shifting .veil-bottom { opacity: 0; transition-duration: var(--duration-quick); }
 .veil-bottom {
   position: fixed; z-index: var(--z-nav); top: auto; bottom: 0; height: calc(var(--space-6) + env(safe-area-inset-bottom, 0px)); opacity: 1;
   -webkit-mask-image: linear-gradient(to top, #000 30%, transparent); mask-image: linear-gradient(to top, #000 30%, transparent);

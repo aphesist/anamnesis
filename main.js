@@ -25,7 +25,7 @@
 
   /* ---------- the fog: low, so the brain and the words lead ---------- */
   const HERO = $('.hero'), BRAIN = $('#brain'), TOP = $('.top');
-  const look = () => (phoneQ.matches ? { density: 0.22, light: 0.1 } : { density: 0.28, light: 0.14 });
+  const look = () => (phoneQ.matches ? { density: 0.15, light: 0.08 } : { density: 0.19, light: 0.1 });
   const fog = A.Fog($('#fog'), Object.assign({ clear: 0 }, look()));
   /* a still fog: let it draw once (and again when something changes), then hold */
   let holdT = 0;
